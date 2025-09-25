@@ -1,0 +1,62 @@
+
+---
+
+## 📄 .gitignore (Python + FastAPI + Docker + Fintech specifics)
+
+```gitignore
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.pdb
+*.egg-info/
+.eggs/
+*.egg
+
+# Virtual environments
+venv/
+env/
+.venv/
+ENV/
+
+# IDE / Editor
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Logs
+*.log
+
+# Databases
+*.sqlite3
+*.db
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Pytest & Coverage
+.cache/
+.pytest_cache/
+htmlcov/
+.coverage
+.coverage.*
+*.cover
+
+# Build / dist
+build/
+dist/
+*.egg-info/
+
+# Docker
+docker-compose.override.yml
+*.pid
+*.seed
+*.bak
+
+# Environment & Secrets
+.env
+.env.*
+secrets.json
