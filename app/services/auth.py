@@ -57,7 +57,7 @@ class AuthService(Service[User, RegisterBase]):
             payload = jwt.decode(
                 access_token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM]
             )
-            user_id = payload.get("user_id")
+            user_id = payload.get("sub")
             token_type = payload.get("type")
 
             if not user_id:
@@ -80,7 +80,7 @@ class AuthService(Service[User, RegisterBase]):
             payload = jwt.decode(
                 token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM]
             )
-            user_id = payload.get("user_id")
+            user_id = payload.get("sub")
             token_type = payload.get("type")
 
             if not user_id:
