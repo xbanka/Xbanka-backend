@@ -4,14 +4,14 @@ from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 from app.core.base.services import Service
 from app.core.hash import Hasher
-from app.models.user import User
+from app.models.affiliate import Affiliate
 from app.schemas.user import RegisterBase
 from app.utils.validators import is_valid_email, is_valid_password, is_valid_phone
 
 
 class UserService(Service):
     @staticmethod
-    def create(db: Session, obj_in: RegisterBase) -> User:
+    def create(db: Session, obj_in: RegisterBase) -> Affiliate:
 
         if not is_valid_email(obj_in.email):
             raise HTTPException(
@@ -19,11 +19,11 @@ class UserService(Service):
                 detail='Invalid email address.'
             )
 
-        user = db.query(User).filter_by(email=obj_in.email).first()
-        if user:
+        affiliate = db.query(Affiliate).filter_by(email=obj_in.email).first()
+        if affiliate:
             raise HTTPException(
                 status_code=400,
-                detail="User with email already exists"
+                detail="Affiliate with email already exists"
             )
     
         if not is_valid_password(obj_in.password):
@@ -40,7 +40,7 @@ class UserService(Service):
 
 
         try:
-            user = User(
+            affiliate = Affiliate(
                 first_name=obj_in.first_name,
                 last_name=obj_in.last_name,
                 email=obj_in.email,
@@ -51,44 +51,44 @@ class UserService(Service):
                 verified=False
             )
 
-            db.add(user)
+            db.add(affiliate)
             db.commit()
-            db.refresh(user)
+            db.refresh(affiliate)
         except IntegrityError as e:
             print(e)
             db.rollback()
             raise HTTPException(status_code=400, detail="Database integrity error")
-        except SQLAlchemyError:
+        except SQLAlchemyError as e:
+            print(e)
             db.rollback()
             raise HTTPException(status_code=500, detail="An error occurred saving entity")
         except Exception as e:
-            print(e)
             db.rollback()
             raise HTTPException(status_code=500, detail="An unknown error occurred")
 
-        return user
+        return affiliate
 
     @staticmethod
-    def get_user_by_id(db: Session, id: str) -> User:
-        user = db.query(User).get(id)
-        if not user:
+    def get_user_by_id(db: Session, id: str) -> Affiliate:
+        affiliate = db.query(Affiliate).get(id)
+        if not affiliate:
             raise HTTPException(
                 status_code=404,
-                detail="User not found"
+                detail="Affiliate not found"
             )
         
-        return user
+        return affiliate
     
     @staticmethod
-    def get_user_by_mail(db: Session, email: str) -> User:
-        user = db.query(User).filter_by(email=email).first()
-        if not user:
+    def get_user_by_mail(db: Session, email: str) -> Affiliate:
+        affiliate = db.query(Affiliate).filter_by(email=email).first()
+        if not affiliate:
             raise HTTPException(
                 status_code=404,
-                detail="User not found"
+                detail="affiliate not found"
             )
         
-        return user
+        return affiliate
 
 
     @staticmethod

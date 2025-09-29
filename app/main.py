@@ -1,6 +1,7 @@
 from fastapi import FastAPI
-from .db.database import Base, engine
-from .api.v1.routes import api_version_one
+from app.db.database import engine
+from app.api.v1.routes import api_version_one
+from app.models.base_model import Base
 
 app = FastAPI()
 app.include_router(api_version_one)

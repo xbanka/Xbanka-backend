@@ -4,7 +4,7 @@ from jose import jwt, JWTError
 from sqlalchemy.orm import Session
 from app.core.base.services import Service
 from app.core.hash import Hasher
-from app.models.user import User
+from app.models.affiliate import Affiliate
 from app.schemas.user import RegisterBase, TokenData
 from app.utils.settings import settings
 from app.utils.validators import is_valid_email
@@ -16,7 +16,7 @@ ALGORITHM = settings.ALGORITHM
 SECRET_KEY = settings.SECRET_KEY
 
 
-class AuthService(Service[User, RegisterBase]):
+class AuthService(Service[Affiliate, RegisterBase]):
     @staticmethod
     def create_access_token(data: dict, expires_delta: timedelta | None = None):
         """Method to create access token"""
@@ -64,30 +64,30 @@ class AuthService(Service[User, RegisterBase]):
         return encoded_jwt
     
     @staticmethod
-    def verify_magic_link(db: Session, magic_token: str, credentials_exception) -> User:
+    def verify_magic_link(db: Session, magic_token: str, credentials_exception) -> Affiliate:
         """Method to verify validity of magic token"""
 
         try:
             payload = jwt.decode(
                 magic_token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM]
             )
-            user_id = payload.get("sub")
+            affiliate_id = payload.get("sub")
             token_type = payload.get("type")
 
-            if not user_id:
+            if not affiliate_id:
                 raise credentials_exception
 
             if token_type != "magic_link":
                 raise HTTPException(detail="Invalid token type", status_code=400)
             
-            user = db.query(User).get(user_id)
-            if not user:
+            affiliate = db.query(Affiliate).get(affiliate_id)
+            if not affiliate:
                 raise HTTPException(
                     status_code=404,
-                    detail="User not found"
+                    detail="affiliate not found"
                 )
         
-            return user
+            return affiliate
 
         except JWTError:
             raise credentials_exception
@@ -180,9 +180,9 @@ class AuthService(Service[User, RegisterBase]):
                 detail='Invalid email address.'
             )
 
-        user = db.query(User).filter_by(email=email).first()
+        affiliate = db.query(Affiliate).filter_by(email=email).first()
 
-        if not user or not Hasher.verify_password(password, user.hashed_password):
-            raise HTTPException(status_code=401, detail="Invalid user credentials")
+        if not affiliate or not Hasher.verify_password(password, affiliate.hashed_password):
+            raise HTTPException(status_code=401, detail="Invalid affiliate credentials")
 
-        return user
+        return affiliate

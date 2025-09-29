@@ -21,7 +21,7 @@ from app.services.user import UserService
 from app.db.database import get_db
 from app.utils.settings import settings
 from app.core.email import send_mail
-from app.models.user import User
+from app.models.affiliate import Affiliate
 
 
 auth = APIRouter(prefix="/auth", tags=["Auth"])
@@ -111,14 +111,14 @@ def verify_magic_link(token: str, db: Session = Depends(get_db)):
         status_code=401, detail="Magic token expired/invalid"
     )
 
-    user: User = AuthService.verify_magic_link(db, token, credentials_exception)
-    if user.verified:
+    affiliate: Affiliate = AuthService.verify_magic_link(db, token, credentials_exception)
+    if affiliate.verified:
         return {"message": "This user is already verified"}
 
-    user.verified = True
+    affiliate.verified = True
     db.commit()
 
-    return {"message": "User verified successfully"}
+    return {"message": "Affiliate verified successfully"}
 
 
 @auth.post("/logout", response_model=LogoutResponse)
