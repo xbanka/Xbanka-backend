@@ -1,11 +1,14 @@
-from pydantic_settings import BaseSettings, SettingsConfigDict
 from pathlib import Path
+from pydantic import SecretStr
+from pydantic_settings import BaseSettings, SettingsConfigDict
 
 # Use this to build paths inside the project
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
 
 class Settings(BaseSettings):
     """ Class to hold application's config values."""
+
+    FRONTEND_URL: str
 
     SECRET_KEY: str
     ALGORITHM: str
@@ -22,7 +25,7 @@ class Settings(BaseSettings):
 
     # Mail configurations
     MAIL_USERNAME: str
-    MAIL_PASSWORD: str
+    MAIL_PASSWORD: SecretStr
     MAIL_FROM: str
     MAIL_PORT: int
     MAIL_SERVER: str

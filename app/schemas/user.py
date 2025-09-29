@@ -7,7 +7,7 @@ class LoginBase(BaseModel):
     email: str
     password: str
 
-class UserAuth(BaseModel):
+class UserBase(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
     first_name: str
@@ -15,6 +15,7 @@ class UserAuth(BaseModel):
     email: str
     phone_no: str
     bank: str
+    verified: bool
 
 class LoginResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
@@ -35,10 +36,17 @@ class RegisterResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
     message: str
-    user: UserAuth
+    user: UserBase
 
 class LogoutResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
     success: bool
+    message: str
+
+
+class VerifyResponse(BaseModel):
+    """ Schema for successful verification response """
+    model_config = ConfigDict(from_attributes=True)
+
     message: str

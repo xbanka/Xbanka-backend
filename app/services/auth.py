@@ -6,7 +6,6 @@ from app.core.base.services import Service
 from app.core.hash import Hasher
 from app.models.user import User
 from app.schemas.user import RegisterBase, TokenData
-from app.services.user import UserService
 from app.utils.settings import settings
 from app.utils.validators import is_valid_email
 
@@ -48,6 +47,50 @@ class AuthService(Service[User, RegisterBase]):
         encoded_jwt = jwt.encode(to_encode, settings.SECRET_KEY, settings.ALGORITHM)
 
         return encoded_jwt
+    
+    @staticmethod
+    def create_magic_link_token(data: dict, expires_delta: timedelta | None = None):
+        """Method to create access token"""
+        to_encode = data.copy()
+
+        if expires_delta is not None:
+            expires = datetime.now() + expires_delta
+        else:
+            expires = datetime.now() + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+
+        to_encode.update({'exp': expires, 'type': 'magic_link'})
+        encoded_jwt = jwt.encode(to_encode, settings.SECRET_KEY, settings.ALGORITHM)
+
+        return encoded_jwt
+    
+    @staticmethod
+    def verify_magic_link(db: Session, magic_token: str, credentials_exception) -> User:
+        """Method to verify validity of magic token"""
+
+        try:
+            payload = jwt.decode(
+                magic_token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM]
+            )
+            user_id = payload.get("sub")
+            token_type = payload.get("type")
+
+            if not user_id:
+                raise credentials_exception
+
+            if token_type != "magic_link":
+                raise HTTPException(detail="Invalid token type", status_code=400)
+            
+            user = db.query(User).get(user_id)
+            if not user:
+                raise HTTPException(
+                    status_code=404,
+                    detail="User not found"
+                )
+        
+            return user
+
+        except JWTError:
+            raise credentials_exception
 
     @staticmethod
     def verify_access_token(access_token: str, credentials_exception):
