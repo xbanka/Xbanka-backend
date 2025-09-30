@@ -1,9 +1,14 @@
+import jwt
 from datetime import datetime, timedelta
-from fastapi import HTTPException, status
-from jose import jwt, JWTError
+from fastapi import Depends, HTTPException, status
+from fastapi.security import OAuth2PasswordBearer
+from jose import JWTError
 from sqlalchemy.orm import Session
+from jwt.exceptions import InvalidTokenError
+from typing import Annotated
 from app.core.base.services import Service
 from app.core.hash import Hasher
+from app.db.database import get_db
 from app.models.affiliate import Affiliate
 from app.schemas.user import RegisterBase, TokenData
 from app.utils.settings import settings
@@ -15,6 +20,8 @@ JWT_REFRESH_EXPIRY = settings.JWT_REFRESH_EXPIRY
 ALGORITHM = settings.ALGORITHM
 SECRET_KEY = settings.SECRET_KEY
 
+
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
 
 class AuthService(Service[Affiliate, RegisterBase]):
     @staticmethod
@@ -182,7 +189,50 @@ class AuthService(Service[Affiliate, RegisterBase]):
 
         affiliate = db.query(Affiliate).filter_by(email=email).first()
 
-        if not affiliate or not Hasher.verify_password(password, affiliate.hashed_password):
-            raise HTTPException(status_code=401, detail="Invalid affiliate credentials")
+        try:
 
+            if not affiliate or not Hasher.verify_password(password, affiliate.hashed_password):
+                raise HTTPException(status_code=401, detail="Invalid affiliate credentials")
+
+            return affiliate
+        
+        except (ValueError, TypeError, Exception):
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Invalid credentials" # hide true error e.g invalid salt
+            )
+
+
+    @staticmethod
+    def get_current_user(token: Annotated[str, Depends(oauth2_scheme)], db: Session = Depends(get_db)):
+        credentials_exception = HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Could not validate credentials",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
+        try:
+            payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+            affiliate_id: str = payload.get("sub")
+
+            if affiliate_id is None:
+                raise credentials_exception
+            
+            token_data = TokenData(id=affiliate_id)
+
+        except InvalidTokenError:
+            raise credentials_exception
+        
+        affiliate = db.query(Affiliate).filter(Affiliate.id == token_data.id).first()
+
+        if affiliate is None:
+            raise credentials_exception
+        
+        if not affiliate.verified:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="User has not been verified",
+                headers={"WWW-Authenticate": "Bearer"},
+            )
+        
         return affiliate
