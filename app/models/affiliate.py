@@ -1,3 +1,4 @@
+import secrets
 from app.models.base_model import BaseModel
 from app.models.customer import Customer
 from sqlalchemy import String, Boolean
@@ -14,6 +15,8 @@ class Affiliate(BaseModel):
     account_no: Mapped[str] = mapped_column(String(50), nullable=False)
     hashed_password: Mapped[str] = mapped_column(String(255), nullable=False)
     verified: Mapped[bool] = mapped_column(Boolean, nullable=False)
+    ref_code: Mapped[str] = mapped_column(String(50), nullable=False, default=secrets.token_urlsafe(6), unique=True)
+    custom_refcode: Mapped[str] = mapped_column(String(50), nullable=True, unique=True)
 
     customers = relationship("Customer", back_populates="affiliate")
 
