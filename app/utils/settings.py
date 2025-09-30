@@ -32,11 +32,6 @@ class Settings(BaseSettings):
     MAIL_PORT: int
     MAIL_SERVER: str
 
-    # Twilio configurations
-    TWILIO_ACCOUNT_SID: str
-    TWILIO_AUTH_TOKEN: str
-    TWILIO_PHONE_NUMBER: str
-
     # Add this configuration
     model_config = SettingsConfigDict(
         env_file=str(BASE_DIR / ".env"),  # Absolute path to .env
