@@ -48,7 +48,7 @@ class UserService(Service):
                 bank=obj_in.bank,
                 account_no=obj_in.account_no,
                 hashed_password=Hasher.get_password_hash(obj_in.password),
-                verified=False
+                verified=True
             )
 
             db.add(affiliate)
@@ -59,10 +59,10 @@ class UserService(Service):
             db.rollback()
             raise HTTPException(status_code=400, detail="Database integrity error")
         except SQLAlchemyError as e:
-            print(e)
             db.rollback()
-            raise HTTPException(status_code=500, detail="An error occurred saving entity")
+            raise HTTPException(status_code=500, detail=f"An error occurred saving entity: {e}")
         except Exception as e:
+            print(e)
             db.rollback()
             raise HTTPException(status_code=500, detail="An unknown error occurred")
 
