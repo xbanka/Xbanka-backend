@@ -29,11 +29,11 @@ class AffiliateService(Service):
         return affiliate
     
     @staticmethod
-    def get_referral_link(db: Session, current_user: Affiliate):
+    def get_referral_code(db: Session, current_user: Affiliate):
         affiliate: Affiliate | None = db.query(Affiliate).get(current_user.id)
         if not affiliate:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail="Affiliate not found"
             )
-        return affiliate.custom_refcode
+        return affiliate.ref_code

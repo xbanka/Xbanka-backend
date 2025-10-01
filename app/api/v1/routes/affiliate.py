@@ -15,7 +15,7 @@ def set_codename(
     current_user: Affiliate = Depends(AuthService.get_current_user)
 ):
     
-    affiliate = AffiliateService.set_codename(db, current_user, codename)
+    AffiliateService.set_codename(db, current_user, codename)
 
     return {
         "message": "Codename set successfully",
@@ -28,5 +28,6 @@ def get_referral_link(
     db: Session = Depends(get_db), 
     current_user: Affiliate = Depends(AuthService.get_current_user)
 ):
-    pass
+    
+    return AffiliateService.get_referral_code(db, current_user)
 
