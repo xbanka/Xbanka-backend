@@ -8,10 +8,15 @@ from app import models
 app = FastAPI()
 app.include_router(api_version_one)
 
+origins = [
+    "http://localhost:3000",  # local dev FE
+    "http://xbankang.com",  # production FE
+]
+
 # Add the middleware to your FastAPI app
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
