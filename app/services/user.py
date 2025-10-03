@@ -1,3 +1,4 @@
+import secrets
 from fastapi import HTTPException, status
 from psycopg2 import IntegrityError
 from sqlalchemy.exc import SQLAlchemyError
@@ -38,6 +39,10 @@ class UserService(Service):
                 detail='Phone number must be a valid Nigerian (+234) or international format'
             )
 
+        while True:
+            generated_code = secrets.token_urlsafe(16)
+            if not db.query(Affiliate).filter_by(ref_code=generated_code).first():
+                break
 
         try:
             affiliate = Affiliate(
@@ -48,7 +53,8 @@ class UserService(Service):
                 bank=obj_in.bank,
                 account_no=obj_in.account_no,
                 hashed_password=Hasher.get_password_hash(obj_in.password),
-                verified=True
+                verified=True,
+                ref_code=generated_code
             )
 
             db.add(affiliate)
