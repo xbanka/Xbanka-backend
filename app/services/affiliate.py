@@ -37,3 +37,9 @@ class AffiliateService(Service):
                 detail="Affiliate not found"
             )
         return affiliate.ref_code
+    
+
+    @staticmethod
+    def get_all(db: Session):
+        all_affiliates = db.query(Affiliate).all()
+        return all_affiliates

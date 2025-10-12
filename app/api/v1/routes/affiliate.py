@@ -31,3 +31,7 @@ def get_referral_link(
     
     return AffiliateService.get_referral_code(db, current_user)
 
+
+@affiliate.get("/all")
+def get_all_affiliates(db: Session = Depends(get_db)):
+    return AffiliateService.get_all(db)
