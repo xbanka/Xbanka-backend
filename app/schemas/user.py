@@ -50,3 +50,18 @@ class VerifyResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
     message: str
+
+class AccountVerificationRequest(BaseModel):
+    first_name: str
+    last_name: str
+    account_number: str
+    bank_name: str
+
+
+class AccountVerificationResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    
+    status: str
+    message: str
+    verified_name: str
+    bank: str

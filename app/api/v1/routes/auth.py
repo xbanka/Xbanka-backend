@@ -15,6 +15,8 @@ from app.schemas.user import (
     LoginResponse,
     LogoutResponse,
     VerifyResponse,
+    AccountVerificationRequest,
+    AccountVerificationResponse
 )
 from app.services.auth import AuthService
 from app.services.user import UserService
@@ -128,3 +130,8 @@ def logout(response: Response):
     )
 
     return {"success": True, "message": "Logged out successfully"}
+
+
+@auth.post('/verify-account', response_model=AccountVerificationResponse)
+def verify_bank_information(request: AccountVerificationRequest):
+    return AuthService.verify_bank_information(request)

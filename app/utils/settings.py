@@ -15,6 +15,8 @@ class Settings(BaseSettings):
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
     JWT_REFRESH_EXPIRY: int = 5
 
+    PAYSTACK_SECRET_KEY: str
+
     # Database configurations
     DB_USER: str
     DB_PASSWORD: str
