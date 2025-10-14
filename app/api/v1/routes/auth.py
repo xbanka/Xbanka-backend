@@ -64,19 +64,19 @@ async def register(
 ):
     user = UserService.create(db, login_request)
 
-    # token = AuthService.create_magic_link_token(data={"sub": str(user.id)})
-    # url = f"{FRONTEND_URL}/verify?token={token}"
+    token = AuthService.create_magic_link_token(data={"sub": str(user.id)})
+    url = f"{FRONTEND_URL}/verify?token={token}"
 
-    # await send_mail(
-    #     recipient=login_request.email,
-    #     first_name=str(user.first_name),
-    #     last_name=str(user.last_name),
-    #     verification_url=url,
-    #     background_tasks=background_tasks,
-    # )
+    await send_mail(
+        recipient=login_request.email,
+        first_name=str(user.first_name),
+        last_name=str(user.last_name),
+        verification_url=url,
+        background_tasks=background_tasks,
+    )
 
     return {
-        "message": "User creation successful",
+        "message": "Your profile has been created. Please check your email to verify your account.",
         "user": user,
     }
 
