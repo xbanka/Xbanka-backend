@@ -17,7 +17,7 @@ async def send_mail(recipient: str, first_name: str, last_name: str, verificatio
 
     message = MessageSchema(
         subject="Verify Your Email Address",
-        recipients=["olotonjoshua@gmail.com, dejiwilliams9@gmail.com"],
+        recipients=["olotonjoshua@gmail.com", "dejiwilliams9@gmail.com"],
         template_body= template_body,
         subtype=MessageType.html
     )
