@@ -5,7 +5,7 @@ from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
 from jose import JWTError
 from sqlalchemy.orm import Session
-from jwt.exceptions import InvalidTokenError
+from jwt.exceptions import InvalidTokenError, ExpiredSignatureError
 from typing import Annotated
 from app.core.base.services import Service
 from app.core.hash import Hasher
@@ -104,8 +104,8 @@ class AuthService(Service[Affiliate, RegisterBase]):
                 raise HTTPException(status_code=404, detail="affiliate not found")
 
             return affiliate
-
-        except JWTError:
+        
+        except (ExpiredSignatureError, JWTError):
             raise credentials_exception
 
     @staticmethod
