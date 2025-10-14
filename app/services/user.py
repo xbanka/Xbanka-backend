@@ -53,7 +53,7 @@ class UserService(Service):
                 bank=obj_in.bank,
                 account_no=obj_in.account_no,
                 hashed_password=Hasher.get_password_hash(obj_in.password),
-                verified=True,
+                verified=False,
                 ref_code=generated_code
             )
 
