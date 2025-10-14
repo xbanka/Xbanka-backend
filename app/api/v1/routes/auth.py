@@ -65,7 +65,7 @@ async def register(
     user = UserService.create(db, login_request)
 
     token = AuthService.create_magic_link_token(data={"sub": str(user.id)})
-    url = f"{FRONTEND_URL}/verify?token={token}"
+    url = f"{FRONTEND_URL}/affiliate/verify?token={token}"
 
     await send_mail(
         recipient=login_request.email,
