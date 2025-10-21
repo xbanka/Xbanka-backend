@@ -14,8 +14,7 @@ from app.models.affiliate import Affiliate
 from app.schemas.user import (
     RegisterBase,
     TokenData,
-    AccountVerificationRequest,
-    AccountVerificationResponse,
+    AccountVerificationRequest
 )
 from app.utils.settings import settings
 from app.utils.validators import is_valid_email
@@ -204,10 +203,15 @@ class AuthService(Service[Affiliate, RegisterBase]):
                 raise HTTPException(
                     status_code=401, detail="Invalid affiliate credentials"
                 )
+            
+            if not affiliate.verified:
+                raise HTTPException(
+                    status_code=401, detail="User profile verification required"
+                )
 
             return affiliate
 
-        except (ValueError, TypeError, Exception):
+        except (ValueError, TypeError):
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail="Invalid credentials",  # hide true error e.g invalid salt
