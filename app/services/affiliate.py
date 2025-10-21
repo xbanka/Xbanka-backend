@@ -1,8 +1,12 @@
 from app.core.base.services import Service
-from sqlalchemy.orm import Session
 from app.models.affiliate import Affiliate
+from app.models.transactions import Transaction
+from app.models.customer import Customer
 
 from fastapi import HTTPException, status
+from sqlalchemy import select
+from sqlalchemy.orm import Session, selectinload
+
 
 class AffiliateService(Service):
     @staticmethod
@@ -43,3 +47,16 @@ class AffiliateService(Service):
     def get_all(db: Session):
         all_affiliates = db.query(Affiliate).all()
         return all_affiliates
+    
+
+    @staticmethod
+    def get_commissions(db: Session, affiliate_id):
+        stmt = (
+            select(Transaction)
+            .options(selectinload(Transaction.customer))
+            .join(Customer)
+            .filter(Customer.affiliate_id == affiliate_id)
+        )
+
+        commissions = db.execute(stmt).scalars().all()
+        return commissions

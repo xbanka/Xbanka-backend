@@ -1,14 +1,9 @@
-import enum
+from app.core.enums import StatusEnum
 from app.models.base_model import BaseModel
 from sqlalchemy import ForeignKey, String, Enum, DECIMAL, Integer
 from sqlalchemy.dialects.postgresql import UUID 
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-
-class StatusEnum(str, enum.Enum):
-    approved = "approved"
-    pending = "pending"
-    active = "active"
 
 class Transaction(BaseModel):
     __tablename__ = 'transactions'
