@@ -9,4 +9,4 @@ class CustomerResponse(BaseModel):
     first_name: str
     email: str
     phone_no: str
-    commission: str
+    commission: float

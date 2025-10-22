@@ -4,7 +4,7 @@ from app.models.transactions import Transaction
 from app.models.customer import Customer
 
 from fastapi import HTTPException, status
-from sqlalchemy import select
+from sqlalchemy import select, func
 from sqlalchemy.orm import Session, selectinload
 
 
@@ -50,13 +50,33 @@ class AffiliateService(Service):
     
 
     @staticmethod
-    def get_commissions(db: Session, affiliate_id):
+    def get_commissions(db: Session, affiliate_id, page: int, limit: int):
         stmt = (
             select(Transaction)
             .options(selectinload(Transaction.customer))
             .join(Customer)
             .filter(Customer.affiliate_id == affiliate_id)
+            .order_by(Transaction.created_at.desc())
+            .offset((page - 1) * limit)
+            .limit(limit)
         )
 
-        commissions = db.execute(stmt).scalars().all()
-        return commissions
+        result = db.execute(stmt)
+        commissions = result.scalars().all()
+
+        total = db.scalar(
+            select(func.count()).select_from(
+                select(Transaction)
+                .join(Customer)
+                .where(Customer.affiliate_id == affiliate_id)
+                .subquery()
+            )
+        ) or 0
+
+        return {
+            "page": page,
+            "limit": limit,
+            "total": total,
+            "pages": (total + limit - 1) // limit,
+            "data": commissions
+        }

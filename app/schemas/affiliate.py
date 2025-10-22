@@ -1,7 +1,7 @@
 from datetime import datetime
 from decimal import Decimal
 from pydantic import BaseModel, ConfigDict
-from typing import Optional
+from typing import List, Optional
 from uuid import UUID
 
 from app.core.enums import StatusEnum
@@ -25,3 +25,10 @@ class TransactionResponse(BaseModel):
     status: StatusEnum
     customer: CustomerResponse
     affiliate_source: Optional[str] = None
+
+class PaginatedTransactionResponse(BaseModel):
+    page: int
+    limit: int
+    total: int
+    pages: int
+    data: List[TransactionResponse]
