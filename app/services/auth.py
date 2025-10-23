@@ -150,7 +150,7 @@ class AuthService(Service[Affiliate, RegisterBase]):
             token_data = TokenData(id=user_id)
             return token_data
 
-        except JWTError:
+        except (ExpiredSignatureError, JWTError):
             raise credentials_exception
 
     @staticmethod
@@ -182,7 +182,7 @@ class AuthService(Service[Affiliate, RegisterBase]):
 
         except Exception as e:
             raise HTTPException(
-                status_code=500, detail="An error occured refreshing access token."
+                status_code=500, detail=f"An error occurred refreshing access token: {str(e)}"
             ) from e
 
     @staticmethod
