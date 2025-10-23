@@ -12,7 +12,7 @@ class Transaction(BaseModel):
     transaction_type: Mapped[str] = mapped_column(String, nullable=False)
     commission_rate: Mapped[float] = mapped_column(DECIMAL(12, 2), nullable=False)
     commission_amount: Mapped[int] = mapped_column(Integer, nullable=False)
-    status: Mapped[Enum] = mapped_column(Enum(StatusEnum), default=StatusEnum.pending, nullable=False)
+    status: Mapped[StatusEnum] = mapped_column(Enum(StatusEnum), default=StatusEnum.pending, nullable=False)
 
     customer_id: Mapped[UUID] = mapped_column(ForeignKey('customers.id'), nullable=False, index=True)
 

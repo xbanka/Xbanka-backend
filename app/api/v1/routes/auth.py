@@ -7,6 +7,7 @@ from fastapi import (
     HTTPException,
     BackgroundTasks,
 )
+from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
 from app.schemas.user import (
     RegisterBase,
@@ -30,6 +31,19 @@ auth = APIRouter(prefix="/auth", tags=["Auth"])
 
 FRONTEND_URL = settings.FRONTEND_URL
 JWT_REFRESH_EXPIRY = settings.JWT_REFRESH_EXPIRY
+
+
+@auth.post("/token")
+async def swagger_authenticate(
+    form_data: OAuth2PasswordRequestForm = Depends(), 
+    db: Session = Depends(get_db)
+):
+    user = AuthService.authenticate_user(
+        db, form_data.username, form_data.password
+    )
+    access_token = AuthService.create_access_token(data={"sub": str(user.id)})
+    return {"access_token": access_token, "token_type": "bearer"}
+
 
 
 @auth.post("/login", response_model=LoginResponse, status_code=status.HTTP_200_OK)
