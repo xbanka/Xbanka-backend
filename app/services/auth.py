@@ -29,7 +29,7 @@ PAYSTACK_SECRET_KEY = settings.PAYSTACK_SECRET_KEY
 PAYSTACK_BASE_URL = "https://api.paystack.co"
 
 
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="api/auth/token")
 
 
 class AuthService(Service[Affiliate, RegisterBase]):

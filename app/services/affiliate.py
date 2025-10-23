@@ -1,11 +1,16 @@
 from app.core.base.services import Service
+from app.core.enums import StatusEnum
 from app.models.affiliate import Affiliate
 from app.models.transactions import Transaction
 from app.models.customer import Customer
 
+from datetime import datetime, timezone
 from fastapi import HTTPException, status
+from io import BytesIO
 from sqlalchemy import select, func
 from sqlalchemy.orm import Session, selectinload
+from openpyxl import Workbook
+from typing import Optional, cast
 
 
 class AffiliateService(Service):
@@ -50,12 +55,16 @@ class AffiliateService(Service):
     
 
     @staticmethod
-    def get_commissions(db: Session, affiliate_id, page: int, limit: int):
+    def get_commissions(db: Session, affiliate_id, page: int, limit: int, status: Optional[StatusEnum] = None):
+        stmt = select(Transaction)
+
+        if status:
+            stmt = stmt.where(Transaction.status == status)
+
         stmt = (
-            select(Transaction)
-            .options(selectinload(Transaction.customer))
+            stmt.options(selectinload(Transaction.customer))
             .join(Customer)
-            .filter(Customer.affiliate_id == affiliate_id)
+            .where(Customer.affiliate_id == affiliate_id)
             .order_by(Transaction.created_at.desc())
             .offset((page - 1) * limit)
             .limit(limit)
@@ -80,3 +89,50 @@ class AffiliateService(Service):
             "pages": (total + limit - 1) // limit,
             "data": commissions
         }
+    
+    @staticmethod
+    def export_commissions(db: Session, affiliate_id, status: Optional[StatusEnum] = None):
+        stmt = select(Transaction)
+
+        if status:
+            stmt = stmt.where(Transaction.status == status)
+
+        stmt = (
+            stmt.options(selectinload(Transaction.customer))
+            .join(Customer)
+            .where(Customer.affiliate_id == affiliate_id)
+            .order_by(Transaction.created_at.desc())
+        )
+
+        commissions = db.execute(stmt).scalars().all()
+
+        wb = Workbook()
+        ws = wb.active or wb.create_sheet(title="Commissions")
+        ws.title = "Commissions"
+
+        ws.append(
+            ["Date", "Type", "Rate", "Amount", "Status", "Customer Name", "Email", "Phone No"]
+        )  # header
+        
+        for tx in commissions:
+            # Excel does not support timezone-aware datetime objects
+            created_at = cast(datetime, tx.created_at)
+            if created_at.tzinfo is not None:
+                created_at = created_at.astimezone(timezone.utc).replace(tzinfo=None)
+
+            ws.append([
+                created_at,
+                tx.transaction_type,
+                tx.commission_rate,
+                tx.commission_amount,
+                tx.status.value,
+                tx.customer.first_name + " " + tx.customer.last_name,
+                tx.customer.email,
+                tx.customer.phone_no,
+            ])
+
+        stream = BytesIO()
+        wb.save(stream)
+        stream.seek(0)
+
+        return stream.getvalue()
