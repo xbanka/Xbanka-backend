@@ -57,7 +57,7 @@ class AuthService(Service[Affiliate, RegisterBase]):
         if expires_delta is not None:
             expires = datetime.now() + expires_delta
         else:
-            expires = datetime.now() + timedelta(minutes=JWT_REFRESH_EXPIRY)
+            expires = datetime.now() + timedelta(days=JWT_REFRESH_EXPIRY)
 
         to_encode.update({"exp": expires, "type": "refresh"})
         encoded_jwt = jwt.encode(to_encode, settings.SECRET_KEY, settings.ALGORITHM)
