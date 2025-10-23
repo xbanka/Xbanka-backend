@@ -1,8 +1,14 @@
 from typing import Optional
-from app.core.enums import StatusEnum
-from app.schemas.affiliate import AffiliateCodename, PaginatedTransactionResponse
+from app.core.enums import PayoutStatusEnum, TransactionStatusEnum
+from app.schemas.affiliate import (
+    AffiliateCodename, 
+    PayoutBase, 
+    PaginatedTransactionResponse, 
+    PaginatedPayoutResponse
+)
 from app.services.auth import AuthService
 from app.services.affiliate import AffiliateService
+from app.services.payout import PayoutService
 from app.db.database import get_db
 from app.models import Affiliate
 
@@ -51,7 +57,7 @@ def get_commissions(
     current_user: Affiliate = Depends(AuthService.get_current_user),
     page: int = Query(1, ge=1, description="Page number"),
     limit: int = Query(10, ge=1, le=100, description="Items per page"),
-    status: Optional[StatusEnum] = Query(None, description="Commission Status")
+    status: Optional[TransactionStatusEnum] = Query(None, description="Commission Status")
 ):
     return AffiliateService.get_commissions(db, current_user.id, page, limit, status)
 
@@ -60,7 +66,7 @@ def get_commissions(
 def export_commissions(
     db: Session = Depends(get_db),
     current_user: Affiliate = Depends(AuthService.get_current_user),
-    status: Optional[StatusEnum] = Query(None, description="Commission Status")
+    status: Optional[TransactionStatusEnum] = Query(None, description="Commission Status")
 ):
     
     content = AffiliateService.export_commissions(db, current_user.id, status)
@@ -69,4 +75,49 @@ def export_commissions(
         content=content,
         media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
         headers={"Content-Disposition": "attachment; filename=commissions.xlsx"}
+    )
+
+
+@affiliate.post("/payout", status_code=status.HTTP_201_CREATED)
+def post_payout(
+    create_request: PayoutBase, 
+    db: Session = Depends(get_db),
+    current_user: Affiliate = Depends(AuthService.get_current_user)
+):
+    payout = PayoutService.create_new(db, create_request, current_user.id)
+
+    return {
+        "message": "New payout has been created.",
+        "payout": payout,
+    }
+
+
+@affiliate.get(
+    "/payouts",
+    status_code=status.HTTP_200_OK,
+    response_model=PaginatedPayoutResponse,
+)
+def get_payouts(
+    db: Session = Depends(get_db),
+    current_user: Affiliate = Depends(AuthService.get_current_user),
+    page: int = Query(1, ge=1, description="Page number"),
+    limit: int = Query(10, ge=1, le=100, description="Items per page"),
+    status: Optional[PayoutStatusEnum] = Query(None, description="Payout Status")
+):
+    return AffiliateService.get_payouts(db, current_user.id, page, limit, status)
+
+
+@affiliate.get("/payouts/export", response_class=Response)
+def export_payouts(
+    db: Session = Depends(get_db),
+    current_user: Affiliate = Depends(AuthService.get_current_user),
+    status: Optional[PayoutStatusEnum] = Query(None, description="Payout Status")
+):
+    
+    content = AffiliateService.export_payouts(db, current_user.id, status)
+
+    return Response(
+        content=content,
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={"Content-Disposition": "attachment; filename=payouts.xlsx"}
     )

@@ -1,6 +1,6 @@
-from app.core.enums import StatusEnum
+from app.core.enums import TransactionStatusEnum
 from app.models.base_model import BaseModel
-from sqlalchemy import ForeignKey, String, Enum, DECIMAL, Integer
+from sqlalchemy import ForeignKey, String, Enum, DECIMAL, Computed
 from sqlalchemy.dialects.postgresql import UUID 
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -10,9 +10,14 @@ class Transaction(BaseModel):
 
     affiliate_source: Mapped[str] = mapped_column(String, nullable=True)
     transaction_type: Mapped[str] = mapped_column(String, nullable=False)
+    transaction_amount: Mapped[int] = mapped_column(DECIMAL(12, 2), nullable=False)
     commission_rate: Mapped[float] = mapped_column(DECIMAL(12, 2), nullable=False)
-    commission_amount: Mapped[int] = mapped_column(Integer, nullable=False)
-    status: Mapped[StatusEnum] = mapped_column(Enum(StatusEnum), default=StatusEnum.pending, nullable=False)
+    commission_amount: Mapped[int] = mapped_column(
+        DECIMAL(12, 2), 
+        Computed("transaction_amount * commission_rate / 100", persisted=True), 
+        nullable=False
+    )
+    status: Mapped[TransactionStatusEnum] = mapped_column(Enum(TransactionStatusEnum), default=TransactionStatusEnum.pending, nullable=False)
 
     customer_id: Mapped[UUID] = mapped_column(ForeignKey('customers.id'), nullable=False, index=True)
 

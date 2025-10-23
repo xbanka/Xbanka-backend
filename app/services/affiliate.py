@@ -1,6 +1,7 @@
 from app.core.base.services import Service
-from app.core.enums import StatusEnum
+from app.core.enums import TransactionStatusEnum, PayoutStatusEnum
 from app.models.affiliate import Affiliate
+from app.models.payouts import Payout
 from app.models.transactions import Transaction
 from app.models.customer import Customer
 
@@ -55,7 +56,7 @@ class AffiliateService(Service):
     
 
     @staticmethod
-    def get_commissions(db: Session, affiliate_id, page: int, limit: int, status: Optional[StatusEnum] = None):
+    def get_commissions(db: Session, affiliate_id, page: int, limit: int, status: Optional[TransactionStatusEnum] = None):
         stmt = select(Transaction)
 
         if status:
@@ -91,7 +92,7 @@ class AffiliateService(Service):
         }
     
     @staticmethod
-    def export_commissions(db: Session, affiliate_id, status: Optional[StatusEnum] = None):
+    def export_commissions(db: Session, affiliate_id, status: Optional[TransactionStatusEnum] = None):
         stmt = select(Transaction)
 
         if status:
@@ -129,6 +130,84 @@ class AffiliateService(Service):
                 tx.customer.first_name + " " + tx.customer.last_name,
                 tx.customer.email,
                 tx.customer.phone_no,
+            ])
+
+        stream = BytesIO()
+        wb.save(stream)
+        stream.seek(0)
+
+        return stream.getvalue()
+
+    @staticmethod
+    def get_payouts(db: Session, affiliate_id, page: int, limit: int, status: Optional[PayoutStatusEnum] = None):
+        stmt = select(Payout)
+
+        if status:
+            stmt = stmt.where(Payout.status == status)
+
+        stmt = (
+            stmt.where(Payout.affiliate_id == affiliate_id)
+            .order_by(Payout.created_at.desc())
+            .offset((page - 1) * limit)
+            .limit(limit)
+        )
+
+        result = db.execute(stmt)
+        payouts = result.scalars().all()
+
+        total = db.scalar(
+            select(func.count()).select_from(
+                select(Payout)
+                .where(Payout.affiliate_id == affiliate_id)
+                .subquery()
+            )
+        ) or 0
+
+        return {
+            "page": page,
+            "limit": limit,
+            "total": total,
+            "pages": (total + limit - 1) // limit,
+            "data": payouts
+        }
+    
+    @staticmethod
+    def export_payouts(db: Session, affiliate_id, status: Optional[PayoutStatusEnum] = None):
+        stmt = select(Payout)
+
+        if status:
+            stmt = stmt.where(Payout.status == status)
+
+        stmt = (
+            stmt.where(Payout.affiliate_id == affiliate_id)
+            .order_by(Payout.created_at.desc())
+        )
+
+        payouts = db.execute(stmt).scalars().all()
+
+        wb = Workbook()
+        ws = wb.active or wb.create_sheet(title="Payouts")
+        ws.title = "Payouts"
+
+        ws.append(
+            ["Amount", "Status", "Payment Reference", "Paid At"]
+        )  # header
+        
+        for payout in payouts:
+            # Excel does not support timezone-aware datetime objects
+            created_at = cast(datetime, payout.created_at)
+            if created_at.tzinfo is not None:
+                created_at = created_at.astimezone(timezone.utc).replace(tzinfo=None)
+
+            paid_at = cast(datetime, payout.paid_at)
+            if paid_at.tzinfo is not None:
+                paid_at = paid_at.astimezone(timezone.utc).replace(tzinfo=None)
+
+            ws.append([
+                payout.amount,
+                payout.status.value,
+                payout.payment_ref,
+                paid_at
             ])
 
         stream = BytesIO()

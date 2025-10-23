@@ -4,7 +4,7 @@ from pydantic import BaseModel, ConfigDict
 from typing import List, Optional
 from uuid import UUID
 
-from app.core.enums import StatusEnum
+from app.core.enums import TransactionStatusEnum, PayoutStatusEnum
 from app.schemas.customer import CustomerResponse
 
 class AffiliateCodename(BaseModel):
@@ -21,8 +21,8 @@ class TransactionResponse(BaseModel):
     created_at: datetime
     transaction_type: str
     commission_rate: Decimal
-    commission_amount: int
-    status: StatusEnum
+    commission_amount: Decimal
+    status: TransactionStatusEnum
     customer: CustomerResponse
     affiliate_source: Optional[str] = None
 
@@ -32,3 +32,35 @@ class PaginatedTransactionResponse(BaseModel):
     total: int
     pages: int
     data: List[TransactionResponse]
+
+
+class PayoutResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: UUID
+    amount: Decimal
+    status: PayoutStatusEnum
+    payment_ref: str
+    paid_at: datetime
+
+
+class PaginatedPayoutResponse(BaseModel):
+    page: int
+    limit: int
+    total: int
+    pages: int
+    data: List[PayoutResponse]
+
+
+class PayoutBase(BaseModel):
+    amount: float
+    status: PayoutStatusEnum
+    payment_ref: str
+    paid_at: datetime
+
+
+class NewPayoutResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    message: str
+    payout: PayoutBase
