@@ -1,6 +1,7 @@
 from typing import Optional
 from app.core.enums import PayoutStatusEnum, TransactionStatusEnum
 from app.schemas.affiliate import (
+    AffiliateMeResponse,
     AffiliateCodename, 
     PayoutBase, 
     PaginatedTransactionResponse, 
@@ -17,6 +18,13 @@ from sqlalchemy.orm import Session
 
 
 affiliate = APIRouter(prefix="/affiliates", tags=["Affiliates"])
+
+@affiliate.get("/me", status_code=status.HTTP_200_OK, response_model=AffiliateMeResponse)
+def get_current_affiliate(
+    db: Session = Depends(get_db),
+    current_user: Affiliate = Depends(AuthService.get_current_user),
+):
+    return current_user
 
 @affiliate.post(
     "/codename", status_code=status.HTTP_201_CREATED, response_model=AffiliateCodename

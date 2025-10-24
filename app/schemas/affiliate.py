@@ -1,11 +1,24 @@
 from datetime import datetime
 from decimal import Decimal
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, EmailStr
 from typing import List, Optional
 from uuid import UUID
 
 from app.core.enums import TransactionStatusEnum, PayoutStatusEnum
 from app.schemas.customer import CustomerResponse
+
+
+class AffiliateMeResponse(BaseModel):
+    id: UUID
+    first_name: str
+    last_name: str
+    email: EmailStr
+    phone_no: str
+    bank: str
+    account_no: str
+    ref_code: str
+    custom_refcode: Optional[str] = None
+    created_at: datetime
 
 class AffiliateCodename(BaseModel):
     model_config = ConfigDict(from_attributes=True)
