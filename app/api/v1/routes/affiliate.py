@@ -5,7 +5,9 @@ from app.schemas.affiliate import (
     AffiliateCodename, 
     PayoutBase, 
     PaginatedTransactionResponse, 
-    PaginatedPayoutResponse
+    PaginatedPayoutResponse,
+    UpdateBankDetailsRequest,
+    UpdateBankDetailsResponse
 )
 from app.services.auth import AuthService
 from app.services.affiliate import AffiliateService
@@ -129,3 +131,18 @@ def export_payouts(
         media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
         headers={"Content-Disposition": "attachment; filename=payouts.xlsx"}
     )
+
+
+@affiliate.patch("/bank", status_code=status.HTTP_200_OK, response_model=UpdateBankDetailsResponse)
+def update_bank_details(
+    bank_details: UpdateBankDetailsRequest,
+    db: Session = Depends(get_db),
+    current_user: Affiliate = Depends(AuthService.get_current_user),
+):
+    AffiliateService.update_bank_details(db, current_user, bank_details)
+
+    return {
+        "message": "Bank details updated successfully", 
+        "bank_name": bank_details.bank_name,
+        "account_number": bank_details.account_number
+        }

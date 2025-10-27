@@ -77,3 +77,16 @@ class NewPayoutResponse(BaseModel):
 
     message: str
     payout: PayoutBase
+
+
+class UpdateBankDetailsRequest(BaseModel):
+    bank_name: str
+    account_number: str
+
+
+class UpdateBankDetailsResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    message: str
+    bank_name: str
+    account_number: str

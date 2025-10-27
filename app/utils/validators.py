@@ -35,3 +35,12 @@ def is_valid_uuid(uuid_id):
         return str(uuid_obj) == uuid_id
     except ValueError:
         return False
+
+
+def is_valid_account_number(account_number: str):
+    account_regex = r"^\d{10}$"
+
+    if not re.match(account_regex, account_number):
+        return False
+
+    return True

@@ -4,6 +4,8 @@ from app.models.affiliate import Affiliate
 from app.models.payouts import Payout
 from app.models.transactions import Transaction
 from app.models.customer import Customer
+from app.schemas.affiliate import UpdateBankDetailsRequest
+from app.utils.validators import is_valid_account_number
 
 from datetime import datetime, timezone
 from fastapi import HTTPException, status
@@ -215,3 +217,29 @@ class AffiliateService(Service):
         stream.seek(0)
 
         return stream.getvalue()
+    
+
+    @staticmethod
+    def update_bank_details(
+        db: Session, 
+        affiliate: Affiliate, 
+        bank_details: UpdateBankDetailsRequest
+    ) -> None:
+        
+        # Validate Nigerian bank account number (10 digits)
+        if not is_valid_account_number(bank_details.account_number):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Invalid account number"
+            )
+        
+        try:
+            affiliate.bank = bank_details.bank_name
+            affiliate.account_no = bank_details.account_number
+            db.commit()
+        except Exception as e:
+            db.rollback()
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Failed to update bank details"
+            ) from e
