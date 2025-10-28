@@ -67,9 +67,8 @@ class PaginatedPayoutResponse(BaseModel):
 
 class PayoutBase(BaseModel):
     amount: float
-    status: PayoutStatusEnum
-    payment_ref: str
-    paid_at: datetime
+    bank: str
+    payment_ref: Optional[str] = None
 
 
 class NewPayoutResponse(BaseModel):

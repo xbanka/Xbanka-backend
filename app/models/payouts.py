@@ -12,6 +12,7 @@ class Payout(BaseModel):
     status: Mapped[PayoutStatusEnum] = mapped_column(Enum(PayoutStatusEnum), default=PayoutStatusEnum.pending, nullable=False)
     payment_ref: Mapped[str] = mapped_column(String(120), unique=True, nullable=True)
     paid_at: Mapped[DateTime] = mapped_column(DateTime(timezone=True), nullable=False)
+    bank: Mapped[str] = mapped_column(String(100), nullable=False)
 
     affiliate_id: Mapped[UUID] = mapped_column(ForeignKey("affiliates.id"), nullable=False, index=True)
 

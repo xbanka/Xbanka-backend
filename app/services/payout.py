@@ -11,7 +11,7 @@ class PayoutService(Service):
     def create_new(db: Session, obj_in: PayoutBase, affiliate_id) -> Payout:
         new_payout = Payout(
             amount=obj_in.amount,
-            status=obj_in.status,
+            bank=obj_in.bank,
             payment_ref=obj_in.payment_ref,
             paid_at=datetime.now(),
             affiliate_id=affiliate_id
