@@ -264,7 +264,6 @@ class AffiliateService(Service):
 
         return {
             "total_earnings": total_earnings,
-            "available_for_payout": available_payouts,
             "pending_payouts": pending_payouts,
             "amount_withdrawn": amount_withdrawn,
             "available_balance": available_payouts,
