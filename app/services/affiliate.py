@@ -220,6 +220,58 @@ class AffiliateService(Service):
     
 
     @staticmethod
+    def get_payouts_summary(db: Session, affiliate_id):
+        total_earnings = db.scalar(
+            select(func.coalesce(func.sum(Transaction.commission_amount), 0))
+            .join(Customer, Customer.id == Transaction.customer_id)
+            .where(Customer.affiliate_id == affiliate_id)
+        ) or 0
+
+        available_payouts = db.scalar(
+            select(func.coalesce(func.sum(Transaction.commission_amount), 0))
+            .join(Customer, Customer.id == Transaction.customer_id)
+            .where(Customer.affiliate_id == affiliate_id)
+            .where(Transaction.status == TransactionStatusEnum.approved)
+        ) or 0
+
+        total_payouts = db.scalar(
+            select(func.coalesce(func.sum(Payout.amount), 0))
+            .where(Payout.affiliate_id == affiliate_id)
+            .where(Payout.status == PayoutStatusEnum.paid)
+        ) or 0
+
+        amount_withdrawn = total_payouts
+        available_payouts -= amount_withdrawn
+
+        pending_payouts = db.scalar(
+            select(func.coalesce(func.sum(Payout.amount), 0))
+            .where(Payout.affiliate_id == affiliate_id)
+            .where(Payout.status == PayoutStatusEnum.pending)
+        ) or 0
+
+        failed_payouts = db.scalar(
+            select(func.coalesce(func.sum(Payout.amount), 0))
+            .where(Payout.affiliate_id == affiliate_id)
+            .where(Payout.status == PayoutStatusEnum.failed)
+        ) or 0
+
+        pending_earnings = db.scalar(
+            select(func.coalesce(func.sum(Transaction.commission_amount), 0))
+            .join(Customer, Customer.id == Transaction.customer_id)
+            .where(Customer.affiliate_id == affiliate_id)
+            .where(Transaction.status == TransactionStatusEnum.pending)
+        ) or 0
+
+        return {
+            "total_earnings": total_earnings,
+            "available_for_payout": available_payouts,
+            "pending_payouts": pending_payouts,
+            "amount_withdrawn": amount_withdrawn,
+            "available_balance": available_payouts,
+        }
+    
+
+    @staticmethod
     def update_bank_details(
         db: Session, 
         affiliate: Affiliate, 

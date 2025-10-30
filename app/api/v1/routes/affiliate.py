@@ -9,6 +9,7 @@ from app.schemas.affiliate import (
     UpdateBankDetailsRequest,
     UpdateBankDetailsResponse
 )
+from app.schemas.payout import PayoutSummary
 from app.services.auth import AuthService
 from app.services.affiliate import AffiliateService
 from app.services.payout import PayoutService
@@ -131,6 +132,14 @@ def export_payouts(
         media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
         headers={"Content-Disposition": "attachment; filename=payouts.xlsx"}
     )
+
+
+@affiliate.get("/payouts/summary", status_code=status.HTTP_200_OK, response_model=PayoutSummary)
+def get_payouts_summary(
+    db: Session = Depends(get_db),
+    current_user: Affiliate = Depends(AuthService.get_current_user),
+):
+    return AffiliateService.get_payouts_summary(db, current_user.id)
 
 
 @affiliate.patch("/bank", status_code=status.HTTP_200_OK, response_model=UpdateBankDetailsResponse)
