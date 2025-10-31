@@ -3,13 +3,12 @@ from app.core.enums import PayoutStatusEnum, TransactionStatusEnum
 from app.schemas.affiliate import (
     AffiliateMeResponse,
     AffiliateCodename, 
-    PayoutBase, 
     PaginatedTransactionResponse, 
     PaginatedPayoutResponse,
     UpdateBankDetailsRequest,
     UpdateBankDetailsResponse
 )
-from app.schemas.payout import PayoutSummary
+from app.schemas.payout import PayoutSummary, PayoutBase, NewPayoutResponse
 from app.services.auth import AuthService
 from app.services.affiliate import AffiliateService
 from app.services.payout import PayoutService
@@ -89,7 +88,7 @@ def export_commissions(
     )
 
 
-@affiliate.post("/payout", status_code=status.HTTP_201_CREATED)
+@affiliate.post("/payout", status_code=status.HTTP_201_CREATED, response_model=NewPayoutResponse)
 def post_payout(
     create_request: PayoutBase, 
     db: Session = Depends(get_db),

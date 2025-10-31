@@ -1,7 +1,7 @@
 from sqlalchemy.orm import Session
 from app.core.base.services import Service
 from app.models.payouts import Payout
-from app.schemas.affiliate import PayoutBase
+from app.schemas.payout import PayoutBase
 
 from datetime import datetime
 

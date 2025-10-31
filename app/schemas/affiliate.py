@@ -65,19 +65,6 @@ class PaginatedPayoutResponse(BaseModel):
     data: List[PayoutResponse]
 
 
-class PayoutBase(BaseModel):
-    amount: float
-    bank: str
-    payment_ref: Optional[str] = None
-
-
-class NewPayoutResponse(BaseModel):
-    model_config = ConfigDict(from_attributes=True)
-
-    message: str
-    payout: PayoutBase
-
-
 class UpdateBankDetailsRequest(BaseModel):
     bank_name: str
     account_number: str
