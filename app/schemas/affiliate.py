@@ -13,7 +13,7 @@ class AffiliateMeResponse(BaseModel):
     first_name: str
     last_name: str
     email: EmailStr
-    username: str
+    username: Optional[str] = None
     phone_no: str
     bank: str
     account_no: str
