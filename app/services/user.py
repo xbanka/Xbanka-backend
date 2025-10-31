@@ -49,6 +49,7 @@ class UserService(Service):
                 first_name=obj_in.first_name,
                 last_name=obj_in.last_name,
                 email=obj_in.email,
+                username=obj_in.username,
                 phone_no=obj_in.phone_no,
                 bank=obj_in.bank,
                 account_no=obj_in.account_no,

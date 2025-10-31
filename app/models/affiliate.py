@@ -9,6 +9,7 @@ class Affiliate(BaseModel):
     first_name: Mapped[str] = mapped_column(String(100), nullable=False, index=True)
     last_name: Mapped[str] = mapped_column(String(100), nullable=False, index=True)
     email: Mapped[str] = mapped_column(String(120), unique=True, nullable=False, index=True)
+    username: Mapped[str] = mapped_column(String(100), unique=True, nullable=False, index=True)
     phone_no: Mapped[str] = mapped_column(String(50), nullable=False)
     bank: Mapped[str] = mapped_column(String(50), nullable=False, index=True)
     account_no: Mapped[str] = mapped_column(String(50), nullable=False)
