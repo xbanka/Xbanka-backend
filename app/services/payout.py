@@ -1,4 +1,5 @@
 from app.core.base.services import Service
+from app.core.enums import PayoutStatusEnum
 from app.models.customer import Customer
 from app.models.payouts import Payout
 from app.models.transactions import Transaction, TransactionStatusEnum
@@ -20,6 +21,15 @@ class PayoutService(Service):
             .where(Transaction.status == TransactionStatusEnum.approved)
         ) or 0
 
+        total_payouts = db.scalar(
+            select(func.coalesce(func.sum(Payout.amount), 0))
+            .where(Payout.affiliate_id == affiliate_id)
+            .where(Payout.status == PayoutStatusEnum.paid)
+        ) or 0
+
+        amount_withdrawn = total_payouts
+        available_balance -= amount_withdrawn
+        
         existing_ref = db.execute(
             select(Payout).where(Payout.payment_ref == obj_in.payment_ref)
         ).scalar_one_or_none()
