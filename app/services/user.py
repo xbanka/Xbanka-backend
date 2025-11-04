@@ -28,11 +28,11 @@ class UserService(Service):
             )
         )
         affiliate = db.execute(stmt).scalars().first()
-        
+
         if affiliate:
             raise HTTPException(
                 status_code=400,
-                detail="Affiliate with email already exists"
+                detail="Affiliate with email/username already exists"
             )
     
         if not is_valid_password(obj_in.password):
