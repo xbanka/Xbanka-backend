@@ -1,6 +1,7 @@
 import secrets
 from fastapi import HTTPException, status
 from psycopg2 import IntegrityError
+from sqlalchemy import select, or_
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 from app.core.base.services import Service
@@ -20,7 +21,14 @@ class UserService(Service):
                 detail='Invalid email address.'
             )
 
-        affiliate = db.query(Affiliate).filter_by(email=obj_in.email).first()
+        stmt = select(Affiliate).where(
+            or_(
+                Affiliate.email == obj_in.email,
+                Affiliate.username == obj_in.username
+            )
+        )
+        affiliate = db.execute(stmt).scalars().first()
+        
         if affiliate:
             raise HTTPException(
                 status_code=400,
