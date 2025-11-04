@@ -26,3 +26,17 @@ class Customer(BaseModel):
 
     def __repr__(self):
         return f"<Customer(first_name='{self.first_name}', last_name='{self.last_name}', email='{self.email}', commission={self.commission})>"
+
+    
+
+class MockCustomer(BaseModel):
+    __tablename__ = 'mock_customers'
+
+    full_name: Mapped[str] = mapped_column(String(200), nullable=False)
+    phone_no: Mapped[str] = mapped_column(String(50), nullable=False)
+    transaction_type: Mapped[str] = mapped_column(String(50), nullable=False)
+    amount: Mapped[str] = mapped_column(String(50), nullable=False)
+    note: Mapped[str] = mapped_column(String(255), nullable=True)
+
+    def __repr__(self):
+        return f"<MockCustomer(full_name='{self.full_name}', phone_no='{self.phone_no}', transaction_type='{self.transaction_type}', amount='{self.amount}')>"
