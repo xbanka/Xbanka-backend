@@ -1,5 +1,6 @@
 from typing import Optional
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, field_validator, ValidationInfo
+from fastapi import HTTPException
 
 class TokenData(BaseModel):
     id: str
@@ -33,7 +34,15 @@ class RegisterBase(BaseModel):
     bank: str
     account_no: str
     password: str
+    confirm_password: str
 
+    @field_validator("confirm_password", mode="after")
+    def passwords_match(cls, v, values: ValidationInfo):
+        password = values.data.get("password")
+        if password and v != password:
+            raise HTTPException(status_code=400, detail="Passwords do not match")
+        return v
+    
 class RegisterResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
