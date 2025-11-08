@@ -16,6 +16,7 @@ from app.schemas.user import (
     TokenData,
     AccountVerificationRequest
 )
+from app.services.user import UserService
 from app.utils.settings import settings
 from app.utils.validators import is_valid_email
 
@@ -75,6 +76,21 @@ class AuthService(Service[Affiliate, RegisterBase]):
             expires = datetime.now() + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
 
         to_encode.update({"exp": expires, "type": "magic_link"})
+        encoded_jwt = jwt.encode(to_encode, settings.SECRET_KEY, settings.ALGORITHM)
+
+        return encoded_jwt
+    
+    @staticmethod
+    def create_password_reset_token(data: dict, expires_delta: timedelta | None = None):
+        """Method to create access token"""
+        to_encode = data.copy()
+
+        if expires_delta is not None:
+            expires = datetime.now() + expires_delta
+        else:
+            expires = datetime.now() + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+
+        to_encode.update({"exp": expires, "type": "password_reset"})
         encoded_jwt = jwt.encode(to_encode, settings.SECRET_KEY, settings.ALGORITHM)
 
         return encoded_jwt
@@ -151,6 +167,30 @@ class AuthService(Service[Affiliate, RegisterBase]):
             return token_data
 
         except (ExpiredSignatureError, JWTError):
+            raise credentials_exception
+        
+    
+    @staticmethod
+    def verify_password_reset_token(access_token: str, credentials_exception):
+        """Method to verify validity of access token"""
+
+        try:
+            payload = jwt.decode(
+                access_token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM]
+            )
+            user_id = payload.get("sub")
+            token_type = payload.get("type")
+
+            if not user_id:
+                raise credentials_exception
+
+            if token_type != "password_reset":
+                raise HTTPException(detail="Invalid token", status_code=400)
+
+            token_data = TokenData(id=user_id)
+            return token_data
+
+        except JWTError:
             raise credentials_exception
 
     @staticmethod
@@ -310,3 +350,28 @@ class AuthService(Service[Affiliate, RegisterBase]):
             status_code=400,
             detail=f"Provided name '{request.last_name} {request.first_name}' does not match account name '{account_name}'",
         )
+
+    @staticmethod
+    def resend_verification_email(request: AccountVerificationRequest):
+        # Logic to resend verification email
+        # This is a placeholder implementation
+        return {
+            "message": f"Verification email resent to {request.first_name} {request.last_name}"
+        }
+    
+    @staticmethod
+    def update_user_password(db: Session, user: TokenData, new_password: str):
+        """Method to update user's password"""
+        try:
+            user = UserService.get_user_by_id(db, user.id)
+
+            hashed_password = Hasher.get_password_hash(new_password)
+
+            user.hashed_password = hashed_password
+            db.commit()
+            db.refresh(user)
+        except Exception as e:
+            db.rollback()
+            raise HTTPException(
+                status_code=500, detail=f"An error occurred updating password: {str(e)}"
+            ) from e

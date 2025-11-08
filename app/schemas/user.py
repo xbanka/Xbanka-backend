@@ -76,3 +76,23 @@ class AccountVerificationResponse(BaseModel):
     message: str
     verified_name: str
     bank: str
+
+class ForgotPasswordRequest(BaseModel):
+    email: str
+
+class ForgotPasswordResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    message: str
+
+class ResetPasswordRequest(BaseModel):
+    token: str
+    new_password: str
+    confirm_password: str
+
+    @field_validator("confirm_password", mode="after")
+    def passwords_match(cls, v, values: ValidationInfo):
+        password = values.data.get("new_password")
+        if password and v != password:
+            raise HTTPException(status_code=400, detail="Passwords do not match")
+        return v

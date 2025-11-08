@@ -17,13 +17,16 @@ from app.schemas.user import (
     LogoutResponse,
     VerifyResponse,
     AccountVerificationRequest,
-    AccountVerificationResponse
+    AccountVerificationResponse,
+    ForgotPasswordRequest,
+    ForgotPasswordResponse,
+    ResetPasswordRequest
 )
 from app.services.auth import AuthService
 from app.services.user import UserService
 from app.db.database import get_db
 from app.utils.settings import settings
-from app.core.email import send_mail
+from app.core.email import send_verification_email, send_forgot_password_email
 from app.models.affiliate import Affiliate
 
 
@@ -81,7 +84,7 @@ async def register(
     token = AuthService.create_magic_link_token(data={"sub": str(user.id)})
     url = f"{FRONTEND_URL}/affiliate/verify?token={token}"
 
-    await send_mail(
+    await send_verification_email(
         recipient=login_request.email,
         first_name=str(user.first_name),
         last_name=str(user.last_name),
@@ -149,3 +152,44 @@ def logout(response: Response):
 @auth.post('/verify-account', response_model=AccountVerificationResponse)
 def verify_bank_information(request: AccountVerificationRequest):
     return AuthService.verify_bank_information(request)
+
+
+@auth.post('/resend-verification', response_model=VerifyResponse)
+def resend_verification(request: AccountVerificationRequest):
+    return AuthService.resend_verification_email(request)
+
+
+@auth.post('/forgot-password', response_model=ForgotPasswordResponse)
+async def forgot_password(
+    forgot_request: ForgotPasswordRequest, 
+    background_tasks: BackgroundTasks, 
+    db: Session = Depends(get_db)
+):  
+    user = UserService.get_user_by_mail(db, forgot_request.email)
+    if not user:
+        raise HTTPException(status_code=404, detail="User with this email does not exist")
+    
+    token = AuthService.create_password_reset_token(data={"sub": str(user.id)})
+    url = f"{FRONTEND_URL}/reset-password?token={token}"
+
+    await send_forgot_password_email(
+        recipient=forgot_request.email,
+        first_name=str(user.first_name),
+        last_name=str(user.last_name),
+        reset_url=url,
+        background_tasks=background_tasks,
+    )
+
+@auth.post('/reset-password', response_model=ForgotPasswordResponse)
+def reset_password(reset_request: ResetPasswordRequest, db: Session = Depends(get_db)):
+    credentials_exception = HTTPException(
+        status_code=401, detail="Magic token expired/invalid"
+    )
+    
+    user_token = AuthService.verify_password_reset_token(reset_request.token, credentials_exception)
+    if not user_token:
+        raise HTTPException(status_code=401, detail="Password reset token expired/invalid")
+    
+    AuthService.update_user_password(db, user_token, reset_request.new_password)
+    
+    return {"message": "Password has been reset successfully"}
