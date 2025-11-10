@@ -170,7 +170,7 @@ async def forgot_password(
         raise HTTPException(status_code=404, detail="User with this email does not exist")
     
     token = AuthService.create_password_reset_token(data={"sub": str(user.id)})
-    url = f"{FRONTEND_URL}/reset-password?token={token}"
+    url = f"{FRONTEND_URL}/affiliate/reset-password?token={token}"
 
     await send_forgot_password_email(
         recipient=forgot_request.email,
