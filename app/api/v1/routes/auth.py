@@ -180,10 +180,12 @@ async def forgot_password(
         background_tasks=background_tasks,
     )
 
+    return {"message": "Password reset instructions have been sent to your email."}
+
 @auth.post('/reset-password', response_model=ForgotPasswordResponse)
 def reset_password(reset_request: ResetPasswordRequest, db: Session = Depends(get_db)):
     credentials_exception = HTTPException(
-        status_code=401, detail="Magic token expired/invalid"
+        status_code=401, detail="Password reset token expired/invalid"
     )
     
     user_token = AuthService.verify_password_reset_token(reset_request.token, credentials_exception)

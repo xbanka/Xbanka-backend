@@ -5,7 +5,7 @@ from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
 from jose import JWTError
 from sqlalchemy.orm import Session
-from jwt.exceptions import InvalidTokenError, ExpiredSignatureError
+from jwt.exceptions import InvalidTokenError, ExpiredSignatureError, DecodeError
 from typing import Annotated
 from app.core.base.services import Service
 from app.core.hash import Hasher
@@ -120,7 +120,7 @@ class AuthService(Service[Affiliate, RegisterBase]):
 
             return affiliate
         
-        except (ExpiredSignatureError, JWTError):
+        except (ExpiredSignatureError, JWTError, DecodeError):
             raise credentials_exception
 
     @staticmethod
@@ -143,7 +143,7 @@ class AuthService(Service[Affiliate, RegisterBase]):
             token_data = TokenData(id=user_id)
             return token_data
 
-        except JWTError:
+        except (JWTError, DecodeError, ExpiredSignatureError):
             raise credentials_exception
 
     @staticmethod
@@ -166,7 +166,7 @@ class AuthService(Service[Affiliate, RegisterBase]):
             token_data = TokenData(id=user_id)
             return token_data
 
-        except (ExpiredSignatureError, JWTError):
+        except (ExpiredSignatureError, JWTError, DecodeError):
             raise credentials_exception
         
     
@@ -190,7 +190,7 @@ class AuthService(Service[Affiliate, RegisterBase]):
             token_data = TokenData(id=user_id)
             return token_data
 
-        except JWTError:
+        except (JWTError, DecodeError, ExpiredSignatureError):
             raise credentials_exception
 
     @staticmethod
@@ -326,8 +326,6 @@ class AuthService(Service[Affiliate, RegisterBase]):
 
         verify_response = requests.get(resolve_url, headers=headers, params=params)
         verify_data = verify_response.json()
-
-        print(verify_data)
 
         if not verify_data.get("status"):
             raise HTTPException(status_code=400, detail="Unable to verify account")
