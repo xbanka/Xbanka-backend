@@ -11,12 +11,13 @@ from app.core.base.services import Service
 from app.core.hash import Hasher
 from app.db.database import get_db
 from app.models.affiliate import Affiliate
+from app.models.erp_user import ERPUser
 from app.schemas.user import (
     RegisterBase,
     TokenData,
     AccountVerificationRequest
 )
-from app.services.user import UserService
+from app.services.erp_user import ERPService
 from app.utils.settings import settings
 from app.utils.validators import is_valid_email
 
@@ -97,7 +98,7 @@ class AuthService(Service[Affiliate, RegisterBase]):
 
     @staticmethod
     def verify_magic_link(
-        db: Session, magic_token: str, credentials_exception
+        db: Session, model, magic_token: str, credentials_exception
     ) -> Affiliate:
         """Method to verify validity of magic token"""
 
@@ -105,20 +106,20 @@ class AuthService(Service[Affiliate, RegisterBase]):
             payload = jwt.decode(
                 magic_token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM]
             )
-            affiliate_id = payload.get("sub")
+            user_id = payload.get("sub")
             token_type = payload.get("type")
 
-            if not affiliate_id:
+            if not user_id:
                 raise credentials_exception
 
             if token_type != "magic_link":
                 raise HTTPException(detail="Invalid token type", status_code=400)
 
-            affiliate = db.query(Affiliate).get(affiliate_id)
-            if not affiliate:
-                raise HTTPException(status_code=404, detail="affiliate not found")
+            user = db.query(model).get(user_id)
+            if not user:
+                raise HTTPException(status_code=404, detail="user not found")
 
-            return affiliate
+            return user
         
         except (ExpiredSignatureError, JWTError, DecodeError):
             raise credentials_exception
@@ -226,7 +227,7 @@ class AuthService(Service[Affiliate, RegisterBase]):
             ) from e
 
     @staticmethod
-    def authenticate_user(db: Session, email: str, password: str):
+    def authenticate_user(db: Session, model, email: str, password: str):
         """Function to authenticate a user"""
 
         if not is_valid_email(email):
@@ -234,28 +235,46 @@ class AuthService(Service[Affiliate, RegisterBase]):
                 status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid email address."
             )
 
-        affiliate = db.query(Affiliate).filter_by(email=email).first()
+        user = db.query(model).filter_by(email=email).first()
 
         try:
-            if not affiliate or not Hasher.verify_password(
-                password, affiliate.hashed_password
+            if not user or not Hasher.verify_password(
+                password, user.hashed_password
             ):
                 raise HTTPException(
-                    status_code=401, detail="Invalid affiliate credentials"
-                )
-            
-            if not affiliate.verified:
-                raise HTTPException(
-                    status_code=401, detail="User profile verification required"
+                    status_code=401, detail="Invalid user credentials"
                 )
 
-            return affiliate
+            return user
 
         except (ValueError, TypeError):
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail="Invalid credentials",  # hide true error e.g invalid salt
             )
+        
+    
+    @staticmethod
+    def authenticate_affiliate(db: Session, email: str, password: str):
+        """Dependency to authenticate affiliate user"""
+
+        affiliate = AuthService.authenticate_user(db, Affiliate, email, password)
+
+        if not affiliate.verified:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED, 
+                detail="User profile verification required"
+            )
+        
+        return affiliate
+        
+    @staticmethod
+    def authenticate_erpuser(db: Session, email: str, password: str):
+        """Dependency to authenticate erp user"""
+
+        erp_user = AuthService.authenticate_user(db, ERPUser, email, password)
+
+        return erp_user
 
     @staticmethod
     def get_current_user(
@@ -269,29 +288,40 @@ class AuthService(Service[Affiliate, RegisterBase]):
 
         try:
             payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
-            affiliate_id: str = payload.get("sub")
+            user_id: str = payload.get("sub")
+            user_role = payload.get("role")
 
-            if affiliate_id is None:
+            if user_id is None:
                 raise credentials_exception
 
-            token_data = TokenData(id=affiliate_id)
+            token_data = TokenData(id=user_id)
 
         except InvalidTokenError:
             raise credentials_exception
+        
+        if user_role == "affiliate":
+            user = db.query(Affiliate).filter(Affiliate.id == token_data.id).first()
 
-        affiliate = db.query(Affiliate).filter(Affiliate.id == token_data.id).first()
-
-        if affiliate is None:
+            if user and not user.verified:
+                raise HTTPException(
+                    status_code=status.HTTP_401_UNAUTHORIZED,
+                    detail="User has not been verified",
+                    headers={"WWW-Authenticate": "Bearer"},
+                )
+    
+        elif user_role == "erp":
+            user = db.query(ERPUser).filter_by(id=user_id).first()
+        else:
+            raise HTTPException(401, "Invalid user type")
+        
+        if user is None:
             raise credentials_exception
+        
+        user.assigned_role = user_role # temporary role assigned for RBAC, not part of SQLAlchemy model schema
 
-        if not affiliate.verified:
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="User has not been verified",
-                headers={"WWW-Authenticate": "Bearer"},
-            )
+        return user
 
-        return affiliate
+
 
     @staticmethod
     def verify_bank_information(request: AccountVerificationRequest):
@@ -361,7 +391,7 @@ class AuthService(Service[Affiliate, RegisterBase]):
     def update_user_password(db: Session, user: TokenData, new_password: str):
         """Method to update user's password"""
         try:
-            user = UserService.get_user_by_id(db, user.id)
+            user = ERPService.get_user_by_id(db, user.id)
 
             hashed_password = Hasher.get_password_hash(new_password)
 

@@ -2,7 +2,7 @@ from app.db.database import get_db
 from app.models.affiliate import Affiliate
 from app.schemas.dashboard import DashboardDisplay
 from app.services.auth import AuthService
-from app.services.dashboard import DashboardService
+from app.services.affiliate_dashboard import DashboardService
 from fastapi import APIRouter, status, Depends
 from sqlalchemy.orm import Session
 

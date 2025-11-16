@@ -1,19 +1,19 @@
-import secrets
 from fastapi import HTTPException, status
 from psycopg2 import IntegrityError
-from sqlalchemy import select, or_
+from sqlalchemy import select
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 from app.core.base.services import Service
 from app.core.hash import Hasher
-from app.models.affiliate import Affiliate
-from app.schemas.user import RegisterBase
-from app.utils.validators import is_valid_email, is_valid_password, is_valid_phone
+from app.models.erp_user import ERPUser
+
+from app.schemas.erp.user import RegisterBase
+from app.utils.validators import is_valid_email, is_valid_password
 
 
-class UserService(Service):
+class ERPService(Service):
     @staticmethod
-    def create(db: Session, obj_in: RegisterBase) -> Affiliate:
+    def create(db: Session, obj_in: RegisterBase) -> ERPUser:
 
         if not is_valid_email(obj_in.email):
             raise HTTPException(
@@ -21,18 +21,13 @@ class UserService(Service):
                 detail='Invalid email address.'
             )
 
-        stmt = select(Affiliate).where(
-            or_(
-                Affiliate.email == obj_in.email,
-                Affiliate.username == obj_in.username
-            )
-        )
-        affiliate = db.execute(stmt).scalars().first()
+        stmt = select(ERPUser).where(ERPUser.email == obj_in.email)
+        erp_user = db.execute(stmt).scalars().first()
 
-        if affiliate:
+        if erp_user:
             raise HTTPException(
                 status_code=400,
-                detail="Affiliate with email/username already exists"
+                detail="ERP user with email/username already exists"
             )
     
         if not is_valid_password(obj_in.password):
@@ -40,35 +35,19 @@ class UserService(Service):
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail='Password must be at least 8 characters long and contain at least one uppercase letter, one lowercase letter, one digit, and one special character.'
             )
-        
-        if not is_valid_phone(obj_in.phone_no):
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail='Phone number must be a valid Nigerian (+234) or international format'
-            )
-
-        while True:
-            generated_code = secrets.token_urlsafe(16)
-            if not db.query(Affiliate).filter_by(ref_code=generated_code).first():
-                break
 
         try:
-            affiliate = Affiliate(
+            erp_user = ERPUser(
                 first_name=obj_in.first_name,
                 last_name=obj_in.last_name,
                 email=obj_in.email,
-                username=obj_in.username,
-                phone_no=obj_in.phone_no,
-                bank=obj_in.bank,
-                account_no=obj_in.account_no,
                 hashed_password=Hasher.get_password_hash(obj_in.password),
-                verified=False,
-                ref_code=generated_code
+                verified=False
             )
 
-            db.add(affiliate)
+            db.add(erp_user)
             db.commit()
-            db.refresh(affiliate)
+            db.refresh(erp_user)
         except IntegrityError as e:
             print(e)
             db.rollback()
@@ -81,29 +60,29 @@ class UserService(Service):
             db.rollback()
             raise HTTPException(status_code=500, detail="An unknown error occurred")
 
-        return affiliate
+        return erp_user
 
     @staticmethod
-    def get_user_by_id(db: Session, id: str) -> Affiliate:
-        affiliate = db.query(Affiliate).get(id)
-        if not affiliate:
+    def get_user_by_id(db: Session, id: str) -> ERPUser:
+        erp_user = db.query(ERPUser).get(id)
+        if not erp_user:
             raise HTTPException(
                 status_code=404,
-                detail="Affiliate not found"
+                detail="ERP user not found"
             )
         
-        return affiliate
+        return erp_user
     
     @staticmethod
-    def get_user_by_mail(db: Session, email: str) -> Affiliate:
-        affiliate = db.query(Affiliate).filter_by(email=email).first()
-        if not affiliate:
+    def get_user_by_mail(db: Session, email: str) -> ERPUser:
+        erp_user = db.query(ERPUser).filter_by(email=email).first()
+        if not erp_user:
             raise HTTPException(
                 status_code=404,
-                detail="affiliate not found"
+                detail="ERP user not found"
             )
         
-        return affiliate
+        return erp_user
 
 
     @staticmethod

@@ -11,7 +11,7 @@ from app.schemas.affiliate import (
 from app.schemas.payout import PayoutSummary, PayoutBase, NewPayoutResponse
 from app.services.auth import AuthService
 from app.services.affiliate import AffiliateService
-from app.services.payout import PayoutService
+from app.services.affiliate_payout import PayoutService
 from app.db.database import get_db
 from app.models import Affiliate
 
