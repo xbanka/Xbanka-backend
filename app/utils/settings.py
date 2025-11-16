@@ -8,7 +8,12 @@ BASE_DIR = Path(__file__).resolve().parent.parent.parent
 class Settings(BaseSettings):
     """ Class to hold application's config values."""
 
-    FRONTEND_URL: str
+    AFFILIATE_FRONTEND_URL: str
+    ERP_FRONTEND_URL: str
+
+    DEBUG: bool
+
+    TEST_EMAIL: str
 
     SECRET_KEY: str
     ALGORITHM: str

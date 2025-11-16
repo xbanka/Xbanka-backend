@@ -1,22 +1,119 @@
+import secrets
 from app.core.base.services import Service
 from app.core.enums import TransactionStatusEnum, PayoutStatusEnum
+from app.core.hash import Hasher
 from app.models.affiliate import Affiliate
 from app.models.payouts import Payout
 from app.models.transactions import Transaction
 from app.models.customer import Customer
 from app.schemas.affiliate import UpdateBankDetailsRequest
-from app.utils.validators import is_valid_account_number
+from app.schemas.user import RegisterBase
+from app.utils.validators import is_valid_account_number, is_valid_email, is_valid_password, is_valid_phone
 
 from datetime import datetime, timezone
 from fastapi import HTTPException, status
 from io import BytesIO
-from sqlalchemy import select, func
+from sqlalchemy import select, func, or_
+from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from sqlalchemy.orm import Session, selectinload
 from openpyxl import Workbook
 from typing import Optional, cast
 
 
 class AffiliateService(Service):
+    @staticmethod
+    def create(db: Session, obj_in: RegisterBase) -> Affiliate:
+
+        if not is_valid_email(obj_in.email):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail='Invalid email address.'
+            )
+
+        stmt = select(Affiliate).where(
+            or_(
+                Affiliate.email == obj_in.email,
+                Affiliate.username == obj_in.username
+            )
+        )
+        affiliate = db.execute(stmt).scalars().first()
+
+        if affiliate:
+            raise HTTPException(
+                status_code=400,
+                detail="Affiliate with email/username already exists"
+            )
+    
+        if not is_valid_password(obj_in.password):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail='Password must be at least 8 characters long and contain at least one uppercase letter, one lowercase letter, one digit, and one special character.'
+            )
+        
+        if not is_valid_phone(obj_in.phone_no):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail='Phone number must be a valid Nigerian (+234) or international format'
+            )
+
+        while True:
+            generated_code = secrets.token_urlsafe(16)
+            if not db.query(Affiliate).filter_by(ref_code=generated_code).first():
+                break
+
+        try:
+            affiliate = Affiliate(
+                first_name=obj_in.first_name,
+                last_name=obj_in.last_name,
+                email=obj_in.email,
+                username=obj_in.username,
+                phone_no=obj_in.phone_no,
+                bank=obj_in.bank,
+                account_no=obj_in.account_no,
+                hashed_password=Hasher.get_password_hash(obj_in.password),
+                verified=False,
+                ref_code=generated_code
+            )
+
+            db.add(affiliate)
+            db.commit()
+            db.refresh(affiliate)
+        except IntegrityError as e:
+            print(e)
+            db.rollback()
+            raise HTTPException(status_code=400, detail="Database integrity error")
+        except SQLAlchemyError as e:
+            db.rollback()
+            raise HTTPException(status_code=500, detail=f"An error occurred saving entity: {e}")
+        except Exception as e:
+            print(e)
+            db.rollback()
+            raise HTTPException(status_code=500, detail="An unknown error occurred")
+
+        return affiliate
+
+    @staticmethod
+    def get_user_by_id(db: Session, id: str) -> Affiliate:
+        affiliate = db.query(Affiliate).get(id)
+        if not affiliate:
+            raise HTTPException(
+                status_code=404,
+                detail="Affiliate not found"
+            )
+        
+        return affiliate
+    
+    @staticmethod
+    def get_user_by_mail(db: Session, email: str) -> Affiliate:
+        affiliate = db.query(Affiliate).filter_by(email=email).first()
+        if not affiliate:
+            raise HTTPException(
+                status_code=404,
+                detail="affiliate not found"
+            )
+        
+        return affiliate
+    
     @staticmethod
     def set_codename(db: Session, affiliate: Affiliate, codename: str) -> Affiliate:
         # check if codename already exists
