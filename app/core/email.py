@@ -1,19 +1,43 @@
 from app.core.config import conf
 from app.utils.settings import settings
-from fastapi import BackgroundTasks
+from fastapi import BackgroundTasks, HTTPException, status
 from fastapi_mail import FastMail, MessageSchema, MessageType
 from typing import Dict
+from app.core.enums import EmailTypeEnum
 
-FRONTEND_URL = settings.FRONTEND_URL
+AFFILIATE_FRONTEND_URL = settings.AFFILIATE_FRONTEND_URL
+ERP_FRONTEND_URL = settings.ERP_FRONTEND_URL
+TEST_EMAIL = settings.TEST_EMAIL
 
-async def send_verification_email(recipient: str, first_name: str, last_name: str, verification_url: str, background_tasks: BackgroundTasks):
-    
+# Mapping ensures easier extension later
+
+url_map = {
+    EmailTypeEnum.affiliate: AFFILIATE_FRONTEND_URL,
+    EmailTypeEnum.erp: ERP_FRONTEND_URL,
+}
+
+async def send_verification_email(recipient: str, email_type: EmailTypeEnum, first_name: str, last_name: str, verification_url: str, background_tasks: BackgroundTasks):
+
+    template_map = {
+        EmailTypeEnum.affiliate: "email_template_affiliates.html",
+        EmailTypeEnum.erp: "email_template_erp.html",
+    }
+
+    email_template = template_map.get(email_type)
+    template_url = url_map.get(email_type)
+
+    if not template_url:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Environment variable for frontend URL is missing"
+        )
+
     template_body: Dict[str, str] = {
         "first_name": first_name,
         "last_name": last_name,
         "verification_url": verification_url,
-        "frontend_url": FRONTEND_URL,
-    }
+        "frontend_url": template_url,
+    }    
 
     message = MessageSchema(
         subject="Verify Your Email Address",
@@ -22,18 +46,29 @@ async def send_verification_email(recipient: str, first_name: str, last_name: st
         subtype=MessageType.html
     )
 
+    if settings.DEBUG:
+        message.recipients.append(TEST_EMAIL)
+
     fm = FastMail(conf)
     # await fm.send_message(message, template_name='email_template.html')
-    background_tasks.add_task(fm.send_message, message, 'email_template.html')
+    background_tasks.add_task(fm.send_message, message, email_template)
 
 
-async def send_forgot_password_email(recipient: str, first_name: str, last_name: str, reset_url: str, background_tasks: BackgroundTasks):
+async def send_forgot_password_email(recipient: str, email_type: EmailTypeEnum, first_name: str, last_name: str, reset_url: str, background_tasks: BackgroundTasks):
+
+    template_url = url_map.get(email_type)
+
+    if not template_url:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Environment variable for frontend URL is missing"
+        )
     
     template_body: Dict[str, str] = {
         "first_name": first_name,
         "last_name": last_name,
         "reset_url": reset_url,
-        "frontend_url": FRONTEND_URL,
+        "frontend_url": template_url,
     }
 
     message = MessageSchema(
