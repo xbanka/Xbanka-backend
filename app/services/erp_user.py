@@ -15,11 +15,9 @@ from app.utils.validators import is_valid_email, is_valid_password
 class ERPService(Service):
     @staticmethod
     def create(db: Session, obj_in: RegisterBase) -> ERPUser:
-
         if not is_valid_email(obj_in.email):
             raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail='Invalid email address.'
+                status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid email address."
             )
 
         stmt = select(ERPUser).where(ERPUser.email == obj_in.email)
@@ -27,14 +25,13 @@ class ERPService(Service):
 
         if erp_user:
             raise HTTPException(
-                status_code=400,
-                detail="ERP user with email/username already exists"
+                status_code=400, detail="ERP user with email/username already exists"
             )
-    
+
         if not is_valid_password(obj_in.password):
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail='Password must be at least 8 characters long and contain at least one uppercase letter, one lowercase letter, one digit, and one special character.'
+                detail="Password must be at least 8 characters long and contain at least one uppercase letter, one lowercase letter, one digit, and one special character.",
             )
 
         try:
@@ -43,7 +40,7 @@ class ERPService(Service):
                 last_name=obj_in.last_name,
                 email=obj_in.email,
                 hashed_password=Hasher.get_password_hash(obj_in.password),
-                verified=False
+                verified=False,
             )
 
             db.add(erp_user)
@@ -55,7 +52,9 @@ class ERPService(Service):
             raise HTTPException(status_code=400, detail="Database integrity error")
         except SQLAlchemyError as e:
             db.rollback()
-            raise HTTPException(status_code=500, detail=f"An error occurred saving entity: {e}")
+            raise HTTPException(
+                status_code=500, detail=f"An error occurred saving entity: {e}"
+            )
         except Exception as e:
             print(e)
             db.rollback()
@@ -67,33 +66,28 @@ class ERPService(Service):
     def get_user_by_id(db: Session, id: str) -> ERPUser:
         erp_user = db.query(ERPUser).get(id)
         if not erp_user:
-            raise HTTPException(
-                status_code=404,
-                detail="ERP user not found"
-            )
-        
+            raise HTTPException(status_code=404, detail="ERP user not found")
+
         return erp_user
-    
+
     @staticmethod
     def get_user_by_mail(db: Session, email: str) -> ERPUser:
         erp_user = db.query(ERPUser).filter_by(email=email).first()
         if not erp_user:
-            raise HTTPException(
-                status_code=404,
-                detail="ERP user not found"
-            )
-        
-        return erp_user
+            raise HTTPException(status_code=404, detail="ERP user not found")
 
+        return erp_user
 
     @staticmethod
     def get_current_user(db: Session):
         pass
 
-
     @staticmethod
     def get_notifications(db: Session, current_user: ERPUser):
-        stmt = select(Notification).where(Notification.user_id == current_user.id)
+        stmt = (
+            select(Notification)
+            .where(Notification.user_id == current_user.id)
+            .join(ERPUser)
+        )
         notifications = db.execute(stmt).scalars().all()
         return notifications
-
