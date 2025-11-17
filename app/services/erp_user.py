@@ -6,6 +6,7 @@ from sqlalchemy.orm import Session
 from app.core.base.services import Service
 from app.core.hash import Hasher
 from app.models.erp_user import ERPUser
+from app.models.notifications import Notification
 
 from app.schemas.erp.user import RegisterBase
 from app.utils.validators import is_valid_email, is_valid_password
@@ -88,3 +89,11 @@ class ERPService(Service):
     @staticmethod
     def get_current_user(db: Session):
         pass
+
+
+    @staticmethod
+    def get_notifications(db: Session, current_user: ERPUser):
+        stmt = select(Notification).where(Notification.user_id == current_user.id)
+        notifications = db.execute(stmt).scalars().all()
+        return notifications
+
