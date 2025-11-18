@@ -1,3 +1,5 @@
+from datetime import datetime
+from uuid import UUID
 from fastapi import HTTPException, status
 from psycopg2 import IntegrityError
 from sqlalchemy import select
@@ -91,3 +93,24 @@ class ERPService(Service):
         )
         notifications = db.execute(stmt).scalars().all()
         return notifications
+    
+    @staticmethod
+    def mark_notification_as_read(db: Session, id: UUID, current_user: ERPUser):
+        notif = db.get(Notification, id)
+        if not notif:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Notification not found"
+            )
+        
+        if notif.user_id != current_user.id:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="You are not allowed to access this resource"
+            )
+
+        notif.is_read = True
+        notif.read_at = datetime.now()
+        db.commit()
+        db.refresh(notif)
+        return notif
