@@ -1,15 +1,20 @@
 from datetime import datetime
+from typing import Optional
 from uuid import UUID
 from fastapi import HTTPException, status
 from psycopg2 import IntegrityError
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 from app.core.base.services import Service
+from app.core.enums import PayoutStatusEnum
+from app.core.enums import PayoutStatusEnum
 from app.core.hash import Hasher
 from app.models.erp_user import ERPUser
 from app.models.notifications import Notification
 
+from app.models.payouts import Payout
+from app.models.payouts import Payout
 from app.schemas.erp.user import RegisterBase
 from app.utils.validators import is_valid_email, is_valid_password
 
@@ -114,3 +119,35 @@ class ERPService(Service):
         db.commit()
         db.refresh(notif)
         return notif
+    
+
+    @staticmethod
+    def get_all_payouts(db: Session, page: int, limit: int, status: Optional[PayoutStatusEnum] = None):
+        stmt = select(Payout)
+
+        if status:
+            stmt = stmt.where(Payout.status == status)
+
+        stmt = (
+            stmt.order_by(Payout.created_at.desc())
+            .offset((page - 1) * limit)
+            .limit(limit)
+        )
+
+        result = db.execute(stmt)
+        payouts = result.scalars().all()
+
+        total = db.scalar(
+            select(func.count()).select_from(
+                select(Payout)
+                .subquery()
+            )
+        ) or 0
+
+        return {
+            "page": page,
+            "limit": limit,
+            "total": total,
+            "pages": (total + limit - 1) // limit,
+            "data": payouts
+        }

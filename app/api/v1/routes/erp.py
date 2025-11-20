@@ -1,23 +1,25 @@
 from uuid import UUID
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Query, status
+from app.core.enums import PayoutStatusEnum
+from app.schemas.affiliate import PaginatedPayoutResponse
 from app.utils.auth import require_role
 from app.services.erp_user import ERPService
 from sqlalchemy.orm import Session
 from app.db.database import get_db
 from app.services.auth import AuthService
 from app.schemas.erp.notifications import NotificationReadResponse, NotificationsResponse 
-from typing import List
+from typing import List, Optional
 
 erp = APIRouter(prefix="/erp", tags=["ERP"])
 
 @erp.get("/")
-def get_index(user = Depends(require_role("erp"))):
+def get_index(current_user = Depends(require_role("erp"))):
     return {
         "message": "hey"
 }
 
 @erp.get("/notifications", response_model=List[NotificationsResponse])
-def get_notifications(db: Session = Depends(get_db), current_user = Depends(AuthService.get_current_user)):
+def get_notifications(db: Session = Depends(get_db), current_user = Depends(require_role("erp"))):
     return ERPService.get_notifications(db, current_user)
 
 
@@ -25,3 +27,18 @@ def get_notifications(db: Session = Depends(get_db), current_user = Depends(Auth
 def mark_as_read(id: UUID, db: Session = Depends(get_db), current_user = Depends(require_role("erp"))):
     notif = ERPService.mark_notification_as_read(db, id, current_user)
     return notif
+
+
+@erp.get(
+    "/payouts",
+    status_code=status.HTTP_200_OK,
+    response_model=PaginatedPayoutResponse,
+)
+def get_all_payouts(
+    db: Session = Depends(get_db),
+    current_user = Depends(require_role("erp")),
+    page: int = Query(1, ge=1, description="Page number"),
+    limit: int = Query(10, ge=1, le=100, description="Items per page"),
+    status: Optional[PayoutStatusEnum] = Query(None, description="Payout Status")
+):
+    return ERPService.get_all_payouts(db, page, limit, status)
