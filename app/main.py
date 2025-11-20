@@ -10,7 +10,8 @@ app.include_router(api_version_one)
 
 origins = [
     "http://localhost:3000",  # local dev FE
-    "https://www.xbankang.com",  # production FE
+    "https://www.xbankang.com",  # production FE (affiliate domain)
+    "https://erp.xbankang.com",  # production FE (erp domain)
 ]
 
 # Add the middleware to your FastAPI app
