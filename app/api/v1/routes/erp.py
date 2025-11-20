@@ -6,7 +6,6 @@ from app.utils.auth import require_role
 from app.services.erp_user import ERPService
 from sqlalchemy.orm import Session
 from app.db.database import get_db
-from app.services.auth import AuthService
 from app.schemas.erp.notifications import NotificationReadResponse, NotificationsResponse 
 from typing import List, Optional
 
