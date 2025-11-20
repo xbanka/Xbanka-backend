@@ -4,6 +4,7 @@ from pydantic import BaseModel, ConfigDict
 
 from app.core.enums import NotificationTypeEnum
 from app.schemas.erp.user import UserBase
+from typing import Optional
 
 class NotificationsResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
@@ -13,7 +14,10 @@ class NotificationsResponse(BaseModel):
     message: str
     type: NotificationTypeEnum
     is_read: bool
-    read_at: datetime | None
+    read_at: Optional[datetime]
+    bank_name: Optional[str]
+    amount: float
+    method: Optional[str]
     user: UserBase
 
 
