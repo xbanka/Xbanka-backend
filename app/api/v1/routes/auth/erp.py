@@ -68,7 +68,7 @@ async def register(
     user = ERPService.create(db, login_request)
 
     token = AuthService.create_magic_link_token(data={"sub": str(user.id)})
-    url = f"{ERP_FRONTEND_URL}/erp/verify?token={token}"
+    url = f"{ERP_FRONTEND_URL}/verify?token={token}"
 
     await send_verification_email(
         recipient=login_request.email,
@@ -148,7 +148,7 @@ async def forgot_password(
         raise HTTPException(status_code=404, detail="User with this email does not exist")
     
     token = AuthService.create_password_reset_token(data={"sub": str(user.id)})
-    url = f"{ERP_FRONTEND_URL}/erp/reset-password?token={token}"
+    url = f"{ERP_FRONTEND_URL}/reset-password?token={token}"
 
     await send_forgot_password_email(
         recipient=forgot_request.email,
