@@ -1,7 +1,7 @@
 from uuid import UUID
 from fastapi import APIRouter, Depends, Query, status
 from app.core.enums import PayoutStatusEnum
-from app.schemas.affiliate import PaginatedPayoutResponse
+from app.schemas.erp.payout import ERPPaginatedPayoutResponse
 from app.utils.auth import require_role
 from app.services.erp_user import ERPService
 from sqlalchemy.orm import Session
@@ -31,7 +31,7 @@ def mark_as_read(id: UUID, db: Session = Depends(get_db), current_user = Depends
 @erp.get(
     "/payouts",
     status_code=status.HTTP_200_OK,
-    response_model=PaginatedPayoutResponse,
+    response_model=ERPPaginatedPayoutResponse,
 )
 def get_all_payouts(
     db: Session = Depends(get_db),
