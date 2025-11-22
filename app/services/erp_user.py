@@ -9,6 +9,7 @@ from sqlalchemy.orm import Session
 from app.core.base.services import Service
 from app.core.enums import PayoutStatusEnum
 from app.core.hash import Hasher
+from app.models.affiliate import Affiliate
 from app.models.erp_user import ERPUser
 from app.models.notifications import Notification
 
@@ -96,20 +97,19 @@ class ERPService(Service):
         )
         notifications = db.execute(stmt).scalars().all()
         return notifications
-    
+
     @staticmethod
     def mark_notification_as_read(db: Session, id: UUID, current_user: ERPUser):
         notif = db.get(Notification, id)
         if not notif:
             raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="Notification not found"
+                status_code=status.HTTP_404_NOT_FOUND, detail="Notification not found"
             )
-        
+
         if notif.user_id != current_user.id:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
-                detail="You are not allowed to access this resource"
+                detail="You are not allowed to access this resource",
             )
 
         notif.is_read = True
@@ -117,11 +117,12 @@ class ERPService(Service):
         db.commit()
         db.refresh(notif)
         return notif
-    
 
     @staticmethod
-    def get_all_payouts(db: Session, page: int, limit: int, status: Optional[PayoutStatusEnum] = None):
-        stmt = select(Payout)
+    def get_all_payouts(
+        db: Session, page: int, limit: int, status: Optional[PayoutStatusEnum] = None
+    ):
+        stmt = select(Payout).join(Affiliate)
 
         if status:
             stmt = stmt.where(Payout.status == status)
@@ -135,17 +136,14 @@ class ERPService(Service):
         result = db.execute(stmt)
         payouts = result.scalars().all()
 
-        total = db.scalar(
-            select(func.count()).select_from(
-                select(Payout)
-                .subquery()
-            )
-        ) or 0
+        total = (
+            db.scalar(select(func.count()).select_from(select(Payout).subquery())) or 0
+        )
 
         return {
             "page": page,
             "limit": limit,
             "total": total,
             "pages": (total + limit - 1) // limit,
-            "data": payouts
+            "data": payouts,
         }

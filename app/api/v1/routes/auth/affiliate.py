@@ -28,6 +28,7 @@ from app.db.database import get_db
 from app.utils.settings import settings
 from app.core.email import send_verification_email, send_forgot_password_email
 from app.models.affiliate import Affiliate
+from app.models.erp_user import ERPUser
 from app.core.enums import EmailTypeEnum
 
 
@@ -42,8 +43,8 @@ async def swagger_authenticate(
     form_data: OAuth2PasswordRequestForm = Depends(), 
     db: Session = Depends(get_db)
 ):
-    user = AuthService.authenticate_erpuser(
-        db, form_data.username, form_data.password
+    user = AuthService.authenticate_user(
+        db, ERPUser, form_data.username, form_data.password
     )
     access_token = AuthService.create_access_token(data={"sub": str(user.id)})
     return {"access_token": access_token, "token_type": "bearer"}
@@ -52,8 +53,8 @@ async def swagger_authenticate(
 
 @affiliate.post("/login", response_model=LoginResponse, status_code=status.HTTP_200_OK)
 def login(create_request: LoginBase, response: Response, db: Session = Depends(get_db)):
-    user = AuthService.authenticate_affiliate(
-        db, create_request.email, create_request.password
+    user = AuthService.authenticate_user(
+        db, Affiliate, create_request.email, create_request.password
     )
 
     access_token = AuthService.create_access_token(data={"sub": str(user.id), "role": "affiliate"})

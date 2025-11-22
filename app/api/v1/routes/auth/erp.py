@@ -37,8 +37,8 @@ JWT_REFRESH_EXPIRY = settings.JWT_REFRESH_EXPIRY
 
 @erp.post("/login", response_model=LoginResponse, status_code=status.HTTP_200_OK)
 def login(create_request: LoginBase, response: Response, db: Session = Depends(get_db)):
-    user = AuthService.authenticate_erpuser(
-        db, create_request.email, create_request.password
+    user: ERPUser = AuthService.authenticate_user(
+        db, ERPUser, create_request.email, create_request.password
     )
 
     access_token = AuthService.create_access_token(data={"sub": str(user.id), "role": "erp"})

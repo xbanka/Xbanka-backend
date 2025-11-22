@@ -6,7 +6,7 @@ from fastapi.security import OAuth2PasswordBearer
 from jose import JWTError
 from sqlalchemy.orm import Session
 from jwt.exceptions import InvalidTokenError, ExpiredSignatureError, DecodeError
-from typing import Annotated
+from typing import Annotated, Optional, Union
 from app.core.base.services import Service
 from app.core.hash import Hasher
 from app.db.database import get_db
@@ -235,17 +235,13 @@ class AuthService(Service[Affiliate, RegisterBase]):
                 status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid email address."
             )
 
-        user = db.query(model).filter_by(email=email).first()
+        user: Optional[Union[ERPUser, Affiliate]] = db.query(model).filter_by(email=email).first()
 
         try:
             if not user or not Hasher.verify_password(
                 password, user.hashed_password
             ):
-                raise HTTPException(
-                    status_code=401, detail="Invalid user credentials"
-                )
-
-            return user
+                raise
 
         except (ValueError, TypeError):
             raise HTTPException(
@@ -253,28 +249,15 @@ class AuthService(Service[Affiliate, RegisterBase]):
                 detail="Invalid credentials",  # hide true error e.g invalid salt
             )
         
-    
-    @staticmethod
-    def authenticate_affiliate(db: Session, email: str, password: str):
-        """Dependency to authenticate affiliate user"""
-
-        affiliate = AuthService.authenticate_user(db, Affiliate, email, password)
-
-        if not affiliate.verified:
+        if not user.verified:
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED, 
-                detail="User profile verification required"
+                detail="User profile verification required" 
             )
         
-        return affiliate
+        return user
         
-    @staticmethod
-    def authenticate_erpuser(db: Session, email: str, password: str):
-        """Dependency to authenticate erp user"""
-
-        erp_user = AuthService.authenticate_user(db, ERPUser, email, password)
-
-        return erp_user
+        
 
     @staticmethod
     def get_current_user(
