@@ -1,5 +1,5 @@
 from typing import Optional
-from app.core.enums import PayoutStatusEnum, TransactionStatusEnum
+from app.core.enums import PayoutStatusEnum, TransactionStatusEnum, PayoutMethodEnum
 from app.schemas.affiliate import (
     AffiliateMeResponse,
     AffiliateCodename, 
@@ -12,6 +12,7 @@ from app.schemas.payout import PayoutSummary, PayoutBase, NewPayoutResponse
 from app.services.auth import AuthService
 from app.services.affiliate import AffiliateService
 from app.services.affiliate_payout import PayoutService
+from app.services.erp_user import ERPService
 from app.db.database import get_db
 from app.models import Affiliate
 
@@ -95,6 +96,14 @@ def post_payout(
     current_user: Affiliate = Depends(AuthService.get_current_user)
 ):
     payout = PayoutService.create_new(db, create_request, current_user.id)
+    ERPService.new_notification(
+        db,
+        user=current_user,
+        message="Affiliate Payout Request",
+        amount=create_request.amount,
+        bank_name=current_user.bank,
+        method=PayoutMethodEnum.bank_transfer,
+    )
 
     return {
         "message": "New payout has been created.",

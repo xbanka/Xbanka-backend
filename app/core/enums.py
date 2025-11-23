@@ -17,6 +17,10 @@ class NotificationTypeEnum(str, enum.Enum):
     whatsapp = "whatsapp"
 
 
+class PayoutMethodEnum(str, enum.Enum):
+    bank_transfer = "bank_transfer"
+    mobile_money = "mobile_money"
+
 class UserRoleEnum(str, enum.Enum):
     customer_support = "customer_support"
 

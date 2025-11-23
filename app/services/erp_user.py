@@ -7,7 +7,7 @@ from sqlalchemy import func, select
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 from app.core.base.services import Service
-from app.core.enums import PayoutStatusEnum
+from app.core.enums import PayoutMethodEnum, PayoutStatusEnum
 from app.core.hash import Hasher
 from app.models.affiliate import Affiliate
 from app.models.erp_user import ERPUser
@@ -117,6 +117,29 @@ class ERPService(Service):
         db.commit()
         db.refresh(notif)
         return notif
+
+    @staticmethod
+    def new_notification(
+        db: Session,
+        user: ERPUser,
+        message: str,
+        amount: float | str,
+        bank_name: str,
+        method: PayoutMethodEnum,
+    ) -> Notification:
+        
+        notification = Notification(
+            message=message, 
+            type="system", 
+            is_read=False, 
+            amount=amount, 
+            bank_name=bank_name, 
+            method=method
+        )
+        db.add(notification)
+        db.commit()
+        db.refresh(notification)
+        return notification
 
     @staticmethod
     def get_all_payouts(
