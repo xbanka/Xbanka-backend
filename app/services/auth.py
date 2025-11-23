@@ -237,13 +237,7 @@ class AuthService(Service[Affiliate, RegisterBase]):
 
         user: Optional[Union[ERPUser, Affiliate]] = db.query(model).filter_by(email=email).first()
 
-        try:
-            if not user or not Hasher.verify_password(
-                password, user.hashed_password
-            ):
-                raise
-
-        except (ValueError, TypeError):
+        if not user or not Hasher.verify_password(password, user.hashed_password):
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail="Invalid credentials",  # hide true error e.g invalid salt
@@ -255,8 +249,7 @@ class AuthService(Service[Affiliate, RegisterBase]):
                 detail="User profile verification required" 
             )
         
-        return user
-        
+        return user    
         
 
     @staticmethod
