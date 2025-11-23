@@ -1,6 +1,6 @@
-from app.core.enums import NotificationTypeEnum
+from app.core.enums import NotificationTypeEnum, PayoutMethodEnum
 from app.models.base_model import BaseModel
-from sqlalchemy import String, Enum, ForeignKey, Boolean, DateTime
+from sqlalchemy import String, Enum, ForeignKey, Boolean, DateTime, DECIMAL
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from datetime import datetime
 from typing import Optional
@@ -12,13 +12,9 @@ class Notification(BaseModel):
     type: Mapped[NotificationTypeEnum] = mapped_column(Enum(NotificationTypeEnum), nullable=False, default=NotificationTypeEnum.system, index=True)
     is_read: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False, index=True)
     read_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
-    amount: Mapped[float] = mapped_column(nullable=True)
-    bank_name: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
-    method: Mapped[Optional[str]] = mapped_column(String(50), nullable=True)
-
-    user_id: Mapped[int] = mapped_column(ForeignKey("erp_users.id"), nullable=False, index=True)
-
-    user = relationship("ERPUser", back_populates="notifications")
+    amount: Mapped[float] = mapped_column(DECIMAL(12, 2), nullable=False)
+    bank_name: Mapped[Optional[str]] = mapped_column(String(100), nullable=False)
+    method: Mapped[Optional[PayoutMethodEnum]] = mapped_column(Enum(PayoutMethodEnum), nullable=False, index=True)
 
     def __repr__(self):
         return f"<Notification(message='{self.message}', type='{self.type}', user_id={self.user_id})>"

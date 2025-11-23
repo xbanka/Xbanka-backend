@@ -13,7 +13,5 @@ class ERPUser(BaseModel):
     role: Mapped[UserRoleEnum] = mapped_column(Enum(UserRoleEnum), default=UserRoleEnum.customer_support, nullable=False, index=True)
     verified: Mapped[bool] = mapped_column(Boolean, nullable=False)
 
-    notifications = relationship("Notification", back_populates="user")
-
     def __repr__(self):
         return f"<ERPUser(first_name='{self.first_name}', last_name='{self.last_name}', email='{self.email}')>"
