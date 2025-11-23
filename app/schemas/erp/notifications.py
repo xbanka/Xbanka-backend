@@ -18,7 +18,6 @@ class NotificationsResponse(BaseModel):
     bank_name: str
     amount: float
     method: str
-    user: UserBase
 
 
 class NotificationReadResponse(BaseModel):

@@ -19,12 +19,12 @@ def get_index(current_user = Depends(require_role("erp"))):
 
 @erp.get("/notifications", response_model=List[NotificationsResponse])
 def get_notifications(db: Session = Depends(get_db), current_user = Depends(require_role("erp"))):
-    return ERPService.get_notifications(db, current_user)
+    return ERPService.get_notifications(db)
 
 
-@erp.patch("/notifications/{id}/mark-as-read", response_model=NotificationReadResponse)
-def mark_as_read(id: UUID, db: Session = Depends(get_db), current_user = Depends(require_role("erp"))):
-    notif = ERPService.mark_notification_as_read(db, id, current_user)
+@erp.patch("/notifications/{notification_id}/mark-as-read", response_model=NotificationReadResponse)
+def mark_as_read(notification_id: UUID, db: Session = Depends(get_db), current_user = Depends(require_role("erp"))):
+    notif = ERPService.mark_notification_as_read(db, notification_id)
     return notif
 
 

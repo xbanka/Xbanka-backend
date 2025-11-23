@@ -89,27 +89,17 @@ class ERPService(Service):
         pass
 
     @staticmethod
-    def get_notifications(db: Session, current_user: ERPUser):
-        stmt = (
-            select(Notification)
-            .where(Notification.user_id == current_user.id)
-            .join(ERPUser)
-        )
+    def get_notifications(db: Session):
+        stmt = select(Notification)
         notifications = db.execute(stmt).scalars().all()
         return notifications
 
     @staticmethod
-    def mark_notification_as_read(db: Session, id: UUID, current_user: ERPUser):
+    def mark_notification_as_read(db: Session, id: UUID):
         notif = db.get(Notification, id)
         if not notif:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND, detail="Notification not found"
-            )
-
-        if notif.user_id != current_user.id:
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="You are not allowed to access this resource",
             )
 
         notif.is_read = True
