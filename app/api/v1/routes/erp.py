@@ -1,6 +1,6 @@
 from uuid import UUID
 from fastapi import APIRouter, Depends, Query, status
-from app.core.enums import PayoutStatusEnum
+from app.core.enums import PayoutMethodEnum, PayoutStatusEnum
 from app.schemas.erp.payout import ERPPaginatedPayoutResponse, ERPPayoutResponse
 from app.utils.auth import require_role
 from app.services.erp_user import ERPService
@@ -57,4 +57,15 @@ def process_payout(
     db: Session = Depends(get_db),
     current_user = Depends(require_role("erp")),
 ):
-    return ERPService.process_payout(db, payout_id)
+    payout = ERPService.process_payout(db, payout_id)
+
+    ERPService.new_notification(
+        db,
+        user=current_user,
+        message="Payout has been processed successfully",
+        amount=payout.amount,
+        bank_name=current_user.bank,
+        method=PayoutMethodEnum.bank_transfer,
+    )
+
+    return payout
