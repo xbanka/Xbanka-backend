@@ -1,7 +1,7 @@
 from uuid import UUID
 from fastapi import APIRouter, Depends, Query, status
 from app.core.enums import PayoutStatusEnum
-from app.schemas.erp.payout import ERPPaginatedPayoutResponse
+from app.schemas.erp.payout import ERPPaginatedPayoutResponse, ERPPayoutResponse
 from app.utils.auth import require_role
 from app.services.erp_user import ERPService
 from sqlalchemy.orm import Session
@@ -41,3 +41,20 @@ def get_all_payouts(
     status: Optional[PayoutStatusEnum] = Query(None, description="Payout Status")
 ):
     return ERPService.get_all_payouts(db, page, limit, status)
+
+
+@erp.get("/payouts/{payout_id}", status_code=status.HTTP_200_OK, response_model=ERPPayoutResponse)
+def get_payout_details(
+    payout_id: UUID,
+    db: Session = Depends(get_db),
+    current_user = Depends(require_role("erp")),
+):
+    return ERPService.get_payout_details(db, payout_id)
+
+@erp.post("/payouts/{payout_id}/process", status_code=status.HTTP_200_OK, response_model=ERPPayoutResponse)
+def process_payout(
+    payout_id: UUID,
+    db: Session = Depends(get_db),
+    current_user = Depends(require_role("erp")),
+):
+    return ERPService.process_payout(db, payout_id)

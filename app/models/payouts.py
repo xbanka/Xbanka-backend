@@ -3,6 +3,8 @@ from app.models.base_model import BaseModel
 from sqlalchemy import ForeignKey, String, DECIMAL, DateTime, Enum
 from sqlalchemy.dialects.postgresql import UUID 
 from sqlalchemy.orm import Mapped, mapped_column, relationship
+from datetime import datetime
+from typing import Optional
 
 
 class Payout(BaseModel):
@@ -11,7 +13,7 @@ class Payout(BaseModel):
     amount: Mapped[float] = mapped_column(DECIMAL(12, 2), nullable=False)
     status: Mapped[PayoutStatusEnum] = mapped_column(Enum(PayoutStatusEnum), default=PayoutStatusEnum.pending, nullable=False)
     payment_ref: Mapped[str] = mapped_column(String(120), unique=True, nullable=True)
-    paid_at: Mapped[DateTime] = mapped_column(DateTime(timezone=True), nullable=False)
+    paid_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
     bank: Mapped[str] = mapped_column(String(100), nullable=False)
 
     affiliate_id: Mapped[UUID] = mapped_column(ForeignKey("affiliates.id"), nullable=False, index=True)

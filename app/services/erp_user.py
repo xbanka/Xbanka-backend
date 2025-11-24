@@ -160,3 +160,29 @@ class ERPService(Service):
             "pages": (total + limit - 1) // limit,
             "data": payouts,
         }
+
+    @staticmethod
+    def get_payout_details(db: Session, payout_id: UUID) -> Payout:
+        payout = db.get(Payout, payout_id)
+        if not payout:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND, detail="Payout not found"
+            )
+        return payout
+    
+    @staticmethod
+    def process_payout(db: Session, payout_id: UUID) -> Payout:
+        payout = db.get(Payout, payout_id)
+        if not payout:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Payout not found"
+            )
+        
+        payout.status = PayoutStatusEnum.paid
+        payout.paid_at = datetime.now()
+
+        db.commit()
+        db.refresh(payout)
+
+        return payout

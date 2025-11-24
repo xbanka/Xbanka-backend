@@ -3,7 +3,7 @@ from datetime import datetime
 from decimal import Decimal
 from typing import List
 from uuid import UUID
-from app.core.enums import TransactionStatusEnum, PayoutStatusEnum
+from app.core.enums import PayoutStatusEnum
 from app.schemas.affiliate import AffiliateMeResponse
 
 class ERPPayoutResponse(BaseModel):
