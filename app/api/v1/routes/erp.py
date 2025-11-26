@@ -64,7 +64,7 @@ def process_payout(
         user=current_user,
         message="Payout has been processed successfully",
         amount=payout.amount,
-        bank_name=current_user.bank,
+        bank_name=payout.bank,
         method=PayoutMethodEnum.bank_transfer,
     )
 
