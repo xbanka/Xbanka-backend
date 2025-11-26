@@ -34,7 +34,7 @@ class CustomerResponse(BaseModel):
     commission: float
 
 
-class CustomerCreateResponse(BaseModel):
+class MockCustomerBase(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
     id: UUID
@@ -43,3 +43,10 @@ class CustomerCreateResponse(BaseModel):
     transaction_type: str
     amount: str
     note: Optional[str] = None
+
+
+class CustomerCreateResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    message: str
+    customer: MockCustomerBase
