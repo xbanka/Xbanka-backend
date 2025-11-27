@@ -1,6 +1,7 @@
 from logging.config import fileConfig
 
 from app.db.database import Base
+from app.models import *  # noqa: F403
 from app.utils.settings import settings
 
 from sqlalchemy import engine_from_config
@@ -17,7 +18,7 @@ config = context.config
 if config.config_file_name is not None:
     fileConfig(config.config_file_name)
 
-config.set_main_option('sqlalchemy.url', settings.DATABASE_URL)
+config.set_main_option('sqlalchemy.url', settings.ALEMBIC_DATABASE_URL)
 
 # add your model's MetaData object here
 # for 'autogenerate' support

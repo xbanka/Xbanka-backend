@@ -26,6 +26,3 @@ app.add_middleware(
 @app.get("/")
 def read_root():
     return {"message": "Welcome to XBanka API"}
-
-
-Base.metadata.create_all(bind=engine)

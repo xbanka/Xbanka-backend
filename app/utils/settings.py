@@ -30,7 +30,7 @@ class Settings(BaseSettings):
     DB_NAME: str
     DB_TYPE: str
 
-    DATABASE_URL: str
+    ALEMBIC_DATABASE_URL: str
 
     # Mail configurations
     MAIL_USERNAME: str
