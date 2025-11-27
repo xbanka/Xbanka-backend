@@ -186,3 +186,20 @@ class ERPService(Service):
         db.refresh(payout)
 
         return payout
+
+    
+    @staticmethod
+    def reject_payout(db: Session, payout_id: UUID) -> Payout:
+        payout = db.get(Payout, payout_id)
+        if not payout:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Payout not found"
+            )
+        
+        payout.status = PayoutStatusEnum.rejected
+
+        db.commit()
+        db.refresh(payout)
+
+        return payout

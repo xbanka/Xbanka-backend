@@ -69,3 +69,23 @@ def process_payout(
     )
 
     return payout
+
+
+@erp.post("/payouts/{payout_id}/reject", status_code=status.HTTP_200_OK, response_model=ERPPayoutResponse)
+def reject_payout(
+    payout_id: UUID,
+    db: Session = Depends(get_db),
+    current_user = Depends(require_role("erp")),
+):
+    payout = ERPService.reject_payout(db, payout_id)
+
+    ERPService.new_notification(
+        db,
+        user=current_user,
+        message="Payout has been rejected",
+        amount=payout.amount,
+        bank_name=payout.bank,
+        method=PayoutMethodEnum.bank_transfer,
+    )
+
+    return payout
