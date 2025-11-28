@@ -10,6 +10,7 @@ class PayoutStatusEnum(str, enum.Enum):
     paid = "paid"
     pending = "pending"
     failed = "failed"
+    rejected = "rejected"
 
 
 class NotificationTypeEnum(str, enum.Enum):
