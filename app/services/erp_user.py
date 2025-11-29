@@ -90,7 +90,7 @@ class ERPService(Service):
 
     @staticmethod
     def get_notifications(db: Session):
-        stmt = select(Notification)
+        stmt = select(Notification).order_by(Notification.created_at.desc()).join(Affiliate)
         notifications = db.execute(stmt).scalars().all()
         return notifications
 

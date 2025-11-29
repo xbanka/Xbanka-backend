@@ -16,6 +16,7 @@ erp = APIRouter(prefix="/erp", tags=["ERP"])
 def get_current_erp(current_user = Depends(require_role("erp"))):
     return current_user
 
+
 @erp.get("/notifications", response_model=List[NotificationsResponse])
 def get_notifications(db: Session = Depends(get_db), current_user = Depends(require_role("erp"))):
     return ERPService.get_notifications(db)

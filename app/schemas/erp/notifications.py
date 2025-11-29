@@ -3,8 +3,8 @@ from datetime import datetime
 from pydantic import BaseModel, ConfigDict
 
 from app.core.enums import NotificationTypeEnum
-from app.schemas.erp.user import UserBase
 from typing import Optional
+from app.schemas.affiliate import AffiliateMeResponse
 
 class NotificationsResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
@@ -18,6 +18,7 @@ class NotificationsResponse(BaseModel):
     bank_name: str
     amount: float
     method: str
+    affiliate: AffiliateMeResponse
 
 
 class NotificationReadResponse(BaseModel):
