@@ -1,7 +1,7 @@
 from app.core.enums import UserRoleEnum
 from app.models.base_model import BaseModel
 from sqlalchemy import String, Enum, Boolean
-from sqlalchemy.orm import Mapped, mapped_column, relationship
+from sqlalchemy.orm import Mapped, mapped_column
 
 class ERPUser(BaseModel):
     __tablename__ = 'erp_users'

@@ -2,6 +2,7 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, Query, status
 from app.core.enums import PayoutMethodEnum, PayoutStatusEnum
 from app.schemas.erp.payout import ERPPaginatedPayoutResponse, ERPPayoutResponse
+from app.schemas.erp.user import ERPMeResponse
 from app.utils.auth import require_role
 from app.services.erp_user import ERPService
 from sqlalchemy.orm import Session
@@ -11,11 +12,9 @@ from typing import List, Optional
 
 erp = APIRouter(prefix="/erp", tags=["ERP"])
 
-@erp.get("/")
-def get_index(current_user = Depends(require_role("erp"))):
-    return {
-        "message": "hey"
-}
+@erp.get("/me", status_code=status.HTTP_200_OK, response_model=ERPMeResponse)
+def get_current_erp(current_user = Depends(require_role("erp"))):
+    return current_user
 
 @erp.get("/notifications", response_model=List[NotificationsResponse])
 def get_notifications(db: Session = Depends(get_db), current_user = Depends(require_role("erp"))):

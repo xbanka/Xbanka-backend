@@ -1,6 +1,21 @@
 from pydantic import BaseModel, ConfigDict, field_validator, ValidationInfo
 from fastapi import HTTPException
+from uuid import UUID
+from pydantic import EmailStr
+from app.core.enums import UserRoleEnum
+from datetime import datetime
 
+
+
+class ERPMeResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: UUID
+    first_name: str
+    last_name: str
+    email: EmailStr
+    role: UserRoleEnum
+    created_at: datetime
 
 class UserBase(BaseModel):
     model_config = ConfigDict(from_attributes=True)
