@@ -32,11 +32,11 @@ class Customer(BaseModel):
 class MockCustomer(BaseModel):
     __tablename__ = 'mock_customers'
 
-    full_name: Mapped[str] = mapped_column(String(200), nullable=False)
+    first_name: Mapped[str] = mapped_column(String(200), nullable=False)
+    last_name: Mapped[str] = mapped_column(String(200), nullable=False)
+    email: Mapped[str] = mapped_column(String(120), nullable=False)
     phone_no: Mapped[str] = mapped_column(String(50), nullable=False)
-    transaction_type: Mapped[str] = mapped_column(String(50), nullable=False)
-    amount: Mapped[str] = mapped_column(String(50), nullable=False)
     note: Mapped[str] = mapped_column(String(255), nullable=True)
 
     def __repr__(self):
-        return f"<MockCustomer(full_name='{self.full_name}', phone_no='{self.phone_no}', transaction_type='{self.transaction_type}', amount='{self.amount}')>"
+        return f"<MockCustomer(first_name='{self.first_name}', last_name='{self.last_name}', email='{self.email}', phone_no='{self.phone_no}', note='{self.note}')>"

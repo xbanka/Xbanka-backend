@@ -5,10 +5,10 @@ from typing import Optional
 class CustomerBase(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
-    full_name: str
+    first_name: str
+    last_name: str
+    email: str
     phone_no: str
-    transaction_type: str
-    amount: str
     note: Optional[str] = None
 
 

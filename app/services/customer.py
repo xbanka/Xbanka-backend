@@ -8,10 +8,10 @@ class CustomerService(Service):
     def create_customer(db: Session, obj_in: CustomerBase):
         # Logic to create a new customer
         new_customer = MockCustomer(
-            full_name=obj_in.full_name,
+            first_name=obj_in.first_name,
+            last_name=obj_in.last_name,
+            email=obj_in.email,
             phone_no=obj_in.phone_no,
-            transaction_type=obj_in.transaction_type,
-            amount=obj_in.amount,
             note=obj_in.note
         )
 
