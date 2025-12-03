@@ -4,6 +4,7 @@ from uuid import UUID
 from fastapi import HTTPException, status
 from psycopg2 import IntegrityError
 from sqlalchemy import func, select
+from sqlalchemy.dialects.postgresql import UUID as SA_UUID
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 from app.core.base.services import Service
@@ -114,8 +115,8 @@ class ERPService(Service):
         user: ERPUser,
         message: str,
         amount: float | str,
-        bank_name: str,
         method: PayoutMethodEnum,
+        affiliate_id: SA_UUID,
     ) -> Notification:
         
         notification = Notification(
@@ -123,8 +124,8 @@ class ERPService(Service):
             type="system", 
             is_read=False, 
             amount=amount, 
-            bank_name=bank_name, 
-            method=method
+            method=method,
+            affiliate_id=affiliate_id
         )
         db.add(notification)
         db.commit()

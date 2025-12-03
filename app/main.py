@@ -1,8 +1,6 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from app.db.database import engine
 from app.api.v1.routes import api_version_one
-from app.models.base_model import Base
 from app import models
 
 app = FastAPI()
@@ -26,3 +24,6 @@ app.add_middleware(
 @app.get("/")
 def read_root():
     return {"message": "Welcome to XBanka API"}
+
+
+# Base.metadata.create_all(bind=engine)

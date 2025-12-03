@@ -15,7 +15,6 @@ class NotificationsResponse(BaseModel):
     type: NotificationTypeEnum
     is_read: bool
     read_at: Optional[datetime]
-    bank_name: str
     amount: float
     method: str
     affiliate: AffiliateMeResponse

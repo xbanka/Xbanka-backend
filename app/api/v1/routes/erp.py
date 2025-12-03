@@ -3,27 +3,29 @@ from fastapi import APIRouter, Depends, Query, status
 from app.core.enums import PayoutMethodEnum, PayoutStatusEnum
 from app.schemas.erp.payout import ERPPaginatedPayoutResponse, ERPPayoutResponse
 from app.schemas.erp.user import ERPMeResponse
-from app.utils.auth import require_role
 from app.services.erp_user import ERPService
 from sqlalchemy.orm import Session
 from app.db.database import get_db
 from app.schemas.erp.notifications import NotificationReadResponse, NotificationsResponse 
 from typing import List, Optional
 
+from app.utils.auth import require_roles
+from app.utils.schema import CurrentUser
+
 erp = APIRouter(prefix="/erp", tags=["ERP"])
 
 @erp.get("/me", status_code=status.HTTP_200_OK, response_model=ERPMeResponse)
-def get_current_erp(current_user = Depends(require_role("erp"))):
-    return current_user
+def get_current_erp(current_user: CurrentUser = Depends(require_roles("erp"))):
+    return current_user.user
 
 
 @erp.get("/notifications", response_model=List[NotificationsResponse])
-def get_notifications(db: Session = Depends(get_db), current_user = Depends(require_role("erp"))):
+def get_notifications(db: Session = Depends(get_db), current_user: CurrentUser = Depends(require_roles("erp"))):
     return ERPService.get_notifications(db)
 
 
 @erp.patch("/notifications/{notification_id}/mark-as-read", response_model=NotificationReadResponse)
-def mark_as_read(notification_id: UUID, db: Session = Depends(get_db), current_user = Depends(require_role("erp"))):
+def mark_as_read(notification_id: UUID, db: Session = Depends(get_db), current_user: CurrentUser = Depends(require_roles("erp"))):
     notif = ERPService.mark_notification_as_read(db, notification_id)
     return notif
 
@@ -35,7 +37,7 @@ def mark_as_read(notification_id: UUID, db: Session = Depends(get_db), current_u
 )
 def get_all_payouts(
     db: Session = Depends(get_db),
-    current_user = Depends(require_role("erp")),
+    current_user: CurrentUser = Depends(require_roles("erp")),
     page: int = Query(1, ge=1, description="Page number"),
     limit: int = Query(10, ge=1, le=100, description="Items per page"),
     status: Optional[PayoutStatusEnum] = Query(None, description="Payout Status")
@@ -47,7 +49,7 @@ def get_all_payouts(
 def get_payout_details(
     payout_id: UUID,
     db: Session = Depends(get_db),
-    current_user = Depends(require_role("erp")),
+    current_user: CurrentUser = Depends(require_roles("erp")),
 ):
     return ERPService.get_payout_details(db, payout_id)
 
@@ -55,17 +57,17 @@ def get_payout_details(
 def process_payout(
     payout_id: UUID,
     db: Session = Depends(get_db),
-    current_user = Depends(require_role("erp")),
+    current_user: CurrentUser = Depends(require_roles("erp")),
 ):
     payout = ERPService.process_payout(db, payout_id)
 
     ERPService.new_notification(
         db,
-        user=current_user,
+        user=current_user.user,
         message="Payout has been processed successfully",
         amount=payout.amount,
-        bank_name=payout.bank,
         method=PayoutMethodEnum.bank_transfer,
+        affiliate_id=payout.affiliate_id
     )
 
     return payout
@@ -75,17 +77,17 @@ def process_payout(
 def reject_payout(
     payout_id: UUID,
     db: Session = Depends(get_db),
-    current_user = Depends(require_role("erp")),
+    current_user: CurrentUser = Depends(require_roles("erp")),
 ):
     payout = ERPService.reject_payout(db, payout_id)
 
     ERPService.new_notification(
         db,
-        user=current_user,
+        user=current_user.user,
         message="Payout has been rejected",
         amount=payout.amount,
-        bank_name=payout.bank,
         method=PayoutMethodEnum.bank_transfer,
+        affiliate_id=payout.affiliate_id
     )
 
     return payout

@@ -18,6 +18,7 @@ from app.schemas.user import (
     AccountVerificationRequest
 )
 from app.services.erp_user import ERPService
+from app.utils.schema import CurrentUser
 from app.utils.settings import settings
 from app.utils.validators import is_valid_email
 
@@ -293,10 +294,7 @@ class AuthService(Service[Affiliate, RegisterBase]):
         if user is None:
             raise credentials_exception
         
-        user.assigned_role = user_role # temporary role assigned for RBAC, not part of SQLAlchemy model schema
-
-        return user
-
+        return CurrentUser(user, user_role)
 
 
     @staticmethod

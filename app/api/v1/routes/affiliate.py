@@ -101,8 +101,8 @@ def post_payout(
         user=current_user,
         message="Affiliate Payout Request",
         amount=create_request.amount,
-        bank_name=current_user.bank,
         method=PayoutMethodEnum.bank_transfer,
+        affiliate_id=payout.affiliate_id
     )
 
     return {
