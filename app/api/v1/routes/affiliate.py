@@ -16,6 +16,8 @@ from app.services.erp_user import ERPService
 from app.db.database import get_db
 from app.models import Affiliate
 
+from app.utils.auth import require_roles
+from app.utils.schema import CurrentUser
 from fastapi import APIRouter, status, Depends, Query, Response
 from sqlalchemy.orm import Session
 
@@ -25,9 +27,9 @@ affiliate = APIRouter(prefix="/affiliates", tags=["Affiliates"])
 @affiliate.get("/me", status_code=status.HTTP_200_OK, response_model=AffiliateMeResponse)
 def get_current_affiliate(
     db: Session = Depends(get_db),
-    current_user: Affiliate = Depends(AuthService.get_current_user),
+    current_user: CurrentUser = Depends(require_roles("affiliate")),
 ):
-    return current_user
+    return current_user.user
 
 @affiliate.post(
     "/codename", status_code=status.HTTP_201_CREATED, response_model=AffiliateCodename
@@ -35,9 +37,9 @@ def get_current_affiliate(
 def set_codename(
     codename: str,
     db: Session = Depends(get_db),
-    current_user: Affiliate = Depends(AuthService.get_current_user),
+    current_user: CurrentUser = Depends(require_roles("affiliate")),
 ):
-    AffiliateService.set_codename(db, current_user, codename)
+    AffiliateService.set_codename(db, current_user.user, codename)
 
     return {"message": "Codename set successfully", "codename": codename}
 
@@ -45,15 +47,15 @@ def set_codename(
 @affiliate.get("/referral", status_code=status.HTTP_200_OK)
 def get_referral_link(
     db: Session = Depends(get_db),
-    current_user: Affiliate = Depends(AuthService.get_current_user),
+    current_user: CurrentUser = Depends(require_roles("affiliate")),
 ):
-    return AffiliateService.get_referral_code(db, current_user)
+    return AffiliateService.get_referral_code(db, current_user.user)
 
 
 @affiliate.get("/all")
 def get_all_affiliates(
     db: Session = Depends(get_db),
-    current_user: Affiliate = Depends(AuthService.get_current_user),
+    current_user: CurrentUser = Depends(require_roles("affiliate")),
 ):
     return AffiliateService.get_all(db)
 
@@ -65,22 +67,22 @@ def get_all_affiliates(
 )
 def get_commissions(
     db: Session = Depends(get_db),
-    current_user: Affiliate = Depends(AuthService.get_current_user),
+    current_user: CurrentUser = Depends(require_roles("affiliate")),
     page: int = Query(1, ge=1, description="Page number"),
     limit: int = Query(10, ge=1, le=100, description="Items per page"),
     status: Optional[TransactionStatusEnum] = Query(None, description="Commission Status")
 ):
-    return AffiliateService.get_commissions(db, current_user.id, page, limit, status)
+    return AffiliateService.get_commissions(db, current_user.user.id, page, limit, status)
 
 
 @affiliate.get("/commissions/export", response_class=Response)
 def export_commissions(
     db: Session = Depends(get_db),
-    current_user: Affiliate = Depends(AuthService.get_current_user),
+    current_user: CurrentUser = Depends(require_roles("affiliate")),
     status: Optional[TransactionStatusEnum] = Query(None, description="Commission Status")
 ):
     
-    content = AffiliateService.export_commissions(db, current_user.id, status)
+    content = AffiliateService.export_commissions(db, current_user.user.id, status)
 
     return Response(
         content=content,
@@ -93,12 +95,12 @@ def export_commissions(
 def post_payout(
     create_request: PayoutBase, 
     db: Session = Depends(get_db),
-    current_user: Affiliate = Depends(AuthService.get_current_user)
+    current_user: CurrentUser = Depends(require_roles("affiliate"))
 ):
-    payout = PayoutService.create_new(db, create_request, current_user.id)
+    payout = PayoutService.create_new(db, create_request, current_user.user.id)
     ERPService.new_notification(
         db,
-        user=current_user,
+        user=current_user.user,
         message="Affiliate Payout Request",
         amount=create_request.amount,
         method=PayoutMethodEnum.bank_transfer,
@@ -118,22 +120,22 @@ def post_payout(
 )
 def get_payouts(
     db: Session = Depends(get_db),
-    current_user: Affiliate = Depends(AuthService.get_current_user),
+    current_user: CurrentUser = Depends(require_roles("affiliate")),
     page: int = Query(1, ge=1, description="Page number"),
     limit: int = Query(10, ge=1, le=100, description="Items per page"),
     status: Optional[PayoutStatusEnum] = Query(None, description="Payout Status")
 ):
-    return AffiliateService.get_payouts(db, current_user.id, page, limit, status)
+    return AffiliateService.get_payouts(db, current_user.user.id, page, limit, status)
 
 
 @affiliate.get("/payouts/export", response_class=Response)
 def export_payouts(
     db: Session = Depends(get_db),
-    current_user: Affiliate = Depends(AuthService.get_current_user),
+    current_user: CurrentUser = Depends(require_roles("affiliate")),
     status: Optional[PayoutStatusEnum] = Query(None, description="Payout Status")
 ):
     
-    content = AffiliateService.export_payouts(db, current_user.id, status)
+    content = AffiliateService.export_payouts(db, current_user.user.id, status)
 
     return Response(
         content=content,
@@ -145,18 +147,18 @@ def export_payouts(
 @affiliate.get("/payouts/summary", status_code=status.HTTP_200_OK, response_model=PayoutSummary)
 def get_payouts_summary(
     db: Session = Depends(get_db),
-    current_user: Affiliate = Depends(AuthService.get_current_user),
+    current_user: CurrentUser = Depends(require_roles("affiliate")),
 ):
-    return AffiliateService.get_payouts_summary(db, current_user.id)
+    return AffiliateService.get_payouts_summary(db, current_user.user.id)
 
 
 @affiliate.patch("/bank", status_code=status.HTTP_200_OK, response_model=UpdateBankDetailsResponse)
 def update_bank_details(
     bank_details: UpdateBankDetailsRequest,
     db: Session = Depends(get_db),
-    current_user: Affiliate = Depends(AuthService.get_current_user),
+    current_user: CurrentUser = Depends(require_roles("affiliate")),
 ):
-    AffiliateService.update_bank_details(db, current_user, bank_details)
+    AffiliateService.update_bank_details(db, current_user.user, bank_details)
 
     return {
         "message": "Bank details updated successfully", 
