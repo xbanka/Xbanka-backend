@@ -1,9 +1,10 @@
 from typing import Optional
 from pydantic import BaseModel, ConfigDict, field_validator, ValidationInfo
 from fastapi import HTTPException
+from uuid import UUID
 
 class TokenData(BaseModel):
-    id: str
+    id: UUID
 
 class LoginBase(BaseModel):
     email: str
