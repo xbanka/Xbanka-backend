@@ -19,6 +19,13 @@ class Transaction(BaseModel):
     )
     status: Mapped[TransactionStatusEnum] = mapped_column(Enum(TransactionStatusEnum), default=TransactionStatusEnum.pending, nullable=False)
 
+    amount_in: Mapped[float] = mapped_column(DECIMAL(12, 2), nullable=False)
+    amount_out: Mapped[float] = mapped_column(DECIMAL(12, 2), nullable=False)
+    margin: Mapped[float] = mapped_column(DECIMAL(12, 2), nullable=False)
+
+    vendor_rate: Mapped[float] = mapped_column(DECIMAL(12, 2), nullable=False)
+    xbanka_rate: Mapped[float] = mapped_column(DECIMAL(12, 2), nullable=False)
+
     customer_id: Mapped[UUID] = mapped_column(ForeignKey('customers.id'), nullable=False, index=True)
 
     customer = relationship("Customer", back_populates="transactions")

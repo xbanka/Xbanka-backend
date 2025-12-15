@@ -4,6 +4,8 @@ from .payouts import Payout
 from .transactions import Transaction
 from .erp_user import ERPUser
 from .notifications import Notification
+from .service_type import ServiceType
+from .transaction_type import TransactionType
 
 
 __all__ = [
@@ -13,4 +15,6 @@ __all__ = [
     "Transaction",
     "ERPUser",
     "Notification",
+    "ServiceType",
+    "TransactionType"
 ]
