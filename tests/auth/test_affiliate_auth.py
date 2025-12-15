@@ -36,7 +36,9 @@ def test_affiliates_register(mocker, test_client):
     mock_send_email.assert_called_once()
     
 
-def test_affiliates_login_unverified(test_client):
+def test_affiliates_login_unverified(mocker, test_client):
+    mocker.patch(
+        "app.api.v1.routes.auth.affiliate.send_verification_email")
     test_client.post("/api/auth/affiliates/register", json=register_payload)
     response = test_client.post("/api/auth/affiliates/login", json=login_payload)
     json = response.json()
@@ -68,4 +70,4 @@ def test_verify_affiliates(mocker, test_client, db_session):
     mock_token = "mock_token"
     test_client.post(f"/api/auth/affiliates/verify?token={mock_token}")
 
-    assert affiliate.verified == True
+    assert affiliate.verified

@@ -27,18 +27,20 @@ def test_erp_register(mocker, test_client):
         "app.api.v1.routes.auth.erp.send_verification_email")
     response = test_client.post("/api/auth/erp/register", json=register_payload)
     json = response.json()
-    print(json)
     assert response.status_code == 201
     assert json["message"] == "Your profile has been created. Please check your email to verify your account."
     mock_send_email.assert_called_once()
     
 
-def test_erp_login_unverified(test_client):
+def test_erp_login_unverified(mocker, test_client):
+    mocker.patch(
+        "app.api.v1.routes.auth.erp.send_verification_email")
     test_client.post("/api/auth/erp/register", json=register_payload)
     response = test_client.post("/api/auth/erp/login", json=login_payload)
     json = response.json()
     assert json["detail"] == "User profile verification required"
     assert response.status_code == 401
+
 
 def test_verify_erp(mocker, test_client, db_session):
     from app.models.erp_user import ERPUser
@@ -60,4 +62,4 @@ def test_verify_erp(mocker, test_client, db_session):
     mock_token = "mock_token"
     test_client.post(f"/api/auth/erp/verify?token={mock_token}")
 
-    assert erp_user.verified == True
+    assert erp_user.verified
