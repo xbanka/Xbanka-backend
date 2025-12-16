@@ -1,7 +1,9 @@
+from uuid import UUID
 from app.core.base.services import Service
 from app.models.customer import Customer, MockCustomer
 from app.schemas.customer import CustomerBase
 from sqlalchemy.orm import Session
+from sqlalchemy import select, or_
 
 class CustomerService(Service):
     @staticmethod
@@ -19,3 +21,27 @@ class CustomerService(Service):
         db.commit()
         db.refresh(new_customer)
         return new_customer
+    
+
+    @staticmethod
+    def get_customer_by_id(db: Session, id: UUID):
+        return db.get(MockCustomer, id)
+    
+
+    @staticmethod
+    def search_customers(db: Session, search: str):
+        stmt = select(MockCustomer)
+        if search:
+            search_query = f"%{search}%"
+
+            stmt = stmt.where(
+                or_(
+                    MockCustomer.first_name.ilike(search_query),
+                    MockCustomer.last_name.ilike(search_query),
+                    MockCustomer.phone_no.ilike(search_query),
+                    MockCustomer.email.ilike(search_query)
+                )
+            )
+
+            customers = db.execute(stmt).scalars().all()
+            return customers
