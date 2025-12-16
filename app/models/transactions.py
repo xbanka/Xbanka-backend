@@ -1,6 +1,7 @@
 from app.core.enums import TransactionStatusEnum
 from app.models.base_model import BaseModel
-from sqlalchemy import ForeignKey, String, Enum, DECIMAL, Computed
+from decimal import Decimal
+from sqlalchemy import ForeignKey, String, Enum, DECIMAL, Computed, Numeric
 from sqlalchemy.dialects.postgresql import UUID 
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -19,12 +20,13 @@ class Transaction(BaseModel):
     )
     status: Mapped[TransactionStatusEnum] = mapped_column(Enum(TransactionStatusEnum), default=TransactionStatusEnum.pending, nullable=False)
 
-    amount_in: Mapped[float] = mapped_column(DECIMAL(12, 2), nullable=False)
-    amount_out: Mapped[float] = mapped_column(DECIMAL(12, 2), nullable=False)
-    margin: Mapped[float] = mapped_column(DECIMAL(12, 2), nullable=False)
+    amount_in: Mapped[Decimal] = mapped_column(Numeric(12, 2), nullable=True)
+    amount_out: Mapped[Decimal] = mapped_column(Numeric(12, 2), nullable=True)
 
-    vendor_rate: Mapped[float] = mapped_column(DECIMAL(12, 2), nullable=False)
-    xbanka_rate: Mapped[float] = mapped_column(DECIMAL(12, 2), nullable=False)
+    vendor_rate: Mapped[Decimal] = mapped_column(Numeric(12, 2), nullable=True)
+    xbanka_rate: Mapped[Decimal] = mapped_column(Numeric(12, 2), nullable=True)
+
+    margin: Mapped[Decimal] = mapped_column(Numeric(12, 2), Computed("xbanka_rate - vendor_rate", persisted=True), nullable=True)
 
     customer_id: Mapped[UUID] = mapped_column(ForeignKey('customers.id'), nullable=False, index=True)
 
