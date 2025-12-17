@@ -17,8 +17,14 @@ customer = APIRouter(prefix="/customers", tags=["Customers"])
     status_code=status.HTTP_201_CREATED
 )
 def create_customer(customer_request: CustomerBase, db: Session = Depends(get_db)):
-    customer = CustomerService.create_customer(db, customer_request)
+    customer = CustomerService.create(db, customer_request)
     return {"message": "Customer created successfully", "customer": customer}
+
+
+@customer.get("/all", response_model=List[MockCustomerResponse])
+def fetch_all_customers(db: Session = Depends(get_db)):
+    customers = CustomerService.fetch_all(db)
+    return customers
 
 
 @customer.get(
@@ -33,5 +39,5 @@ def search_customers(q: str = Query(...), db: Session = Depends(get_db)):
 
 @customer.get("/{customer_id}", response_model=MockCustomerResponse)
 def get_customer(customer_id: UUID, db: Session = Depends(get_db)):
-    customers = CustomerService.get_customer_by_id(db, customer_id)
+    customers = CustomerService.fetch(db, customer_id)
     return customers

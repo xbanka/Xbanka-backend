@@ -1,5 +1,6 @@
 from abc import ABC, abstractmethod
 from typing import Generic, TypeVar
+from uuid import UUID
 from sqlalchemy.orm import Session
 
 
@@ -15,12 +16,12 @@ class Service(ABC, Generic[T, C]):
 
     @staticmethod
     @abstractmethod
-    def fetch():
+    def fetch(db: Session, id: UUID):
         pass
 
     @staticmethod
     @abstractmethod
-    def fetch_all():
+    def fetch_all(db: Session):
         pass
 
     @staticmethod

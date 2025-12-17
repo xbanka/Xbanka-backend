@@ -7,7 +7,7 @@ from sqlalchemy import select, or_
 
 class CustomerService(Service):
     @staticmethod
-    def create_customer(db: Session, obj_in: CustomerBase):
+    def create(db: Session, obj_in: CustomerBase):
         # Logic to create a new customer
         new_customer = MockCustomer(
             first_name=obj_in.first_name,
@@ -24,8 +24,14 @@ class CustomerService(Service):
     
 
     @staticmethod
-    def get_customer_by_id(db: Session, id: UUID):
+    def fetch(db: Session, id: UUID):
         return db.get(MockCustomer, id)
+
+    
+    @staticmethod
+    def fetch_all(db: Session):
+        stmt = select(MockCustomer)
+        return db.scalars(stmt).all()
     
 
     @staticmethod
