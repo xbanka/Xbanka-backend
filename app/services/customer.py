@@ -2,13 +2,23 @@ from uuid import UUID
 from app.core.base.services import Service
 from app.models.customer import Customer, MockCustomer
 from app.schemas.customer import CustomerBase
+from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
 from sqlalchemy import select, or_
+
+from app.utils.validators import is_valid_email
 
 class CustomerService(Service):
     @staticmethod
     def create(db: Session, obj_in: CustomerBase):
         # Logic to create a new customer
+
+        if not is_valid_email(obj_in.email):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid email address."
+            )
+
+
         new_customer = MockCustomer(
             first_name=obj_in.first_name,
             last_name=obj_in.last_name,

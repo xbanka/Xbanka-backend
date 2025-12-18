@@ -38,10 +38,9 @@ class MockCustomerBase(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
     id: UUID
-    full_name: str
+    first_name: str
+    last_name: str
     phone_no: str
-    transaction_type: str
-    amount: str
     note: Optional[str] = None
 
 
