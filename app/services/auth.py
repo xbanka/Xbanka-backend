@@ -13,7 +13,6 @@ from app.db.database import get_db
 from app.models.affiliate import Affiliate
 from app.models.erp_user import ERPUser
 from app.schemas.user import (
-    RegisterBase,
     TokenData,
     AccountVerificationRequest
 )
