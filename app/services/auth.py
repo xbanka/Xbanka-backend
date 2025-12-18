@@ -35,7 +35,7 @@ PAYSTACK_BASE_URL = "https://api.paystack.co"
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="api/auth/token")
 
 
-class AuthService(Service[Affiliate, RegisterBase]):
+class AuthService(Service):
     @staticmethod
     def create_access_token(data: dict, expires_delta: timedelta | None = None):
         """Method to create access token"""
@@ -214,8 +214,8 @@ class AuthService(Service[Affiliate, RegisterBase]):
                     detail="Invalid refresh token",
                 )
 
-            new_access_token = AuthService.create_access_token(data={"sub": token.id})
-            new_refresh_token = AuthService.create_refresh_token(data={"sub": token.id})
+            new_access_token = AuthService.create_access_token(data={"sub": str(token.id)})
+            new_refresh_token = AuthService.create_refresh_token(data={"sub": str(token.id)})
 
             return new_access_token, new_refresh_token
 
@@ -265,7 +265,7 @@ class AuthService(Service[Affiliate, RegisterBase]):
 
         try:
             payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
-            user_id: str = payload.get("sub")
+            user_id = payload.get("sub")
             user_role = payload.get("role")
 
             if user_id is None:

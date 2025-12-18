@@ -70,7 +70,7 @@ class ERPService(Service):
         return erp_user
 
     @staticmethod
-    def get_user_by_id(db: Session, id: str) -> ERPUser:
+    def get_user_by_id(db: Session, id: UUID) -> ERPUser:
         erp_user = db.query(ERPUser).get(id)
         if not erp_user:
             raise HTTPException(status_code=404, detail="ERP user not found")

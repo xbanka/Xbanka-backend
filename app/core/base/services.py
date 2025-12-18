@@ -1,7 +1,8 @@
 from abc import ABC, abstractmethod
-from typing import Generic, TypeVar
+from typing import Generic, Sequence, TypeVar
 from uuid import UUID
 from sqlalchemy.orm import Session
+from typing import List
 
 
 T = TypeVar("T")  # Represents your entity/model type
@@ -21,7 +22,7 @@ class Service(ABC, Generic[T, C]):
 
     @staticmethod
     @abstractmethod
-    def fetch_all(db: Session):
+    def fetch_all(db: Session) -> Sequence[T]:
         pass
 
     @staticmethod
