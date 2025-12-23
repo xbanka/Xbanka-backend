@@ -33,6 +33,7 @@ erp = APIRouter(prefix='/erp')
 
 ERP_FRONTEND_URL = settings.ERP_FRONTEND_URL
 JWT_REFRESH_EXPIRY = settings.JWT_REFRESH_EXPIRY
+ACCESS_TOKEN_EXPIRE_MINUTES = settings.ACCESS_TOKEN_EXPIRE_MINUTES
 
 
 @erp.post("/login", response_model=LoginResponse, status_code=status.HTTP_200_OK)
@@ -52,6 +53,16 @@ def login(create_request: LoginBase, response: Response, db: Session = Depends(g
         secure=True,
         samesite="none",
         max_age=JWT_REFRESH_EXPIRY * 24 * 60 * 60,
+    )
+
+    # new update - add access token to cookies
+    response.set_cookie(
+        key="access_token",
+        value=access_token,
+        httponly=True,
+        secure=True,
+        samesite="none",
+        max_age=ACCESS_TOKEN_EXPIRE_MINUTES * 60,
     )
 
     return {"access_token": access_token, "token_type": "bearer"}
@@ -106,6 +117,16 @@ def refresh_token(request: Request, response: Response):
         secure=True,
         samesite="none",
         max_age=JWT_REFRESH_EXPIRY * 24 * 60 * 60,
+    )
+
+    # new update - add access token to cookies
+    response.set_cookie(
+        key="access_token",
+        value=access_token,
+        httponly=True,
+        secure=True,
+        samesite="none",
+        max_age=ACCESS_TOKEN_EXPIRE_MINUTES * 60,
     )
 
     return {"access_token": access_token, "token_type": "bearer"}
