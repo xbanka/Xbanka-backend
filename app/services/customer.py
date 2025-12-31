@@ -18,13 +18,11 @@ class CustomerService(Service):
                 status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid email address."
             )
 
-
-        new_customer = MockCustomer(
+        new_customer = Customer(
             first_name=obj_in.first_name,
             last_name=obj_in.last_name,
             email=obj_in.email,
-            phone_no=obj_in.phone_no,
-            note=obj_in.note
+            phone_no=obj_in.phone_no
         )
 
         db.add(new_customer)
