@@ -1,23 +1,29 @@
+import logging
 import secrets
 from app.core.base.services import Service
 from app.core.enums import TransactionStatusEnum, PayoutStatusEnum
 from app.core.hash import Hasher
 from app.models.affiliate import Affiliate
+from app.models.affiliate_visit import AffiliateVisit
 from app.models.payouts import Payout
 from app.models.transactions import Transaction
 from app.models.customer import Customer
 from app.schemas.affiliate import UpdateBankDetailsRequest
 from app.schemas.user import RegisterBase
 from app.utils.validators import is_valid_account_number, is_valid_email, is_valid_password, is_valid_phone
+from app.utils.visitors import generate_visitor_id, already_counted_today, generate_fingerprint
 
 from datetime import datetime, timezone
-from fastapi import HTTPException, status
+from fastapi import HTTPException, Request, Response, status
 from io import BytesIO
 from sqlalchemy import select, func, or_
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from sqlalchemy.orm import Session, selectinload
 from openpyxl import Workbook
 from typing import Optional, cast
+
+
+logger = logging.getLogger(__name__)
 
 
 class AffiliateService(Service):
@@ -78,15 +84,16 @@ class AffiliateService(Service):
             db.add(affiliate)
             db.commit()
             db.refresh(affiliate)
-        except IntegrityError as e:
-            print(e)
+        except IntegrityError:
+            logger.exception("Integrity error while creating affiliate")
             db.rollback()
             raise HTTPException(status_code=400, detail="Database integrity error")
-        except SQLAlchemyError as e:
+        except SQLAlchemyError:
+            logger.exception("SQLAlchemy error while creating affiliate")
             db.rollback()
             raise HTTPException(status_code=500, detail=f"An error occurred saving entity: {e}")
         except Exception as e:
-            print(e)
+            logger.exception("Unexpected error while creating affiliate")
             db.rollback()
             raise HTTPException(status_code=500, detail="An unknown error occurred")
 
@@ -101,6 +108,17 @@ class AffiliateService(Service):
                 detail="Affiliate not found"
             )
         
+        return affiliate
+    
+    @staticmethod
+    def get_by_refcode(db: Session, refcode: str) -> Affiliate:
+        stmt = select(Affiliate).where(Affiliate.ref_code == refcode)
+        affiliate = db.execute(stmt).scalars().one_or_none()
+        if not affiliate:
+            raise HTTPException(
+                status_code=404,
+                detail="Affiliate with this referral code not found"
+            )
         return affiliate
     
     @staticmethod
@@ -147,6 +165,58 @@ class AffiliateService(Service):
             )
         return affiliate.ref_code
     
+    @staticmethod
+    def record_unique_visit(db: Session, affiliate: Affiliate, request: Request, response: Response) -> None:
+
+        try:
+            # 1. Visitor ID from cookie
+            visitor_id = request.cookies.get("affiliate_visitor_id")
+
+            if not visitor_id:
+                visitor_id = generate_visitor_id()
+                response.set_cookie(
+                    key="affiliate_visitor_id",
+                    value=visitor_id,
+                    httponly=True,
+                    max_age=60 * 60 * 24 * 365,  # 1 year
+                    samesite="lax",
+                )
+            
+            # 2. Fingerprint fallback
+            if request.client is None:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="Unable to determine client IP address"
+                )
+            
+            ip = request.client.host
+            user_agent = request.headers.get("user-agent", "")
+            fingerprint = generate_fingerprint(ip, user_agent)
+
+            # 3. Deduplicate
+            if not already_counted_today(
+                db=db,
+                affiliate_id=affiliate.id,
+                visitor_id=visitor_id,
+                fingerprint=fingerprint,
+            ):
+                visit = AffiliateVisit(
+                    affiliate_id=affiliate.id,
+                    visitor_id=visitor_id,
+                    fingerprint=fingerprint,
+                )
+                db.add(visit)
+                db.commit()
+
+            # redirect to frontend?
+
+        except Exception as e:
+            logger.exception("Failed to record affiliate visit")
+            db.rollback()
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Failed to record affiliate visit"
+            ) from e
 
     @staticmethod
     def get_all(db: Session):

@@ -2,23 +2,21 @@ from typing import Optional
 from app.core.enums import PayoutStatusEnum, TransactionStatusEnum, PayoutMethodEnum
 from app.schemas.affiliate import (
     AffiliateMeResponse,
-    AffiliateCodename, 
-    PaginatedTransactionResponse, 
+    AffiliateCodename,  
     PaginatedPayoutResponse,
     UpdateBankDetailsRequest,
     UpdateBankDetailsResponse
 )
+from app.schemas.transactions import PaginatedTransactionResponse
 from app.schemas.payout import PayoutSummary, PayoutBase, NewPayoutResponse
-from app.services.auth import AuthService
 from app.services.affiliate import AffiliateService
 from app.services.affiliate_payout import PayoutService
 from app.services.erp_user import ERPService
 from app.db.database import get_db
-from app.models import Affiliate
 
 from app.utils.auth import require_roles
 from app.utils.schema import CurrentUser
-from fastapi import APIRouter, status, Depends, Query, Response
+from fastapi import APIRouter, status, Depends, Query, Response, Request
 from sqlalchemy.orm import Session
 
 
@@ -165,3 +163,15 @@ def update_bank_details(
         "bank_name": bank_details.bank_name,
         "account_number": bank_details.account_number
         }
+
+
+@affiliate.post("/visits", status_code=status.HTTP_200_OK)
+def record_visitor(
+    request: Request,
+    response: Response,
+    db: Session = Depends(get_db),
+    current_user: CurrentUser = Depends(require_roles("affiliate"))
+):
+    AffiliateService.record_unique_visit(db, current_user.user, request, response)
+
+    return {"message": "Affiliate referral recorded."}
