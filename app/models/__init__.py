@@ -1,20 +1,22 @@
 from .affiliate import Affiliate
+from .affiliate_visit import AffiliateVisit
 from .customer import Customer
-from .payouts import Payout
-from .transactions import Transaction
 from .erp_user import ERPUser
 from .notifications import Notification
+from .payouts import Payout
 from .service_type import ServiceType
+from .transactions import Transaction
 from .transaction_type import TransactionType
 
 
 __all__ = [
     "Affiliate",
+    "AffiliateVisit",
     "Customer",
-    "Payout",
-    "Transaction",
     "ERPUser",
     "Notification",
+    "Payout",
     "ServiceType",
-    "TransactionType"
+    "Transaction",
+    "TransactionType",
 ]

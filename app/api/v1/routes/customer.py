@@ -8,6 +8,9 @@ from fastapi import APIRouter, status, Depends
 from sqlalchemy.orm import Session
 from typing import List
 
+from app.utils.auth import require_roles
+from app.utils.schema import CurrentUser
+
 
 customer = APIRouter(prefix="/customers", tags=["Customers"])
 
@@ -16,7 +19,11 @@ customer = APIRouter(prefix="/customers", tags=["Customers"])
     response_model=CustomerCreateResponse, 
     status_code=status.HTTP_201_CREATED
 )
-def create_customer(customer_request: CustomerBase, db: Session = Depends(get_db)):
+def create_customer(
+    customer_request: CustomerBase, 
+    db: Session = Depends(get_db),
+    current_user: CurrentUser = Depends(require_roles("affiliate", "erp"))
+):
     customer = CustomerService.create(db, customer_request)
     return {"message": "Customer created successfully", "customer": customer}
 

@@ -1,6 +1,7 @@
 from pydantic import BaseModel, ConfigDict
 from uuid import UUID
 from typing import Optional
+from app.schemas.affiliate import AffiliateMeResponse
 
 class CustomerBase(BaseModel):
     model_config = ConfigDict(from_attributes=True)
@@ -9,6 +10,7 @@ class CustomerBase(BaseModel):
     last_name: str
     email: str
     phone_no: str
+    affiliate: AffiliateMeResponse
     note: Optional[str] = None
 
 
@@ -34,16 +36,6 @@ class CustomerResponse(BaseModel):
     commission: float
 
 
-class MockCustomerBase(BaseModel):
-    model_config = ConfigDict(from_attributes=True)
-
-    id: UUID
-    first_name: str
-    last_name: str
-    phone_no: str
-    note: Optional[str] = None
-
-
 class MockCustomerResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
@@ -59,4 +51,4 @@ class CustomerCreateResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
     message: str
-    customer: MockCustomerBase
+    customer: CustomerBase

@@ -97,8 +97,6 @@ def affiliate_token(verified_affiliate):
 
 @pytest.fixture
 def affiliate_client(test_client, affiliate_token):
-    print('affiliate_token')
-    print(affiliate_token)
     test_client.headers.update(
         {"Authorization": f"Bearer {affiliate_token}"}
     )
