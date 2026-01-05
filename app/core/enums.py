@@ -41,3 +41,8 @@ class ServiceTypeEnum(str, enum.Enum):
     crypto = "crypto"
     gift_card = "gift_card"
     bill_payments = "bill_payments"
+
+
+class CryptoPairEnum(str, enum.Enum):
+    NGN_USDT = "NGN-USDT"
+    USDT_NGN = "USDT-NGN"
