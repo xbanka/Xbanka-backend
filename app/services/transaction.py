@@ -13,26 +13,24 @@ class TransactionService(Service):
             # Calculate expected payout for crypto and gift card transactions
             xbanka_rate = getattr(obj_in, "xbanka_rate")
             vendor_rate = getattr(obj_in, "vendor_rate")
-            margin = getattr(obj_in, "margin")
             
             crypto_pair = getattr(obj_in, "crypto_pair")
             currency_in, currency_out = parse_crypto_pair(crypto_pair)
             expected_payout = convert_amount(
-                float(obj_in.amount_in), xbanka_rate, currency_in, currency_out
+                float(obj_in.amount_in), float(xbanka_rate), currency_in, currency_out
             )
         elif obj_in.service_type == ServiceTypeEnum.gift_card:
             xbanka_rate = getattr(obj_in, "xbanka_rate")
             vendor_rate = getattr(obj_in, "vendor_rate")
-            margin = getattr(obj_in, "margin")
 
             expected_payout = convert_amount(
-                float(obj_in.amount_in), xbanka_rate, "USD", getattr(obj_in, "currency")
+                float(obj_in.amount_in), float(xbanka_rate), "USD", getattr(obj_in, "currency")
             )
             currency_in = getattr(obj_in, "currency", None)
             currency_out = "NGN"
 
         else:
-            xbanka_rate, vendor_rate, margin = None, None, None
+            xbanka_rate, vendor_rate = None, None
             expected_payout = obj_in.amount_in
             currency_in = currency_out = "NGN"
 
@@ -43,13 +41,14 @@ class TransactionService(Service):
             affiliate_source=obj_in.affiliate_source,
             xbanka_rate=xbanka_rate,
             vendor_rate=vendor_rate,
-            margin=margin,
+            # margin=margin,
             crypto_pair=getattr(obj_in, "crypto_pair", None),
             gift_card_type=getattr(obj_in, "gift_card_type", None),
             currency_in=currency_in,
             currency_out=currency_out,
             quantity=getattr(obj_in, "quantity", None),
             customer_id=obj_in.customer_id,
+            attatchment_url=""
         )
 
         db.add(new_transaction)

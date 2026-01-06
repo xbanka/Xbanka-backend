@@ -1,10 +1,11 @@
 from datetime import datetime
 from decimal import Decimal
-from pydantic import BaseModel, ConfigDict
-from typing import List, Optional, Union
+from fastapi import Body, UploadFile
+from pydantic import BaseModel, ConfigDict, Discriminator, model_validator, Tag
+from typing import Annotated, List, Literal, Optional, Union
 from uuid import UUID
 
-from app.core.enums import TransactionStatusEnum, ServiceTypeEnum
+from app.core.enums import TransactionStatusEnum, ServiceTypeEnum, CryptoPairEnum
 from app.schemas.customer import CustomerResponse
 
 
@@ -18,6 +19,9 @@ class TransactionBase(BaseModel):
 
 
 class BaseTransactionCreate(BaseModel):
+    @model_validator(mode="after")
+    def validate_single_service(self):
+        return self
     # service_type: ServiceTypeEnum
     amount_in: Decimal
     # transaction_type: str
@@ -27,37 +31,52 @@ class BaseTransactionCreate(BaseModel):
 
     customer_id: UUID
     affiliate_source: Optional[str] = None
+    attachment: UploadFile
 
 
 class CryptoTransactionCreate(BaseTransactionCreate):
-    service_type: ServiceTypeEnum = ServiceTypeEnum.crypto
-    crypto_pair: str
+    service_type: Literal[ServiceTypeEnum.crypto]
+    crypto_pair: CryptoPairEnum
 
     vendor_rate: Decimal
     xbanka_rate: Decimal
-    margin: Decimal
+    # margin: Decimal
 
 
 class GiftCardTransactionCreate(BaseTransactionCreate):
-    service_type: ServiceTypeEnum = ServiceTypeEnum.gift_card
+    service_type: Literal[ServiceTypeEnum.gift_card]
     gift_card_type: str
     currency: str
     quantity: int
 
     vendor_rate: Decimal
     xbanka_rate: Decimal
-    margin: Decimal
+    # margin: Decimal
 
 
 class BillPaymentTransactionCreate(BaseTransactionCreate):
-    service_type: ServiceTypeEnum = ServiceTypeEnum.bill_payments
+    service_type: Literal[ServiceTypeEnum.bill_payments]
     biller_category: str
 
 
-TransactionCreatePayload = Union[
-    CryptoTransactionCreate,
-    GiftCardTransactionCreate,
-    BillPaymentTransactionCreate
+# TransactionCreatePayload = Union[
+#     CryptoTransactionCreate,
+#     GiftCardTransactionCreate,
+#     BillPaymentTransactionCreate
+# ]
+
+def get_service_type(v: Union[CryptoTransactionCreate, GiftCardTransactionCreate, BillPaymentTransactionCreate]) -> str:
+    return v.service_type.value
+
+
+TransactionCreatePayload = Annotated[
+    Union[
+        Annotated[CryptoTransactionCreate, Tag(ServiceTypeEnum.crypto.value)],
+        Annotated[GiftCardTransactionCreate, Tag(ServiceTypeEnum.gift_card.value)],
+        Annotated[BillPaymentTransactionCreate, Tag(ServiceTypeEnum.bill_payments.value)]
+    ],
+    Body(...),
+    Discriminator('service_type')
 ]
 
 
