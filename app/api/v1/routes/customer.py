@@ -1,7 +1,7 @@
 from uuid import UUID
 from app.services.customer import CustomerService
 from app.db.database import get_db
-from app.schemas.customer import CustomerBase, CustomerCreateResponse, MockCustomerResponse
+from app.schemas.customer import CustomerBase, CustomerCreateResponse, MockCustomerResponse, CustomerCreateBase
 from fastapi import Query
 
 from fastapi import APIRouter, status, Depends
@@ -20,7 +20,7 @@ customer = APIRouter(prefix="/customers", tags=["Customers"])
     status_code=status.HTTP_201_CREATED
 )
 def create_customer(
-    customer_request: CustomerBase, 
+    customer_request: CustomerCreateBase, 
     db: Session = Depends(get_db),
     current_user: CurrentUser = Depends(require_roles("affiliate", "erp"))
 ):

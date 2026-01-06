@@ -10,7 +10,17 @@ class CustomerBase(BaseModel):
     last_name: str
     email: str
     phone_no: str
-    affiliate: AffiliateMeResponse
+    affiliate: Optional[AffiliateMeResponse] = None
+    note: Optional[str] = None
+
+
+class CustomerCreateBase(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    first_name: str
+    last_name: str
+    email: str
+    phone_no: str
     note: Optional[str] = None
 
 
