@@ -91,7 +91,7 @@ class AffiliateService(Service):
         except SQLAlchemyError:
             logger.exception("SQLAlchemy error while creating affiliate")
             db.rollback()
-            raise HTTPException(status_code=500, detail=f"An error occurred saving entity: {e}")
+            raise HTTPException(status_code=500, detail="An error occurred saving entity")
         except Exception as e:
             logger.exception("Unexpected error while creating affiliate")
             db.rollback()

@@ -21,7 +21,7 @@ class DashboardService(Service):
         result = db.execute(stmt).mappings().first() or {}
 
         total_commissions = (
-            db.query(func.coalesce(func.sum(Transaction.transaction_amount), 0))
+            db.query(func.coalesce(func.sum(Transaction.amount_in), 0))
             .join(Transaction.customer)
             .join(Customer.affiliate)
             .filter(Affiliate.id == current_user.id)
