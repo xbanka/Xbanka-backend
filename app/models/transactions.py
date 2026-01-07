@@ -1,4 +1,4 @@
-from app.core.enums import TransactionStatusEnum, CryptoPairEnum, ServiceTypeEnum
+from app.core.enums import TransactionStatusEnum, CryptoPairEnum, ServiceTypeEnum, UploadStatusEnum
 from app.models.base_model import BaseModel
 from decimal import Decimal
 from sqlalchemy import ForeignKey, String, Enum, DECIMAL, Computed, Numeric
@@ -24,6 +24,8 @@ class Transaction(BaseModel):
         nullable=False
     )
     status: Mapped[TransactionStatusEnum] = mapped_column(Enum(TransactionStatusEnum), default=TransactionStatusEnum.pending, nullable=False)
+    upload_status: Mapped[UploadStatusEnum] = mapped_column(Enum(UploadStatusEnum), default=UploadStatusEnum.pending, nullable=False)
+
 
     vendor_rate: Mapped[Decimal] = mapped_column(Numeric(12, 2), nullable=True)
     xbanka_rate: Mapped[Decimal] = mapped_column(Numeric(12, 2), nullable=True)
@@ -39,7 +41,7 @@ class Transaction(BaseModel):
     quantity: Mapped[int] = mapped_column(Numeric(12, 2), nullable=True)
     gift_card_code: Mapped[str] = mapped_column(String, nullable=True)
 
-    attatchment_url: Mapped[str] = mapped_column(String, nullable=True)
+    attachment_url: Mapped[str] = mapped_column(String, nullable=True)
    
     customer_id: Mapped[UUID] = mapped_column(ForeignKey('customers.id'), nullable=False, index=True)
 

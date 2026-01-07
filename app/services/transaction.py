@@ -1,10 +1,20 @@
+from botocore.exceptions import ClientError
+import logging
+from uuid import UUID
+
+from fastapi import UploadFile, HTTPException
+from sqlalchemy import func, select
 from app.core.base.services import Service
 from app.models.transactions import Transaction
 from app.schemas.transactions import TransactionCreatePayload
 from sqlalchemy.orm import Session
-from app.core.enums import ServiceTypeEnum
+from app.core.enums import ServiceTypeEnum, UploadStatusEnum
 from app.utils.currency import convert_amount, parse_crypto_pair
+from app.utils.settings import settings
+from app.utils.s3_utils import upload_file, validate_file
 
+
+S3_BUCKET_NAME = settings.S3_BUCKET_NAME
 
 class TransactionService(Service):
     @staticmethod
@@ -48,10 +58,67 @@ class TransactionService(Service):
             currency_out=currency_out,
             quantity=getattr(obj_in, "quantity", None),
             customer_id=obj_in.customer_id,
-            attatchment_url=""
+            attachment_url=""
         )
 
         db.add(new_transaction)
         db.commit()
         db.refresh(new_transaction)
         return new_transaction
+    
+
+    @staticmethod
+    def fetch(db: Session, id: UUID):
+        return db.get(Transaction, id)
+    
+    @staticmethod
+    def fetch_all_paginated(db: Session, page: int, limit: int):
+        stmt = select(Transaction)
+        stmt = (
+            stmt.order_by(Transaction.created_at.desc())
+            .offset((page - 1) * limit)
+            .limit(limit)
+        )
+
+        result = db.execute(stmt)
+        transactions = result.scalars().all()
+        
+        total = db.scalar(
+            select(func.count()).select_from(
+                select(Transaction)
+                .subquery()
+            )
+        ) or 0
+
+        return {
+            "page": page,
+            "limit": limit,
+            "total": total,
+            "pages": (total + limit - 1) // limit,
+            "data": transactions
+        }
+    
+    @staticmethod
+    def upload_attachment(db: Session, transaction_id: UUID, attachment: UploadFile):
+        transaction = db.get(Transaction, transaction_id)
+        if not transaction:
+            raise HTTPException(status_code=404, detail="Transaction not found.")
+        
+        try:
+            attachment_url = validate_file(attachment, transaction_id)
+        
+            upload_file(attachment.file, S3_BUCKET_NAME, attachment_url)
+
+            transaction.attachment_url = attachment_url
+            transaction.upload_status = UploadStatusEnum.pending
+            db.commit()
+            db.refresh(transaction)
+
+            return transaction
+    
+        except ClientError as e:
+            logging.error(e)
+            transaction.upload_status = UploadStatusEnum.failed
+            db.commit()
+
+            raise HTTPException(status_code=500, detail="An error occured. Attachment upload failed")

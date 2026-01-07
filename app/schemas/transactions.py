@@ -5,16 +5,21 @@ from pydantic import BaseModel, ConfigDict, Discriminator, model_validator, Tag
 from typing import Annotated, List, Literal, Optional, Union
 from uuid import UUID
 
-from app.core.enums import TransactionStatusEnum, ServiceTypeEnum, CryptoPairEnum
+from app.core.enums import TransactionStatusEnum, ServiceTypeEnum, CryptoPairEnum, UploadStatusEnum
 from app.schemas.customer import CustomerResponse
 
 
 class TransactionBase(BaseModel):
-    transaction_type: str
+    # id: UUID
+    created_at: datetime
     commission_rate: Decimal
     commission_amount: Decimal
     status: TransactionStatusEnum
-    customer_id: UUID
+    upload_status: UploadStatusEnum
+    vendor_rate: float
+    xbanka_rate: float
+    margin: float
+    attachment_url: str
     affiliate_source: Optional[str] = None
 
 
@@ -31,8 +36,6 @@ class BaseTransactionCreate(BaseModel):
 
     customer_id: UUID
     affiliate_source: Optional[str] = None
-    attachment: UploadFile
-
 
 class CryptoTransactionCreate(BaseTransactionCreate):
     service_type: Literal[ServiceTypeEnum.crypto]
@@ -75,7 +78,6 @@ TransactionCreatePayload = Annotated[
         Annotated[GiftCardTransactionCreate, Tag(ServiceTypeEnum.gift_card.value)],
         Annotated[BillPaymentTransactionCreate, Tag(ServiceTypeEnum.bill_payments.value)]
     ],
-    Body(...),
     Discriminator('service_type')
 ]
 
@@ -83,14 +85,9 @@ TransactionCreatePayload = Annotated[
 class TransactionResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
-    id: UUID
-    created_at: datetime
-    transaction_type: str
-    commission_rate: Decimal
-    commission_amount: Decimal
-    status: TransactionStatusEnum
-    customer: CustomerResponse
-    affiliate_source: Optional[str] = None
+    message: str
+    transaction: TransactionBase
+    
 
 
 class PaginatedTransactionResponse(BaseModel):
@@ -98,4 +95,4 @@ class PaginatedTransactionResponse(BaseModel):
     limit: int
     total: int
     pages: int
-    data: List[TransactionResponse]
+    data: List[TransactionBase]

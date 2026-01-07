@@ -1,7 +1,7 @@
 from uuid import UUID
 from app.services.customer import CustomerService
 from app.db.database import get_db
-from app.schemas.customer import CustomerBase, CustomerCreateResponse, MockCustomerResponse, CustomerCreateBase
+from app.schemas.customer import CustomerCreateResponse, MockCustomerResponse, CustomerCreateBase
 from fastapi import Query
 
 from fastapi import APIRouter, status, Depends
