@@ -12,6 +12,7 @@ from app.core.enums import ServiceTypeEnum, UploadStatusEnum
 from app.utils.currency import convert_amount, parse_crypto_pair
 from app.utils.settings import settings
 from app.utils.s3_utils import upload_file, validate_file
+from app.services.customer import CustomerService
 
 
 S3_BUCKET_NAME = settings.S3_BUCKET_NAME
@@ -19,6 +20,11 @@ S3_BUCKET_NAME = settings.S3_BUCKET_NAME
 class TransactionService(Service):
     @staticmethod
     def create(db: Session, obj_in: TransactionCreatePayload):
+        customer = CustomerService.fetch(db, obj_in.customer_id)
+        if not customer:
+            raise HTTPException(status_code=404, detail="Customer not found.")
+
+
         if obj_in.service_type == ServiceTypeEnum.crypto:
             # Calculate expected payout for crypto and gift card transactions
             xbanka_rate = getattr(obj_in, "xbanka_rate")

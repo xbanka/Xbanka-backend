@@ -43,27 +43,27 @@ class CustomerService(Service):
 
     @staticmethod
     def fetch(db: Session, id: UUID):
-        return db.get(MockCustomer, id)
+        return db.get(Customer, id)
 
     
     @staticmethod
     def fetch_all(db: Session):
-        stmt = select(MockCustomer)
+        stmt = select(Customer)
         return db.scalars(stmt).all()
     
 
     @staticmethod
     def search_customers(db: Session, search: str):
-        stmt = select(MockCustomer)
+        stmt = select(Customer)
         if search:
             search_query = f"%{search}%"
 
             stmt = stmt.where(
                 or_(
-                    MockCustomer.first_name.ilike(search_query),
-                    MockCustomer.last_name.ilike(search_query),
-                    MockCustomer.phone_no.ilike(search_query),
-                    MockCustomer.email.ilike(search_query)
+                    Customer.first_name.ilike(search_query),
+                    Customer.last_name.ilike(search_query),
+                    Customer.phone_no.ilike(search_query),
+                    Customer.email.ilike(search_query)
                 )
             )
 
