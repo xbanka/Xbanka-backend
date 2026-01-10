@@ -26,20 +26,24 @@ class Transaction(BaseModel):
     status: Mapped[TransactionStatusEnum] = mapped_column(Enum(TransactionStatusEnum), default=TransactionStatusEnum.pending, nullable=False)
     upload_status: Mapped[UploadStatusEnum] = mapped_column(Enum(UploadStatusEnum), default=UploadStatusEnum.pending, nullable=False)
 
+    vendor:Mapped[str] = mapped_column(String, nullable=False)
 
     vendor_rate: Mapped[Decimal] = mapped_column(Numeric(12, 2), nullable=True)
     xbanka_rate: Mapped[Decimal] = mapped_column(Numeric(12, 2), nullable=True)
 
     margin: Mapped[Decimal] = mapped_column(Numeric(12, 2), Computed("xbanka_rate - vendor_rate", persisted=True), nullable=True)
 
+    customer_account:Mapped[str] = mapped_column(String, nullable=True)
+
     # crypto-related fields
     crypto_pair: Mapped[CryptoPairEnum] = mapped_column(Enum(CryptoPairEnum), nullable=True)
+    xbanka_account:Mapped[str] = mapped_column(String, nullable=True)
 
     # gift card-related fields
     gift_card_type: Mapped[str] = mapped_column(String, nullable=True)
+    gift_card_code: Mapped[str] = mapped_column(String, nullable=True)
     currency: Mapped[str] = mapped_column(String, nullable=True)
     quantity: Mapped[int] = mapped_column(Numeric(12, 2), nullable=True)
-    gift_card_code: Mapped[str] = mapped_column(String, nullable=True)
 
     attachment_url: Mapped[str] = mapped_column(String, nullable=True)
    

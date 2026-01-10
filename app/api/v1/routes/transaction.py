@@ -1,6 +1,6 @@
 from uuid import UUID
 from app.db.database import get_db
-from app.schemas.transactions import PaginatedTransactionResponse, TransactionCreatePayload, TransactionResponse
+from app.schemas.transactions import PaginatedTransactionResponse, TransactionCreatePayload, TransactionResponse, TransactionBase
 from app.services.transaction import TransactionService
 from app.utils.auth import require_roles
 from app.utils.schema import CurrentUser
@@ -46,7 +46,7 @@ def upload_transaction_attachment(
     return {"message": "Attachment uploaded successfully", "transaction": transaction}
 
 
-@transaction.get("/{transaction_id:uuid}", status_code=status.HTTP_200_OK)
+@transaction.get("/{transaction_id:uuid}", status_code=status.HTTP_200_OK, response_model=TransactionBase)
 def get_transaction(
     transaction_id: UUID,
     db: Session = Depends(get_db),

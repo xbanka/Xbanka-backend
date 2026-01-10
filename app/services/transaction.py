@@ -31,6 +31,7 @@ class TransactionService(Service):
             vendor_rate = getattr(obj_in, "vendor_rate")
             
             crypto_pair = getattr(obj_in, "crypto_pair")
+            # xbanka_account = getattr(obj_in, "xbanka_account")
             currency_in, currency_out = parse_crypto_pair(crypto_pair)
             expected_payout = convert_amount(
                 float(obj_in.amount_in), float(xbanka_rate), currency_in, currency_out
@@ -57,9 +58,12 @@ class TransactionService(Service):
             affiliate_source=obj_in.affiliate_source,
             xbanka_rate=xbanka_rate,
             vendor_rate=vendor_rate,
-            # margin=margin,
+            customer_account=obj_in.customer_account,
+            vendor=obj_in.vendor,
+            xbanka_account=getattr(obj_in, "xbanka_account", None),
             crypto_pair=getattr(obj_in, "crypto_pair", None),
             gift_card_type=getattr(obj_in, "gift_card_type", None),
+            gift_card_code=getattr(obj_in, "gift_card_code", None),
             currency_in=currency_in,
             currency_out=currency_out,
             quantity=getattr(obj_in, "quantity", None),

@@ -53,3 +53,7 @@ class ServiceTypeEnum(str, enum.Enum):
 class CryptoPairEnum(str, enum.Enum):
     NGN_USDT = "NGN-USDT"
     USDT_NGN = "USDT-NGN"
+    BTC_NGN = "BTC-NGN"
+    NGN_BTC = "NGN-BTC"
+    ETH_NGN = "ETH-NGN"
+    NGN_ETH = "NGN-ETH"
