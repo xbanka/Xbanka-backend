@@ -42,7 +42,6 @@ class Transaction(BaseModel):
     # gift card-related fields
     gift_card_type: Mapped[str] = mapped_column(String, nullable=True)
     gift_card_code: Mapped[str] = mapped_column(String, nullable=True)
-    currency: Mapped[str] = mapped_column(String, nullable=True)
     quantity: Mapped[int] = mapped_column(Numeric(12, 2), nullable=True)
 
     attachment_url: Mapped[str] = mapped_column(String, nullable=True)

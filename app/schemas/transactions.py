@@ -5,33 +5,57 @@ from typing import Annotated, List, Literal, Optional, Union
 from uuid import UUID
 
 from app.core.enums import TransactionStatusEnum, ServiceTypeEnum, CryptoPairEnum, UploadStatusEnum
+from app.schemas.customer import CustomerRead, CustomerBrief
 
 
-class TransactionBase(BaseModel):
+class TransactionDetailResponse(BaseModel):
     id: UUID
     created_at: datetime
+    service_type: ServiceTypeEnum
+    gift_card_type: Optional[str] = None
+    amount_in: Decimal
+    amount_out: Decimal
+    vendor: str
+    crypto_pair: Optional[str] = None
+    gift_card_code: Optional[str] = None
+    currency_in: str
+    currency_out: str
     commission_rate: Decimal
     commission_amount: Decimal
     status: TransactionStatusEnum
     upload_status: UploadStatusEnum
-    vendor_rate: float
-    xbanka_rate: float
+    vendor_rate: Optional[float] = None
+    xbanka_rate: Optional[float] = None
     margin: float
     attachment_url: str
     affiliate_source: Optional[str] = None
+    customer: CustomerRead
+
+
+class TransactionBrief(BaseModel):
+    id: UUID
+    created_at: datetime
+    service_type: ServiceTypeEnum
+    amount_in: Decimal
+    amount_out: Decimal
+    vendor: str
+    currency_in: str
+    currency_out: str
+    status: TransactionStatusEnum
+    attachment_url: str
+    affiliate_source: Optional[str] = None
+    customer: CustomerBrief
 
 
 class BaseTransactionCreate(BaseModel):
     @model_validator(mode="after")
     def validate_single_service(self):
         return self
-    # service_type: ServiceTypeEnum
     amount_in: Decimal
     vendor: str
     customer_account: str
 
     customer_id: UUID
-    affiliate_source: Optional[str] = None
 
 class CryptoTransactionCreate(BaseTransactionCreate):
     service_type: Literal[ServiceTypeEnum.crypto]
@@ -58,12 +82,6 @@ class BillPaymentTransactionCreate(BaseTransactionCreate):
     biller_category: str
 
 
-# TransactionCreatePayload = Union[
-#     CryptoTransactionCreate,
-#     GiftCardTransactionCreate,
-#     BillPaymentTransactionCreate
-# ]
-
 def get_service_type(v: Union[CryptoTransactionCreate, GiftCardTransactionCreate, BillPaymentTransactionCreate]) -> str:
     return v.service_type.value
 
@@ -78,17 +96,18 @@ TransactionCreatePayload = Annotated[
 ]
 
 
-class TransactionResponse(BaseModel):
+class TransactionCreateResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
     message: str
-    transaction: TransactionBase
+    transaction: TransactionBrief
     
 
-
 class PaginatedTransactionResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
     page: int
     limit: int
     total: int
     pages: int
-    data: List[TransactionBase]
+    data: List[TransactionBrief]

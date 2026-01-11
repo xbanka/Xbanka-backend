@@ -1,7 +1,7 @@
 from uuid import UUID
 from app.core.base.services import Service
-from app.models.customer import Customer, MockCustomer
-from app.schemas.customer import CustomerBase, CustomerCreateBase
+from app.models.customer import Customer
+from app.schemas.customer import CustomerCreateBase
 from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
 from sqlalchemy import select, or_
@@ -32,7 +32,8 @@ class CustomerService(Service):
             first_name=obj_in.first_name,
             last_name=obj_in.last_name,
             email=obj_in.email,
-            phone_no=obj_in.phone_no
+            phone_no=obj_in.phone_no,
+            affiliate_id=obj_in.affiliate_id
         )
 
         db.add(new_customer)

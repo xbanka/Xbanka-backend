@@ -23,6 +23,8 @@ class TransactionService(Service):
         customer = CustomerService.fetch(db, obj_in.customer_id)
         if not customer:
             raise HTTPException(status_code=404, detail="Customer not found.")
+        
+        affiliate_username = customer.affiliate.username if customer.affiliate else None
 
 
         if obj_in.service_type == ServiceTypeEnum.crypto:
@@ -55,7 +57,7 @@ class TransactionService(Service):
             service_type=obj_in.service_type,
             amount_in=obj_in.amount_in,
             amount_out=expected_payout,
-            affiliate_source=obj_in.affiliate_source,
+            affiliate_source=affiliate_username,
             xbanka_rate=xbanka_rate,
             vendor_rate=vendor_rate,
             customer_account=obj_in.customer_account,

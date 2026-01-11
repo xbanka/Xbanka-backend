@@ -1,6 +1,6 @@
 from uuid import UUID
 from app.db.database import get_db
-from app.schemas.transactions import PaginatedTransactionResponse, TransactionCreatePayload, TransactionResponse, TransactionBase
+from app.schemas.transactions import PaginatedTransactionResponse, TransactionCreatePayload, TransactionCreateResponse, TransactionDetailResponse
 from app.services.transaction import TransactionService
 from app.utils.auth import require_roles
 from app.utils.schema import CurrentUser
@@ -22,7 +22,7 @@ def fetch_all_transactions(
     return TransactionService.fetch_all_paginated(db, page, limit)
 
 
-@transaction.post("/new", status_code=status.HTTP_201_CREATED, response_model=TransactionResponse)
+@transaction.post("/new", status_code=status.HTTP_201_CREATED, response_model=TransactionCreateResponse)
 def create_transaction(
     trans_request: TransactionCreatePayload = Body(...), 
     db: Session = Depends(get_db),
@@ -33,7 +33,7 @@ def create_transaction(
     return {"message": "Transaction created successfully", "transaction": transaction}
 
 
-@transaction.post("/{transaction_id}/attachment", status_code=status.HTTP_200_OK, response_model=TransactionResponse)
+@transaction.post("/{transaction_id}/attachment", status_code=status.HTTP_200_OK, response_model=TransactionCreateResponse)
 def upload_transaction_attachment(
     transaction_id: UUID,
     attachment: UploadFile = File(...),
@@ -46,11 +46,10 @@ def upload_transaction_attachment(
     return {"message": "Attachment uploaded successfully", "transaction": transaction}
 
 
-@transaction.get("/{transaction_id:uuid}", status_code=status.HTTP_200_OK, response_model=TransactionBase)
+@transaction.get("/{transaction_id:uuid}", status_code=status.HTTP_200_OK, response_model=TransactionDetailResponse)
 def get_transaction(
     transaction_id: UUID,
     db: Session = Depends(get_db),
     current_user: CurrentUser = Depends(require_roles("affiliate", "erp"))
 ):
-    transaction = TransactionService.fetch(db, transaction_id)
-    return {"transaction": transaction}
+    return TransactionService.fetch(db, transaction_id)

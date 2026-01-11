@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from typing import Generic, Sequence, TypeVar
+from typing import TypeVar, Any
 from uuid import UUID
 from sqlalchemy.orm import Session
 
@@ -7,10 +7,10 @@ from sqlalchemy.orm import Session
 T = TypeVar("T")  # Represents your entity/model type
 C = TypeVar("C")  # Represents your create schema type
 
-class Service(ABC, Generic[T, C]):
+class Service(ABC):
     @staticmethod
     @abstractmethod
-    def create(db: Session, obj_in: C) -> T:
+    def create(db: Session, obj_in) -> Any:
         """ Creates an entity in the db """
         pass
 
@@ -21,7 +21,7 @@ class Service(ABC, Generic[T, C]):
 
     @staticmethod
     @abstractmethod
-    def fetch_all(db: Session) -> Sequence[T]:
+    def fetch_all(db: Session):
         pass
 
     @staticmethod

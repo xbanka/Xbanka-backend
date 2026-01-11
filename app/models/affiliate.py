@@ -1,5 +1,5 @@
 from app.models.base_model import BaseModel
-from sqlalchemy import String, Boolean, Integer
+from sqlalchemy import String, Boolean
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 class Affiliate(BaseModel):
