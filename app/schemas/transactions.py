@@ -1,6 +1,6 @@
 from datetime import datetime
 from decimal import Decimal
-from pydantic import BaseModel, ConfigDict, Discriminator, model_validator, Tag
+from pydantic import BaseModel, ConfigDict, Discriminator, model_validator, Tag, computed_field
 from typing import Annotated, List, Literal, Optional, Union
 from uuid import UUID
 
@@ -26,7 +26,7 @@ class TransactionDetailResponse(BaseModel):
     upload_status: UploadStatusEnum
     vendor_rate: Optional[float] = None
     xbanka_rate: Optional[float] = None
-    margin: float
+    margin: Optional[float] = None
     attachment_url: str
     affiliate_source: Optional[str] = None
     customer: CustomerRead
@@ -42,9 +42,23 @@ class TransactionBrief(BaseModel):
     currency_in: str
     currency_out: str
     status: TransactionStatusEnum
+    vendor_rate: Optional[float] = None
+    xbanka_rate: Optional[float] = None
+    margin: Optional[float] = None
     attachment_url: str
     affiliate_source: Optional[str] = None
     customer: CustomerBrief
+    crypto_pair: Optional[str] = None
+    gift_card_type: Optional[str] = None
+
+    @computed_field
+    @property
+    def transaction_type(self) -> str:
+        if self.crypto_pair:
+            return self.crypto_pair
+        if self.gift_card_type:
+            return self.gift_card_type
+        raise ValueError("Invalid transaction: neither crypto_pair nor card_type set")
 
 
 class BaseTransactionCreate(BaseModel):
