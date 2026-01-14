@@ -2,6 +2,7 @@ from uuid import UUID
 from app.core.base.services import Service
 from app.models.customer import Customer
 from app.schemas.customer import CustomerCreateBase
+from app.services.affiliate import AffiliateService
 from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
 from sqlalchemy import select, or_
@@ -28,12 +29,18 @@ class CustomerService(Service):
                 status_code=status.HTTP_400_BAD_REQUEST, detail="Customer with this email already exists."
             )
 
+        customer_affiliate = (
+            AffiliateService.get_by_username(db, obj_in.affiliate_username)
+            if obj_in.affiliate_username
+            else None
+        )
+
         new_customer = Customer(
             first_name=obj_in.first_name,
             last_name=obj_in.last_name,
             email=obj_in.email,
             phone_no=obj_in.phone_no,
-            affiliate_id=obj_in.affiliate_id
+            affiliate_id=customer_affiliate.id if customer_affiliate else None
         )
 
         db.add(new_customer)

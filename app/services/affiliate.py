@@ -109,6 +109,17 @@ class AffiliateService(Service):
             )
         
         return affiliate
+
+    @staticmethod
+    def get_by_username(db: Session, username: str) -> Affiliate:
+        stmt = select(Affiliate).where(Affiliate.username == username)
+        affiliate = db.execute(stmt).scalars().one_or_none()
+        if not affiliate:
+            raise HTTPException(
+                status_code=404,
+                detail="Affiliate with this username not found"
+            )
+        return affiliate
     
     @staticmethod
     def get_by_refcode(db: Session, refcode: str) -> Affiliate:

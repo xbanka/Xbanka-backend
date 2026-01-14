@@ -30,7 +30,7 @@ class CustomerCreateBase(BaseModel):
     last_name: str
     email: str
     phone_no: str
-    affiliate_id: Optional[UUID] = None
+    affiliate_username: Optional[str] = None
     note: Optional[str] = None
 
 
