@@ -34,29 +34,7 @@ class CustomerCreateBase(BaseModel):
     note: Optional[str] = None
 
 
-class MockBase(BaseModel):
-    model_config = ConfigDict(from_attributes=True)
-    
-    id: UUID
-    first_name: str
-    first_name: str
-    email: str
-    phone_no: str
-    commission: float
-
-
 class CustomerResponse(BaseModel):
-    model_config = ConfigDict(from_attributes=True)
-
-    id: UUID
-    first_name: str
-    first_name: str
-    email: str
-    phone_no: str
-    commission: float
-
-
-class MockCustomerResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
     id: UUID
@@ -64,7 +42,7 @@ class MockCustomerResponse(BaseModel):
     last_name: str
     email: str
     phone_no: str
-    note: Optional[str] = None
+    affiliate: Optional[AffiliateMeResponse] = None
 
 
 class CustomerCreateResponse(BaseModel):

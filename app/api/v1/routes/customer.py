@@ -1,7 +1,7 @@
 from uuid import UUID
 from app.services.customer import CustomerService
 from app.db.database import get_db
-from app.schemas.customer import CustomerCreateResponse, MockCustomerResponse, CustomerCreateBase
+from app.schemas.customer import CustomerCreateResponse, CustomerCreateBase, CustomerResponse
 from fastapi import Query
 
 from fastapi import APIRouter, status, Depends
@@ -28,7 +28,20 @@ def create_customer(
     return {"message": "Customer created successfully", "customer": customer}
 
 
-@customer.get("/all", response_model=List[MockCustomerResponse])
+@customer.post(
+    "/new/public", 
+    response_model=CustomerCreateResponse, 
+    status_code=status.HTTP_201_CREATED
+)
+def create_customer_public(
+    customer_request: CustomerCreateBase, 
+    db: Session = Depends(get_db)
+):
+    customer = CustomerService.create(db, customer_request)
+    return {"message": "Customer created successfully", "customer": customer}
+
+
+@customer.get("/all", response_model=List[CustomerResponse])
 def fetch_all_customers(db: Session = Depends(get_db)):
     customers = CustomerService.fetch_all(db)
     return customers
@@ -36,7 +49,7 @@ def fetch_all_customers(db: Session = Depends(get_db)):
 
 @customer.get(
     "/search", 
-    response_model=List[MockCustomerResponse],
+    response_model=List[CustomerResponse],
     status_code=status.HTTP_200_OK
 )
 def search_customers(q: str = Query(...), db: Session = Depends(get_db)):
@@ -44,7 +57,7 @@ def search_customers(q: str = Query(...), db: Session = Depends(get_db)):
     return customers
 
 
-@customer.get("/{customer_id}", response_model=MockCustomerResponse)
+@customer.get("/{customer_id}", response_model=CustomerResponse)
 def get_customer(customer_id: UUID, db: Session = Depends(get_db)):
     customers = CustomerService.fetch(db, customer_id)
     return customers
