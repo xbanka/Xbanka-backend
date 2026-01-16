@@ -44,6 +44,9 @@ class AffiliateService(Service):
         )
         affiliate = db.execute(stmt).scalars().first()
 
+        if affiliate and not affiliate.verified:
+            return affiliate
+
         if affiliate:
             raise HTTPException(
                 status_code=400,
