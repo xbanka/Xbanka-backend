@@ -9,6 +9,8 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 class Transaction(BaseModel):
     __tablename__ = 'transactions'
 
+    txn_id: Mapped[str] = mapped_column(String, nullable=False, unique=True)
+
     affiliate_source: Mapped[str] = mapped_column(String, nullable=True)
     # transaction_type: Mapped[str] = mapped_column(String, nullable=False)
     service_type: Mapped[ServiceTypeEnum] = mapped_column(Enum(ServiceTypeEnum), nullable=False)

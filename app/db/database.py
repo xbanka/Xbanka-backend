@@ -26,9 +26,6 @@ db_session = scoped_session(SessionLocal)
 
 Base = declarative_base()
 
-def create_database():
-    return Base.metadata.create_all(bind=engine)
-
 def get_db():
     db = db_session()
     try:

@@ -10,6 +10,7 @@ from app.schemas.customer import CustomerRead, CustomerBrief
 
 class TransactionDetailResponse(BaseModel):
     id: UUID
+    txn_id: str
     created_at: datetime
     service_type: ServiceTypeEnum
     gift_card_type: Optional[str] = None
@@ -34,6 +35,7 @@ class TransactionDetailResponse(BaseModel):
 
 class TransactionBrief(BaseModel):
     id: UUID
+    txn_id: str
     created_at: datetime
     service_type: ServiceTypeEnum
     amount_in: Decimal

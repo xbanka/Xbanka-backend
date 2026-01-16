@@ -1,12 +1,28 @@
+from app import models
+from app.api.v1.routes import api_version_one
+from contextlib import asynccontextmanager
 from fastapi import FastAPI, Request, status
 from fastapi.exceptions import RequestValidationError, ResponseValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
-from app.api.v1.routes import api_version_one
-from app import models
 import logging
 
-app = FastAPI()
+from app.db import ensure_txn_sequence
+from app.db.database import SessionLocal
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Startup
+    db = SessionLocal()
+    try:
+        ensure_txn_sequence(db)
+    finally:
+        db.close()
+    yield
+    # Shutdown
+    pass
+
+app = FastAPI(lifespan=lifespan)
 app.include_router(api_version_one)
 
 logger = logging.getLogger(__name__)
@@ -74,5 +90,3 @@ async def response_validation_exception_handler(
 def read_root():
     return {"message": "Welcome to XBanka API"}
 
-
-# Base.metadata.create_all(bind=engine)

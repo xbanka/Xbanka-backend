@@ -1,9 +1,10 @@
+from datetime import datetime
 from botocore.exceptions import ClientError
 import logging
 from uuid import UUID
 
 from fastapi import UploadFile, HTTPException
-from sqlalchemy import func, select
+from sqlalchemy import func, select, text
 from app.core.base.services import Service
 from app.models.transactions import Transaction
 from app.schemas.transactions import TransactionCreatePayload
@@ -16,6 +17,14 @@ from app.services.customer import CustomerService
 
 
 S3_BUCKET_NAME = settings.S3_BUCKET_NAME
+
+def generate_txn_id(db):
+    year = datetime.now().year
+    seq = db.execute(
+        text(f"SELECT nextval('txn_{year}_seq')")
+    ).scalar()
+
+    return f"TX-{year}{str(seq).zfill(5)}"
 
 class TransactionService(Service):
     @staticmethod
@@ -54,6 +63,7 @@ class TransactionService(Service):
             currency_in = currency_out = "NGN"
 
         new_transaction = Transaction(
+            txn_id = generate_txn_id(db=db),
             service_type=obj_in.service_type,
             amount_in=obj_in.amount_in,
             amount_out=expected_payout,
