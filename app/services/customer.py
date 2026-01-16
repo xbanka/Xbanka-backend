@@ -5,8 +5,7 @@ from app.schemas.customer import CustomerCreateBase
 from app.services.affiliate import AffiliateService
 from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
-from sqlalchemy import select, or_
-
+from sqlalchemy import select, or_, desc
 from app.utils.validators import is_valid_email
 
 class CustomerService(Service):
@@ -56,7 +55,7 @@ class CustomerService(Service):
     
     @staticmethod
     def fetch_all(db: Session):
-        stmt = select(Customer)
+        stmt = select(Customer).order_by(desc(Customer.created_at))
         return db.scalars(stmt).all()
     
 

@@ -1,3 +1,4 @@
+from datetime import datetime
 from pydantic import BaseModel, ConfigDict
 from uuid import UUID
 from typing import Optional
@@ -42,6 +43,7 @@ class CustomerResponse(BaseModel):
     last_name: str
     email: str
     phone_no: str
+    created_at: datetime
     affiliate: Optional[AffiliateMeResponse] = None
 
 
