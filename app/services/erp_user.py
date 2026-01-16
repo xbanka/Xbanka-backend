@@ -30,6 +30,9 @@ class ERPService(Service):
         stmt = select(ERPUser).where(ERPUser.email == obj_in.email)
         erp_user = db.execute(stmt).scalars().first()
 
+        if erp_user and not erp_user.verified:
+            return erp_user
+
         if erp_user:
             raise HTTPException(
                 status_code=400, detail="ERP user with email/username already exists"
