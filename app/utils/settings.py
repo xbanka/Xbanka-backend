@@ -15,6 +15,8 @@ class Settings(BaseSettings):
 
     TEST_EMAIL: str
 
+    ALLOW_SUPER_ADMIN_BOOTSTRAP: bool = False
+
     SECRET_KEY: str
     ALGORITHM: str
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 30

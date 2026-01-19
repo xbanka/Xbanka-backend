@@ -10,19 +10,19 @@ import logging
 from app.db import ensure_txn_sequence
 from app.db.database import SessionLocal
 
-@asynccontextmanager
-async def lifespan(app: FastAPI):
-    # Startup
-    db = SessionLocal()
-    try:
-        ensure_txn_sequence(db)
-    finally:
-        db.close()
-    yield
-    # Shutdown
-    pass
+# @asynccontextmanager
+# async def lifespan(app: FastAPI):
+#     # Startup
+#     db = SessionLocal()
+#     try:
+#         ensure_txn_sequence(db)
+#     finally:
+#         db.close()
+#     yield
+#     # Shutdown
+#     pass
 
-app = FastAPI(lifespan=lifespan)
+app = FastAPI()
 app.include_router(api_version_one)
 
 logger = logging.getLogger(__name__)

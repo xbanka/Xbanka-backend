@@ -17,6 +17,10 @@ from app.models.notifications import Notification
 from app.models.payouts import Payout
 from app.schemas.erp.user import RegisterBase
 from app.utils.validators import is_valid_email, is_valid_password
+from app.utils.settings import settings
+
+
+ALLOW_SUPER_ADMIN_BOOTSTRAP = settings.ALLOW_SUPER_ADMIN_BOOTSTRAP
 
 
 class ERPService(Service):
@@ -207,3 +211,60 @@ class ERPService(Service):
         db.refresh(payout)
 
         return payout
+    
+
+    @staticmethod
+    def create_superadmin(db: Session, obj_in: RegisterBase) -> ERPUser:
+        if not ALLOW_SUPER_ADMIN_BOOTSTRAP:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Super Admin creation is disabled."
+            )
+        
+        if not is_valid_email(obj_in.email):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid email address."
+            )
+        
+        if not is_valid_password(obj_in.password):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Password must be at least 8 characters long and contain at least one uppercase letter, one lowercase letter, one digit, and one special character.",
+            )
+        
+        stmt = select(ERPUser).where(ERPUser.email == obj_in.email)
+        superadmin_user = db.execute(stmt).scalars().first()
+
+        if superadmin_user:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST, detail="Super Admin with this email already exists"
+            )
+        
+        try:
+            superadmin_user = ERPUser(
+                first_name=obj_in.first_name,
+                last_name=obj_in.last_name,
+                email=obj_in.email,
+                hashed_password=Hasher.get_password_hash(obj_in.password),
+                verified=True,
+            )
+
+            db.add(superadmin_user)
+            db.commit()
+            db.refresh(superadmin_user)
+        except IntegrityError as e:
+            print(e)
+            db.rollback()
+            raise HTTPException(status_code=400, detail="Database integrity error")
+        except SQLAlchemyError as e:
+            db.rollback()
+            raise HTTPException(
+                status_code=500, detail=f"An error occurred saving entity: {e}"
+            )
+        except Exception as e:
+            print(e)
+            db.rollback()
+            raise HTTPException(status_code=500, detail="An unknown error occurred")
+
+        return superadmin_user
+        
