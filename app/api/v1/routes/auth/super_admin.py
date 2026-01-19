@@ -16,5 +16,5 @@ def super_admin_signup(
 
     return {
         "message": "Super Admin account created. Welcome to Xbanka ERP",
-        "super_admin": super_admin,
+        "user": super_admin,
     }
