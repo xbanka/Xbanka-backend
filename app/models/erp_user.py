@@ -1,7 +1,7 @@
 from app.core.enums import UserRoleEnum
 from app.models.base_model import BaseModel
 from sqlalchemy import String, Enum, Boolean
-from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 class ERPUser(BaseModel):
     __tablename__ = 'erp_users'
@@ -12,6 +12,9 @@ class ERPUser(BaseModel):
     hashed_password: Mapped[str] = mapped_column(String(255), nullable=False)
     role: Mapped[UserRoleEnum] = mapped_column(Enum(UserRoleEnum), default=UserRoleEnum.customer_support, nullable=False, index=True)
     verified: Mapped[bool] = mapped_column(Boolean, nullable=False)
+
+    permission_links = relationship("UserPermissions", back_populates="user", cascade="all, delete-orphan")
+    permissions = relationship("Permission", secondary="user_permissions", viewonly=True)
 
     def __repr__(self):
         return f"<ERPUser(first_name='{self.first_name}', last_name='{self.last_name}', email='{self.email}')>"
