@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import Optional
+from typing import List, Optional
 from uuid import UUID
 from fastapi import HTTPException, status
 from psycopg2 import IntegrityError
@@ -15,7 +15,11 @@ from app.models.erp_user import ERPUser
 from app.models.notifications import Notification
 
 from app.models.payouts import Payout
+from app.models.permission import Permission
+from app.models.role import Role
+from app.models.user_permissions import UserPermissions
 from app.schemas.erp.user import RegisterBase
+from app.utils.permissions import calculate_permission_overrides
 from app.utils.validators import is_valid_email, is_valid_password
 from app.utils.settings import settings
 
@@ -34,12 +38,9 @@ class ERPService(Service):
         stmt = select(ERPUser).where(ERPUser.email == obj_in.email)
         erp_user = db.execute(stmt).scalars().first()
 
-        if erp_user and not erp_user.verified:
-            return erp_user
-
-        if erp_user:
+        if not erp_user:
             raise HTTPException(
-                status_code=400, detail="ERP user with email/username already exists"
+                status_code=403, detail="ERP user has not been initialized."
             )
 
         if not is_valid_password(obj_in.password):
@@ -49,17 +50,9 @@ class ERPService(Service):
             )
 
         try:
-            erp_user = ERPUser(
-                first_name=obj_in.first_name,
-                last_name=obj_in.last_name,
-                email=obj_in.email,
-                hashed_password=Hasher.get_password_hash(obj_in.password),
-                verified=False,
-            )
-
-            db.add(erp_user)
+            erp_user.hashed_password = Hasher.get_password_hash(obj_in.password)
             db.commit()
-            db.refresh(erp_user)
+
         except IntegrityError as e:
             print(e)
             db.rollback()
@@ -220,6 +213,12 @@ class ERPService(Service):
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="Super Admin creation is disabled."
             )
+
+        if obj_in.email not in ["superadmin1@xbankang.com", "superadmin2@xbankang.com", "superadmin3@xbankang.com", "superadmin4@xbankang.com"]:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="You are not authorized to create a Super Admin account."
+            )
         
         if not is_valid_email(obj_in.email):
             raise HTTPException(
@@ -240,6 +239,10 @@ class ERPService(Service):
                 status_code=status.HTTP_400_BAD_REQUEST, detail="Super Admin with this email already exists"
             )
         
+        role_obj = db.query(Role).filter_by(name="Super Admin").first()
+        if not role_obj:
+            raise ValueError("Role 'Super Admin' not found")
+
         try:
             superadmin_user = ERPUser(
                 first_name=obj_in.first_name,
@@ -247,6 +250,7 @@ class ERPService(Service):
                 email=obj_in.email,
                 hashed_password=Hasher.get_password_hash(obj_in.password),
                 verified=True,
+                role=role_obj
             )
 
             db.add(superadmin_user)
@@ -267,4 +271,97 @@ class ERPService(Service):
             raise HTTPException(status_code=500, detail="An unknown error occurred")
 
         return superadmin_user
+    
+
+    @staticmethod
+    def invite_staff(db: Session, first_name: str, last_name: str, email: str, role: str, selected_permissions: list[str]) -> ERPUser:
+        if not is_valid_email(email):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid email address."
+            )
         
+        stmt = select(ERPUser).where(ERPUser.email == email)
+        staff_user = db.execute(stmt).scalars().first()
+
+        if staff_user:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST, detail="Staff user with this email already exists"
+            )
+        
+
+        # Get role's default permissions
+        role = db.query(Role).filter(Role.name == role).first()
+        if not role:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND, detail="Role not found"
+            )
+        
+        role_permissions = [p.name for p in role.permissions]
+
+        # Calculate what needs to be added/removed
+        added, removed = calculate_permission_overrides(
+            role_permissions,
+            selected_permissions
+        )
+
+        try:
+            staff_user = ERPUser(
+                first_name=first_name,
+                last_name=last_name,
+                email=email,
+                role_id=role.id,
+                verified=True,
+            )
+
+            db.add(staff_user)
+            db.commit()
+            db.refresh(staff_user)
+        except IntegrityError as e:
+            print(e)
+            db.rollback()
+            raise HTTPException(status_code=400, detail="Database integrity error")
+        except SQLAlchemyError as e:
+            db.rollback()
+            raise HTTPException(
+                status_code=500, detail=f"An error occurred saving entity: {e}"
+            )
+        except Exception as e:
+            print(e)
+            db.rollback()
+            raise HTTPException(status_code=500, detail="An unknown error occurred")
+        
+
+        # Add custom permissions
+        for perm_name in added:
+            perm = db.query(Permission).filter(Permission.name == perm_name).first()
+            if perm:
+                db.add(UserPermissions(
+                    user_id=staff_user.id,
+                    permission_id=perm.id,
+                    is_active=True
+                ))
+        
+            # Remove permissions
+        for perm_name in removed:
+            perm = db.query(Permission).filter(Permission.name == perm_name).first()
+            if perm:
+                db.add(UserPermissions(
+                    user_id=staff_user.id,
+                    permission_id=perm.id,
+                    is_active=False
+                ))
+
+
+        return staff_user   
+        
+    
+    @staticmethod
+    def get_role_permissions(db: Session, role_name: str) -> List[str]:
+        role = db.query(Role).filter(Role.name == role_name).first()
+        if not role:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND, detail="Role not found"
+            )
+        
+        permissions = [p.name for p in role.permissions]
+        return permissions

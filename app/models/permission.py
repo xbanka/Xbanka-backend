@@ -1,17 +1,17 @@
-from sqlalchemy import ForeignKey, String
+from sqlalchemy import String
 from app.models.base_model import BaseModel
 from sqlalchemy.orm import mapped_column, Mapped, relationship
-from sqlalchemy.dialects.postgresql import UUID 
 
 class Permission(BaseModel):
     __tablename__ = 'permissions'
 
     name: Mapped[str] = mapped_column(String(100), unique=True, nullable=False, index=True)
+    category: Mapped[str] = mapped_column(String(100), nullable=False, index=True)
 
-    role_id: Mapped[UUID] = mapped_column(ForeignKey('roles.id'), nullable=False)
-    role = relationship("Role", back_populates="permissions")
+    roles = relationship("Role", secondary="role_permissions", back_populates="permissions")
 
-    user_links = relationship("UserPermissions", back_populates="permission", cascade="all, delete-orphan")
+    user_links = relationship("UserPermissions", back_populates="permission")
+    users = relationship("ERPUser", secondary="user_permissions", back_populates="permissions", viewonly=True)
 
     def __repr__(self):
-        return f"<Permission(name='{self.name}', description='{self.description}', role_id='{self.role_id}')>"
+        return f"<Permission(name='{self.name}')>"

@@ -1,3 +1,4 @@
+from typing import List
 from pydantic import BaseModel, ConfigDict, field_validator, ValidationInfo
 from fastapi import HTTPException
 from uuid import UUID
@@ -94,3 +95,11 @@ class VerifyResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
     message: str
+
+
+class InviteStaffRequest(BaseModel):
+    first_name: str
+    last_name: str
+    email: str
+    role: str
+    permissions: List[str]

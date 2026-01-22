@@ -81,3 +81,26 @@ async def send_forgot_password_email(recipient: str, email_type: EmailTypeEnum, 
     fm = FastMail(conf)
     # await fm.send_message(message, template_name='forgot_password_template.html')
     background_tasks.add_task(fm.send_message, message, 'forgot_password_template.html')
+
+
+async def send_invite_email(recipient: str, first_name: str, last_name: str, signup_url: str, background_tasks: BackgroundTasks):
+
+    template_body: Dict[str, str] = {
+        "first_name": first_name,
+        "last_name": last_name,
+        "signup_url": signup_url,
+    }    
+
+    message = MessageSchema(
+        subject="You're Invited to Join Xbanka ERP",
+        recipients=[recipient],
+        template_body= template_body,
+        subtype=MessageType.html
+    )
+
+    if settings.DEBUG:
+        message.recipients.append(TEST_EMAIL)
+
+    fm = FastMail(conf)
+    # await fm.send_message(message, template_name='email_template.html')
+    background_tasks.add_task(fm.send_message, message, 'invite.html')

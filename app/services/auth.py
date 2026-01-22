@@ -237,6 +237,12 @@ class AuthService(Service):
 
         user: Optional[Union[ERPUser, Affiliate]] = db.query(model).filter_by(email=email).first()
 
+        if user and not user.hashed_password:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="User has no password set. Please use magic link to complete signup.",
+            )
+
         if not user or not Hasher.verify_password(password, user.hashed_password):
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
@@ -285,7 +291,7 @@ class AuthService(Service):
                     headers={"WWW-Authenticate": "Bearer"},
                 )
     
-        elif user_role == "erp":
+        elif user_role == "erp" or user_role == "super":
             user = db.query(ERPUser).filter_by(id=user_id).first()
         else:
             raise HTTPException(401, "Invalid user type")

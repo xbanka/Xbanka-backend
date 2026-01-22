@@ -19,7 +19,7 @@ from app.schemas.erp.user import (
     ResetPasswordRequest,
     VerifyResponse
 )
-from app.core.email import send_verification_email, send_forgot_password_email
+from app.core.email import send_forgot_password_email
 from app.core.enums import EmailTypeEnum
 from app.db.database import get_db
 from app.models.erp_user import ERPUser
@@ -42,8 +42,12 @@ def login(create_request: LoginBase, response: Response, db: Session = Depends(g
         db, ERPUser, create_request.email, create_request.password
     )
 
-    access_token = AuthService.create_access_token(data={"sub": str(user.id), "role": "erp"})
-    refresh_token = AuthService.create_refresh_token(data={"sub": str(user.id), "role": "erp"})
+    if create_request.email in ["superadmin1@xbankang.com", "superadmin2@xbankang.com", "superadmin3@xbankang.com", "superadmin4@xbankang.com"]:
+        access_token = AuthService.create_access_token(data={"sub": str(user.id), "role": "super"})
+        refresh_token = AuthService.create_refresh_token(data={"sub": str(user.id), "role": "super"})
+    else:
+        access_token = AuthService.create_access_token(data={"sub": str(user.id), "role": "erp"})
+        refresh_token = AuthService.create_refresh_token(data={"sub": str(user.id), "role": "erp"})
 
     # Add refresh token to cookies
     response.set_cookie(
@@ -73,25 +77,14 @@ def login(create_request: LoginBase, response: Response, db: Session = Depends(g
 )
 async def register(
     login_request: RegisterBase,
-    background_tasks: BackgroundTasks,
     db: Session = Depends(get_db),
 ):
     user = ERPService.create(db, login_request)
 
-    token = AuthService.create_magic_link_token(data={"sub": str(user.id)})
-    url = f"{ERP_FRONTEND_URL}/verify?token={token}"
-
-    await send_verification_email(
-        recipient=login_request.email,
-        email_type=EmailTypeEnum.erp,
-        first_name=str(user.first_name),
-        last_name=str(user.last_name),
-        verification_url=url,
-        background_tasks=background_tasks,
-    )
-
+    # token = AuthService.create_magic_link_token(data={"sub": str(user.id)})
+    
     return {
-        "message": "Your profile has been created. Please check your email to verify your account.",
+        "message": "Your profile has been created.",
         "user": user,
     }
 

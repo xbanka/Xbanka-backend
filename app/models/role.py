@@ -7,8 +7,9 @@ class Role(BaseModel):
 
     name: Mapped[str] = mapped_column(String(50), unique=True, nullable=False, index=True)
 
-    users = relationship("User", back_populates="role")
-    permissions = relationship("Permission", back_populates="role")
+    users = relationship("ERPUser", back_populates="role")
+
+    permissions = relationship("Permission", secondary="role_permissions", back_populates="roles")
 
     def __repr__(self):
         return f"<Role(name='{self.name}')>"
