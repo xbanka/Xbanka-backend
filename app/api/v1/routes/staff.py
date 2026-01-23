@@ -1,8 +1,9 @@
+from typing import List
 from fastapi import APIRouter, BackgroundTasks, Depends, Query, status
 
 from app.core.email import send_invite_email
 from app.db.database import get_db
-from app.schemas.erp.user import InviteStaffRequest
+from app.schemas.erp.user import InviteStaffRequest, AllStaffResponse
 from app.services.erp_user import ERPService
 from app.utils.settings import settings
 from app.utils.auth import require_roles
@@ -13,12 +14,24 @@ staff = APIRouter(prefix='/staff')
 
 ERP_FRONTEND_URL = settings.ERP_FRONTEND_URL
 
+
+@staff.get("/all", response_model=AllStaffResponse, status_code=status.HTTP_200_OK)
+def get_all_staff(
+    db: Session = Depends(get_db), 
+    current_user: CurrentUser = Depends(require_roles("erp"))
+):
+    staff_members = ERPService.get_all_staff(db)
+    return {
+        "staff": staff_members,
+        "count": len(staff_members)
+    }
+
 @staff.post("/invite", status_code=status.HTTP_200_OK)
 async def invite_staff(
     request: InviteStaffRequest, 
     background_tasks: BackgroundTasks, 
     db: Session = Depends(get_db), 
-    current_user: CurrentUser = Depends(require_roles("erp", "super"))
+    current_user: CurrentUser = Depends(require_roles("erp"))
 ):
     staff = ERPService.invite_staff(
         db,
@@ -46,7 +59,7 @@ async def invite_staff(
 
 
 @staff.get("/permissions", status_code=status.HTTP_200_OK)
-def get_role_permissions(role: str = Query(...), db: Session = Depends(get_db), current_user: CurrentUser = Depends(require_roles("erp", "super"))):
+def get_role_permissions(role: str = Query(...), db: Session = Depends(get_db), current_user: CurrentUser = Depends(require_roles("erp"))):
     permissions = ERPService.get_role_permissions(db, role)
     return {
         "permissions": permissions

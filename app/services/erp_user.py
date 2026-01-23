@@ -1,9 +1,9 @@
 from datetime import datetime
-from typing import List, Optional
+from typing import List, Optional, Sequence
 from uuid import UUID
 from fastapi import HTTPException, status
 from psycopg2 import IntegrityError
-from sqlalchemy import func, select
+from sqlalchemy import func, select, and_
 from sqlalchemy.dialects.postgresql import UUID as SA_UUID
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
@@ -271,6 +271,18 @@ class ERPService(Service):
             raise HTTPException(status_code=500, detail="An unknown error occurred")
 
         return superadmin_user
+    
+
+    @staticmethod
+    def get_all_staff(db: Session) -> Sequence[ERPUser]:
+        stmt = select(ERPUser).join(Role).where(
+            and_(
+                Role.name != "Super Admin",
+                ERPUser.hashed_password.isnot(None)
+            )
+        ).order_by(ERPUser.created_at.desc())
+        staff_users = db.execute(stmt).scalars().all()
+        return staff_users
     
 
     @staticmethod

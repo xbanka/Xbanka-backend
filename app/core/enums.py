@@ -29,9 +29,6 @@ class PayoutMethodEnum(str, enum.Enum):
     bank_transfer = "bank_transfer"
     mobile_money = "mobile_money"
 
-class UserRoleEnum(str, enum.Enum):
-    customer_support = "customer_support"
-
 
 class TicketStatusEnum(str, enum.Enum):
     open = "open"
@@ -58,7 +55,7 @@ class CryptoPairEnum(str, enum.Enum):
     ETH_NGN = "ETH-NGN"
     NGN_ETH = "NGN-ETH"
 
-class Role(str, enum.Enum):
+class RoleEnum(str, enum.Enum):
     ADMIN = "Admin"
     MANAGER = "Manager"
     OPERATIONS = "Operations"

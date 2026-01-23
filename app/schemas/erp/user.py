@@ -3,10 +3,20 @@ from pydantic import BaseModel, ConfigDict, field_validator, ValidationInfo
 from fastapi import HTTPException
 from uuid import UUID
 from pydantic import EmailStr
-from app.core.enums import UserRoleEnum
 from datetime import datetime
 
 
+class PermissionResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    name: str
+
+class RoleResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: UUID
+    name: str
+    permissions: List[PermissionResponse]
 
 class ERPMeResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
@@ -15,8 +25,14 @@ class ERPMeResponse(BaseModel):
     first_name: str
     last_name: str
     email: EmailStr
-    role: UserRoleEnum
+    role: RoleResponse
     created_at: datetime
+
+class AllStaffResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    staff: List[ERPMeResponse]
+    count: int
 
 class UserBase(BaseModel):
     model_config = ConfigDict(from_attributes=True)
