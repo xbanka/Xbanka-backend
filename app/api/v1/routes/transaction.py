@@ -12,6 +12,15 @@ from sqlalchemy.orm import Session
 transaction = APIRouter(prefix="/transactions", tags=["Transactions"])
 
 
+@transaction.get("/:customer_id", status_code=status.HTTP_200_OK, response_model=PaginatedTransactionResponse)
+def fetch_customer_transactions(
+    customer_id: UUID,
+    db: Session = Depends(get_db),
+    current_user: CurrentUser = Depends(require_roles("affiliate", "erp"))
+):
+    return TransactionService.fetch_by_customer_paginated(db, customer_id)
+
+
 @transaction.get("/all", status_code=status.HTTP_200_OK, response_model=PaginatedTransactionResponse)
 def fetch_all_transactions(
     db: Session = Depends(get_db),

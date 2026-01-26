@@ -121,6 +121,19 @@ class TransactionService(Service):
         }
     
     @staticmethod
+    def fetch_by_customer_paginated(db: Session, customer_id: UUID):
+        stmt = select(Transaction)
+            .order_by(Transaction.created_at.desc())
+            .where(Transaction.customer_id == customer_id)
+
+        result = db.execute(stmt)
+        transactions = result.scalars().all()
+
+        return {
+            "data": transactions
+        }
+    
+    @staticmethod
     def upload_attachment(db: Session, transaction_id: UUID, attachment: UploadFile):
         transaction = db.get(Transaction, transaction_id)
         if not transaction:
