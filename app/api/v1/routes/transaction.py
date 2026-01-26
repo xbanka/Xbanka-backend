@@ -1,6 +1,7 @@
+from typing import List
 from uuid import UUID
 from app.db.database import get_db
-from app.schemas.transactions import PaginatedTransactionResponse, TransactionCreatePayload, TransactionCreateResponse, TransactionDetailResponse
+from app.schemas.transactions import PaginatedTransactionResponse, TransactionBrief, TransactionCreatePayload, TransactionCreateResponse, TransactionDetailResponse
 from app.services.transaction import TransactionService
 from app.utils.auth import require_roles
 from app.utils.schema import CurrentUser
@@ -12,7 +13,7 @@ from sqlalchemy.orm import Session
 transaction = APIRouter(prefix="/transactions", tags=["Transactions"])
 
 
-@transaction.get("/:customer_id", status_code=status.HTTP_200_OK, response_model=PaginatedTransactionResponse)
+@transaction.get("/customer/{customer_id:uuid}", status_code=status.HTTP_200_OK, response_model=List[TransactionBrief])
 def fetch_customer_transactions(
     customer_id: UUID,
     db: Session = Depends(get_db),

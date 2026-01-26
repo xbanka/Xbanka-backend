@@ -11,10 +11,10 @@ from app.utils.auth import require_roles
 from app.utils.schema import CurrentUser
 from sqlalchemy.orm import Session
 
-staff = APIRouter(prefix='/staff')
+staff = APIRouter(prefix='/staff', tags=['Staff'])
+
 
 ERP_FRONTEND_URL = settings.ERP_FRONTEND_URL
-
 
 @staff.get("/all", response_model=AllStaffResponse, status_code=status.HTTP_200_OK)
 def get_all_staff(
