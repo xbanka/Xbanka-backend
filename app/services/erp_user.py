@@ -328,6 +328,29 @@ class ERPService(Service):
             db.add(staff_user)
             db.commit()
             db.refresh(staff_user)
+
+            # Add custom permissions
+            for perm_name in added:
+                perm = db.query(Permission).filter(Permission.name == perm_name).first()
+                if perm:
+                    db.add(UserPermissions(
+                        user_id=staff_user.id,
+                        permission_id=perm.id,
+                        is_active=True
+                    ))
+            
+                # Remove permissions
+            for perm_name in removed:
+                perm = db.query(Permission).filter(Permission.name == perm_name).first()
+                if perm:
+                    db.add(UserPermissions(
+                        user_id=staff_user.id,
+                        permission_id=perm.id,
+                        is_active=False
+                    ))
+
+            db.commit()
+
         except IntegrityError as e:
             print(e)
             db.rollback()
@@ -341,28 +364,6 @@ class ERPService(Service):
             print(e)
             db.rollback()
             raise HTTPException(status_code=500, detail="An unknown error occurred")
-        
-
-        # Add custom permissions
-        for perm_name in added:
-            perm = db.query(Permission).filter(Permission.name == perm_name).first()
-            if perm:
-                db.add(UserPermissions(
-                    user_id=staff_user.id,
-                    permission_id=perm.id,
-                    is_active=True
-                ))
-        
-            # Remove permissions
-        for perm_name in removed:
-            perm = db.query(Permission).filter(Permission.name == perm_name).first()
-            if perm:
-                db.add(UserPermissions(
-                    user_id=staff_user.id,
-                    permission_id=perm.id,
-                    is_active=False
-                ))
-
 
         return staff_user   
         
@@ -377,3 +378,24 @@ class ERPService(Service):
         
         permissions = [p.name for p in role.permissions]
         return permissions
+    
+
+    @staticmethod
+    def get_staff_permissions(db: Session, staff_id: UUID) -> List[str]:
+        staff_user = db.query(ERPUser).get(staff_id)
+        if not staff_user:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND, detail="Staff user not found"
+            )
+        
+        # permissions = staff_user.role.permissions
+        
+        permissions = {p.name for p in staff_user.role.permissions}
+
+        for user_perms in staff_user.permissions:
+            if user_perms.is_active:
+                permissions.add(user_perms.permission.name)
+            else:
+                permissions.discard(user_perms.permission.name)
+
+        return list(permissions)

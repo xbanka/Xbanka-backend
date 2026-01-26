@@ -1,4 +1,5 @@
 from typing import List
+from uuid import UUID
 from fastapi import APIRouter, BackgroundTasks, Depends, Query, status
 
 from app.core.email import send_invite_email
@@ -61,6 +62,14 @@ async def invite_staff(
 @staff.get("/permissions", status_code=status.HTTP_200_OK)
 def get_role_permissions(role: str = Query(...), db: Session = Depends(get_db), current_user: CurrentUser = Depends(require_roles("erp"))):
     permissions = ERPService.get_role_permissions(db, role)
+    return {
+        "role_permissions": permissions
+    }
+
+
+@staff.get("/{staff_id}/permissions", status_code=status.HTTP_200_OK)
+def get_staff_permissions(staff_id: UUID, db: Session = Depends(get_db), current_user: CurrentUser = Depends(require_roles("erp"))):
+    permissions = ERPService.get_staff_permissions(db, staff_id)
     return {
         "permissions": permissions
     }
