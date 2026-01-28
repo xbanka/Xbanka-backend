@@ -14,11 +14,10 @@ class PayoutService(Service):
     @staticmethod
     def create_new(db: Session, obj_in: PayoutBase, affiliate_id) -> Payout:
 
-        available_balance = db.scalar(
+        total_earnings = db.scalar(
             select(func.coalesce(func.sum(Transaction.commission_amount), 0))
             .join(Customer, Customer.id == Transaction.customer_id)
             .where(Customer.affiliate_id == affiliate_id)
-            .where(Transaction.status == TransactionStatusEnum.approved)
         ) or 0
 
         total_payouts = db.scalar(
@@ -28,7 +27,7 @@ class PayoutService(Service):
         ) or 0
 
         amount_withdrawn = total_payouts
-        available_balance -= amount_withdrawn
+        available_balance = total_earnings - amount_withdrawn
         
         existing_ref = db.execute(
             select(Payout).where(Payout.payment_ref == obj_in.payment_ref)

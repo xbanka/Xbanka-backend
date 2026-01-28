@@ -239,11 +239,8 @@ class AffiliateService(Service):
     
 
     @staticmethod
-    def get_commissions(db: Session, affiliate_id, page: int, limit: int, status: Optional[TransactionStatusEnum] = None):
+    def get_commissions(db: Session, affiliate_id, page: int, limit: int):
         stmt = select(Transaction)
-
-        if status:
-            stmt = stmt.where(Transaction.status == status)
 
         stmt = (
             stmt.options(selectinload(Transaction.customer))
@@ -275,11 +272,8 @@ class AffiliateService(Service):
         }
     
     @staticmethod
-    def export_commissions(db: Session, affiliate_id, status: Optional[TransactionStatusEnum] = None):
+    def export_commissions(db: Session, affiliate_id):
         stmt = select(Transaction)
-
-        if status:
-            stmt = stmt.where(Transaction.status == status)
 
         stmt = (
             stmt.options(selectinload(Transaction.customer))
@@ -408,13 +402,6 @@ class AffiliateService(Service):
             .where(Customer.affiliate_id == affiliate_id)
         ) or 0
 
-        available_payouts = db.scalar(
-            select(func.coalesce(func.sum(Transaction.commission_amount), 0))
-            .join(Customer, Customer.id == Transaction.customer_id)
-            .where(Customer.affiliate_id == affiliate_id)
-            .where(Transaction.status == TransactionStatusEnum.approved)
-        ) or 0
-
         total_payouts = db.scalar(
             select(func.coalesce(func.sum(Payout.amount), 0))
             .where(Payout.affiliate_id == affiliate_id)
@@ -422,7 +409,7 @@ class AffiliateService(Service):
         ) or 0
 
         amount_withdrawn = total_payouts
-        available_payouts -= amount_withdrawn
+        available_payouts = total_earnings - amount_withdrawn
 
         pending_payouts = db.scalar(
             select(func.coalesce(func.sum(Payout.amount), 0))
@@ -440,7 +427,6 @@ class AffiliateService(Service):
             select(func.coalesce(func.sum(Transaction.commission_amount), 0))
             .join(Customer, Customer.id == Transaction.customer_id)
             .where(Customer.affiliate_id == affiliate_id)
-            .where(Transaction.status == TransactionStatusEnum.pending)
         ) or 0
 
         return {
