@@ -1,11 +1,5 @@
 import enum
 
-class TransactionStatusEnum(str, enum.Enum):
-    approved = "approved"
-    pending = "pending"
-    upload_pending = "upload_pending"
-    active = "active"
-
 
 class UploadStatusEnum(str, enum.Enum):
     pending = "pending"

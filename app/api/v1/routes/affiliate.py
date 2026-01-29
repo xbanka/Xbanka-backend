@@ -1,5 +1,5 @@
 from typing import Optional
-from app.core.enums import PayoutStatusEnum, TransactionStatusEnum, PayoutMethodEnum
+from app.core.enums import PayoutStatusEnum, PayoutMethodEnum
 from app.schemas.affiliate import (
     AffiliateMeResponse,
     AffiliateCodename,  
@@ -67,20 +67,17 @@ def get_commissions(
     db: Session = Depends(get_db),
     current_user: CurrentUser = Depends(require_roles("affiliate")),
     page: int = Query(1, ge=1, description="Page number"),
-    limit: int = Query(10, ge=1, le=100, description="Items per page"),
-    status: Optional[TransactionStatusEnum] = Query(None, description="Commission Status")
+    limit: int = Query(10, ge=1, le=100, description="Items per page")
 ):
-    return AffiliateService.get_commissions(db, current_user.user.id, page, limit, status)
+    return AffiliateService.get_commissions(db, current_user.user.id, page, limit)
 
 
 @affiliate.get("/commissions/export", response_class=Response)
 def export_commissions(
     db: Session = Depends(get_db),
-    current_user: CurrentUser = Depends(require_roles("affiliate")),
-    status: Optional[TransactionStatusEnum] = Query(None, description="Commission Status")
+    current_user: CurrentUser = Depends(require_roles("affiliate"))
 ):
-    
-    content = AffiliateService.export_commissions(db, current_user.user.id, status)
+    content = AffiliateService.export_commissions(db, current_user.user.id)
 
     return Response(
         content=content,

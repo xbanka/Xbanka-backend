@@ -2,7 +2,7 @@ from app.core.base.services import Service
 from app.core.enums import PayoutStatusEnum
 from app.models.customer import Customer
 from app.models.payouts import Payout
-from app.models.transactions import Transaction, TransactionStatusEnum
+from app.models.transactions import Transaction
 from app.schemas.payout import PayoutBase
 
 from datetime import datetime

@@ -1,4 +1,4 @@
-from app.core.enums import TransactionStatusEnum, CryptoPairEnum, ServiceTypeEnum, UploadStatusEnum
+from app.core.enums import CryptoPairEnum, ServiceTypeEnum, UploadStatusEnum
 from app.models.base_model import BaseModel
 from decimal import Decimal
 from sqlalchemy import ForeignKey, String, Enum, DECIMAL, Computed, Numeric

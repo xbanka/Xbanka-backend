@@ -1,7 +1,7 @@
 import logging
 import secrets
 from app.core.base.services import Service
-from app.core.enums import TransactionStatusEnum, PayoutStatusEnum
+from app.core.enums import PayoutStatusEnum
 from app.core.hash import Hasher
 from app.models.affiliate import Affiliate
 from app.models.affiliate_visit import AffiliateVisit

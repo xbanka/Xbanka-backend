@@ -4,7 +4,7 @@ from pydantic import BaseModel, ConfigDict, Discriminator, model_validator, Tag,
 from typing import Annotated, List, Literal, Optional, Union
 from uuid import UUID
 
-from app.core.enums import TransactionStatusEnum, ServiceTypeEnum, CryptoPairEnum, UploadStatusEnum
+from app.core.enums import ServiceTypeEnum, CryptoPairEnum, UploadStatusEnum
 from app.schemas.customer import CustomerRead, CustomerBrief
 
 
@@ -23,7 +23,6 @@ class TransactionDetailResponse(BaseModel):
     currency_out: str
     commission_rate: Decimal
     commission_amount: Decimal
-    status: TransactionStatusEnum
     upload_status: UploadStatusEnum
     vendor_rate: Optional[float] = None
     xbanka_rate: Optional[float] = None
@@ -43,7 +42,6 @@ class TransactionBrief(BaseModel):
     vendor: str
     currency_in: str
     currency_out: str
-    status: TransactionStatusEnum
     vendor_rate: Optional[float] = None
     xbanka_rate: Optional[float] = None
     margin: Optional[float] = None
