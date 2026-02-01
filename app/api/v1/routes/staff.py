@@ -38,7 +38,7 @@ async def invite_staff(
         first_name=request.first_name,
         last_name=request.last_name,
         email=request.email,
-        role=request.role,
+        role_name=request.role,
         selected_permissions=request.permissions
     )
 
@@ -60,9 +60,10 @@ async def invite_staff(
 
 @staff.get("/permissions", status_code=status.HTTP_200_OK)
 def get_role_permissions(role: str = Query(...), db: Session = Depends(get_db), current_user: CurrentUser = Depends(require_roles("erp"))):
-    permissions = ERPService.get_role_permissions(db, role)
+    default, forbidden = ERPService.get_role_permissions(db, role)
     return {
-        "role_permissions": permissions
+        "default": default,
+        "forbidden": forbidden
     }
 
 

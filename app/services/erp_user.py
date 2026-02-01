@@ -17,6 +17,7 @@ from app.models.notifications import Notification
 from app.models.payouts import Payout
 from app.models.permission import Permission
 from app.models.role import Role
+from app.models.role_permissions import RolePermissions
 from app.models.user_permissions import UserPermissions
 from app.schemas.erp.user import RegisterBase
 from app.utils.permissions import calculate_permission_overrides
@@ -286,7 +287,7 @@ class ERPService(Service):
     
 
     @staticmethod
-    def invite_staff(db: Session, first_name: str, last_name: str, email: str, role: str, selected_permissions: list[str]) -> ERPUser:
+    def invite_staff(db: Session, first_name: str, last_name: str, email: str, role_name: str, selected_permissions: list[str]) -> ERPUser:
         if not is_valid_email(email):
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid email address."
@@ -302,13 +303,25 @@ class ERPService(Service):
         
 
         # Get role's default permissions
-        role = db.query(Role).filter(Role.name == role).first()
+        role = db.query(Role).filter(Role.name == role_name).first()
         if not role:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND, detail="Role not found"
             )
         
-        role_permissions = [p.name for p in role.permissions]
+        # Get allowed and forbidden permissions for the role
+        role_permissions_data = ERPService.get_role_permissions(db, role_name)
+        allowed_permissions, forbidden_permissions = role_permissions_data
+        
+        # Check if any selected permissions are forbidden for the role
+        for perm in selected_permissions:
+            if perm in forbidden_permissions:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST, 
+                    detail=f"Permission '{perm}' is forbidden for role '{role_name}' and cannot be assigned."
+                )
+        
+        role_permissions = allowed_permissions 
 
         # Calculate what needs to be added/removed
         added, removed = calculate_permission_overrides(
@@ -369,16 +382,37 @@ class ERPService(Service):
         
     
     @staticmethod
-    def get_role_permissions(db: Session, role_name: str) -> List[str]:
+    def get_role_permissions(db: Session, role_name: str) -> tuple[List[str], List[str]]:
         role = db.query(Role).filter(Role.name == role_name).first()
         if not role:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND, detail="Role not found"
             )
         
-        permissions = [p.name for p in role.permissions]
-        return permissions
-    
+        if role_name == "Super Admin":
+            all_permissions = db.query(Permission).all()
+            perm_names = [perm.name for perm in all_permissions]
+            return (perm_names, [])
+        
+        rows = (
+            db.query(RolePermissions.is_allowed, Permission.name)
+            .join(Role, Role.id == RolePermissions.role_id)
+            .join(Permission, Permission.id == RolePermissions.permission_id)
+            .filter(Role.name == role_name)
+            .all()
+        )
+
+        if not rows:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Role not found"
+            )
+
+        return (
+            [name for allowed, name in rows if allowed],
+            [name for allowed, name in rows if not allowed]
+        )
+  
 
     @staticmethod
     def get_staff_permissions(db: Session, staff_id: UUID) -> List[str]:

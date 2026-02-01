@@ -6,7 +6,7 @@ from .notifications import Notification
 from .payouts import Payout
 from .permission import Permission
 from .role import Role
-from .role_permissions import role_permissions
+from .role_permissions import RolePermissions
 from .service_type import ServiceType
 from .transactions import Transaction
 from .transaction_type import TransactionType
@@ -22,7 +22,7 @@ __all__ = [
     "Payout",
     "Permission",
     "Role",
-    "role_permissions",
+    "RolePermissions",
     "ServiceType",
     "Transaction",
     "TransactionType",
