@@ -83,11 +83,9 @@ async def send_forgot_password_email(recipient: str, email_type: EmailTypeEnum, 
     background_tasks.add_task(fm.send_message, message, 'forgot_password_template.html')
 
 
-async def send_invite_email(recipient: str, first_name: str, last_name: str, signup_url: str, background_tasks: BackgroundTasks):
+async def send_invite_email(recipient: str, signup_url: str, background_tasks: BackgroundTasks):
 
     template_body: Dict[str, str] = {
-        "first_name": first_name,
-        "last_name": last_name,
         "signup_url": signup_url,
     }    
 

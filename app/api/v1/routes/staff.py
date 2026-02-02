@@ -35,8 +35,6 @@ async def invite_staff(
 ):
     staff = ERPService.invite_staff(
         db,
-        first_name=request.first_name,
-        last_name=request.last_name,
         email=request.email,
         role_name=request.role,
         selected_permissions=request.permissions
@@ -46,8 +44,6 @@ async def invite_staff(
 
     await send_invite_email(
         recipient=staff.email,
-        first_name=str(staff.first_name),
-        last_name=str(staff.last_name),
         signup_url=url,
         background_tasks=background_tasks,
     )

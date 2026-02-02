@@ -114,8 +114,6 @@ class VerifyResponse(BaseModel):
 
 
 class InviteStaffRequest(BaseModel):
-    first_name: str
-    last_name: str
     email: str
     role: str
     permissions: List[str]

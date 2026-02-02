@@ -287,7 +287,7 @@ class ERPService(Service):
     
 
     @staticmethod
-    def invite_staff(db: Session, first_name: str, last_name: str, email: str, role_name: str, selected_permissions: list[str]) -> ERPUser:
+    def invite_staff(db: Session, email: str, role_name: str, selected_permissions: list[str]) -> ERPUser:
         if not is_valid_email(email):
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid email address."
@@ -331,8 +331,8 @@ class ERPService(Service):
 
         try:
             staff_user = ERPUser(
-                first_name=first_name,
-                last_name=last_name,
+                first_name="",
+                last_name="",
                 email=email,
                 role_id=role.id,
                 verified=True,
