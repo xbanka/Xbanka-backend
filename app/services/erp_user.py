@@ -51,6 +51,8 @@ class ERPService(Service):
             )
 
         try:
+            erp_user.first_name = obj_in.first_name
+            erp_user.last_name = obj_in.last_name
             erp_user.hashed_password = Hasher.get_password_hash(obj_in.password)
             db.commit()
 
