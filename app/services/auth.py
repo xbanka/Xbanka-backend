@@ -16,6 +16,7 @@ from app.schemas.user import (
     TokenData,
     AccountVerificationRequest
 )
+from app.services.affiliate import AffiliateService
 from app.services.erp_user import ERPService
 from app.utils.schema import CurrentUser
 from app.utils.settings import settings
@@ -367,10 +368,10 @@ class AuthService(Service):
         }
     
     @staticmethod
-    def update_user_password(db: Session, user: TokenData, new_password: str):
+    def update_user_password(db: Session, data: TokenData, new_password: str, user_service):
         """Method to update user's password"""
         try:
-            user = ERPService.get_user_by_id(db, user.id)
+            user = user_service.get_user_by_id(db, data.id)
 
             hashed_password = Hasher.get_password_hash(new_password)
 

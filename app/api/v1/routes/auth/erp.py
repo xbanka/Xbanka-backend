@@ -188,6 +188,6 @@ def reset_password(reset_request: ResetPasswordRequest, db: Session = Depends(ge
     if not user_token:
         raise HTTPException(status_code=401, detail="Password reset token expired/invalid")
     
-    AuthService.update_user_password(db, user_token, reset_request.new_password)
+    AuthService.update_user_password(db, user_token, reset_request.new_password, ERPService)
     
     return {"message": "Password has been reset successfully"}
