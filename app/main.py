@@ -32,7 +32,7 @@ origins = [
     "https://www.xbankang.com",  # production FE (affiliate domain)
     "https://erp.xbankang.com",  # production FE (erp domain)
     "https://adminerp.vercel.app",  
-    "https://admin-testing-lyart.vercel.app/signin"
+    "https://admin-testing-lyart.vercel.app"
 ]
 
 # Add the middleware to your FastAPI app
