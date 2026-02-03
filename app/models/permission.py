@@ -9,9 +9,9 @@ class Permission(BaseModel):
     category: Mapped[str] = mapped_column(String(100), nullable=False, index=True)
 
     roles = relationship("Role", secondary="role_permissions", back_populates="permissions")
-    role_links = relationship("RolePermissions", back_populates="permission", cascade="all, delete-orphan", passive_deletes=True)
+    role_links = relationship("RolePermissions", back_populates="permission", cascade="all, delete-orphan", passive_deletes=True, overlaps="roles")
 
-    user_links = relationship("UserPermissions", back_populates="permission")
+    user_links = relationship("UserPermissions", back_populates="permission", cascade="all, delete-orphan", passive_deletes=True, overlaps="users")
     users = relationship("ERPUser", secondary="user_permissions", back_populates="permissions", viewonly=True)
 
     def __repr__(self):

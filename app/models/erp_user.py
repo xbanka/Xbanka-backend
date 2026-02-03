@@ -16,7 +16,7 @@ class ERPUser(BaseModel):
     role_id: Mapped[UUID] = mapped_column(ForeignKey('roles.id'), nullable=False, index=True)
     role = relationship("Role", back_populates="users")
 
-    permission_links = relationship("UserPermissions", back_populates="user", cascade="all, delete-orphan", passive_deletes=True)
+    permission_links = relationship("UserPermissions", back_populates="user", cascade="all, delete-orphan", passive_deletes=True, overlaps="permissions")
     permissions = relationship("Permission", secondary="user_permissions", back_populates="users", viewonly=True)
 
     def __repr__(self):

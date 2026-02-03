@@ -10,7 +10,7 @@ class Role(BaseModel):
     users = relationship("ERPUser", back_populates="role")
 
     permissions = relationship("Permission", secondary="role_permissions", back_populates="roles")
-    permission_links = relationship("RolePermissions", back_populates="role", cascade="all, delete-orphan", passive_deletes=True)
+    permission_links = relationship("RolePermissions", back_populates="role", cascade="all, delete-orphan", passive_deletes=True, overlaps="permissions")
 
     def __repr__(self):
         return f"<Role(name='{self.name}')>"
