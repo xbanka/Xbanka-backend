@@ -69,3 +69,11 @@ def get_staff_permissions(staff_id: UUID, db: Session = Depends(get_db), current
     return {
         "permissions": permissions
     }
+
+
+@staff.delete("/{staff_id}", status_code=status.HTTP_200_OK)
+def remove_staff_member(staff_id: UUID, db: Session = Depends(get_db), current_user: CurrentUser = Depends(require_roles("super"))):
+    ERPService.remove_staff_member(db, staff_id)
+    return {
+        "message": "Staff member removed successfully."
+    }

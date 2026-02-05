@@ -435,3 +435,21 @@ class ERPService(Service):
                 permissions.discard(user_perms.permission.name)
 
         return list(permissions)
+    
+
+    @staticmethod
+    def remove_staff_member(db: Session, staff_id: UUID):
+        staff_user = db.query(ERPUser).get(staff_id)
+        if not staff_user:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND, detail="Staff user not found"
+            )
+        
+        try:
+            db.delete(staff_user)
+            db.commit()
+        except SQLAlchemyError as e:
+            db.rollback()
+            raise HTTPException(
+                status_code=500, detail=f"An error occurred deleting staff member: {e}"
+            )
