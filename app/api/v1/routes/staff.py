@@ -3,12 +3,13 @@ from fastapi import APIRouter, BackgroundTasks, Depends, Query, status
 
 from app.core.email import send_invite_email
 from app.db.database import get_db
-from app.schemas.erp.user import InviteStaffRequest, AllStaffResponse
+from app.schemas.erp.user import InviteStaffRequest, AllStaffResponse, UpdatePermissionsRequest, UpdateStaffRequest
 from app.services.erp_user import ERPService
 from app.utils.settings import settings
 from app.utils.auth import require_roles
 from app.utils.schema import CurrentUser
 from sqlalchemy.orm import Session
+from typing import List
 
 staff = APIRouter(prefix='/staff', tags=['Staff'])
 
@@ -76,4 +77,27 @@ def remove_staff_member(staff_id: UUID, db: Session = Depends(get_db), current_u
     ERPService.remove_staff_member(db, staff_id)
     return {
         "message": "Staff member removed successfully."
+    }
+
+
+@staff.patch("/{staff_id}", status_code=status.HTTP_200_OK)
+def update_staff_details(staff_id: UUID, update_request: UpdateStaffRequest, db: Session = Depends(get_db), current_user: CurrentUser = Depends(require_roles("super"))):
+    staff = ERPService.update_staff_details(db, staff_id, update_request)
+    return {
+        "message": "Staff member details updated successfully.",
+        "staff": staff
+    }
+
+
+@staff.patch("/{staff_id}/roles-permissions", status_code=status.HTTP_200_OK)
+def update_staff_roles_permissions(
+    staff_id: UUID, 
+    request: UpdatePermissionsRequest,
+    db: Session = Depends(get_db), 
+    current_user: CurrentUser = Depends(require_roles("super"))
+):
+    staff = ERPService.update_staff_roles_permissions(db, staff_id, request.role, request.permissions)
+    return {
+        "message": "Staff member's role and permissions updated successfully.",
+        "staff": staff
     }

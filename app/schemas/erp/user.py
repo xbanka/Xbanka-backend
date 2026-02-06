@@ -121,3 +121,14 @@ class InviteStaffRequest(BaseModel):
     email: str
     role: str
     permissions: List[str]
+
+
+class UpdateStaffRequest(BaseModel):
+    first_name: str
+    last_name: str
+    email: str
+
+
+class UpdatePermissionsRequest(BaseModel):
+    role: str
+    permissions: List[str]

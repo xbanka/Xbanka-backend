@@ -62,3 +62,6 @@ docker-compose.override.yml
 secrets.json
 
 seed/
+
+pg_schema.sql
+pg_dump.sql

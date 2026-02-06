@@ -1,3 +1,4 @@
+import logging
 from datetime import datetime
 from typing import List, Optional, Sequence
 from uuid import UUID
@@ -23,6 +24,9 @@ from app.schemas.erp.user import RegisterBase
 from app.utils.permissions import calculate_permission_overrides
 from app.utils.validators import is_valid_email, is_valid_password
 from app.utils.settings import settings
+
+
+logger = logging.getLogger(__name__)
 
 
 ALLOW_SUPER_ADMIN_BOOTSTRAP = settings.ALLOW_SUPER_ADMIN_BOOTSTRAP
@@ -439,7 +443,7 @@ class ERPService(Service):
 
     @staticmethod
     def remove_staff_member(db: Session, staff_id: UUID):
-        staff_user = db.query(ERPUser).get(staff_id)
+        staff_user = db.get(ERPUser, staff_id)
         if not staff_user:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND, detail="Staff user not found"
@@ -448,8 +452,134 @@ class ERPService(Service):
         try:
             db.delete(staff_user)
             db.commit()
+        except SQLAlchemyError:
+            db.rollback()
+            logger.exception("Failed to delete staff member %s", staff_id)
+            raise HTTPException(
+                status_code=500, detail="An error occurred deleting staff member"
+            )
+        
+    
+    @staticmethod
+    def update_staff_details(db: Session, staff_id: UUID, update_request) -> ERPUser:
+        staff_user = db.query(ERPUser).get(staff_id)
+        if not staff_user:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND, detail="Staff user not found"
+            )
+        
+        if staff_user.email != update_request.email:
+            if not is_valid_email(update_request.email):
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid email address."
+                )
+            
+            existing_user = db.query(ERPUser).filter_by(email=update_request.email).first()
+            if existing_user:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST, detail="Another user with this email already exists"
+                )
+        
+        staff_user.first_name = update_request.first_name
+        staff_user.last_name = update_request.last_name
+        staff_user.email = update_request.email
+
+        try:
+            db.commit()
+            db.refresh(staff_user)
+        except IntegrityError as e:
+            print(e)
+            db.rollback()
+            raise HTTPException(status_code=400, detail="Database integrity error")
         except SQLAlchemyError as e:
             db.rollback()
             raise HTTPException(
-                status_code=500, detail=f"An error occurred deleting staff member: {e}"
+                status_code=500, detail=f"An error occurred saving entity: {e}"
             )
+        except Exception as e:
+            print(e)
+            db.rollback()
+            raise HTTPException(status_code=500, detail="An unknown error occurred")
+
+        return staff_user
+    
+
+    @staticmethod
+    def update_staff_roles_permissions(db: Session, staff_id: UUID, role_name: str, selected_permissions: List[str]) -> ERPUser:
+        staff_user = db.query(ERPUser).get(staff_id)
+        if not staff_user:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND, detail="Staff user not found"
+            )
+        
+        role = db.query(Role).filter(Role.name == role_name).first()
+        if not role:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND, detail="Role not found"
+            )
+        
+        # clear all user_permission records
+        db.query(UserPermissions).filter(UserPermissions.user_id == staff_user.id).delete(synchronize_session=False)
+        
+        # Get allowed and forbidden permissions for the role
+        role_permissions_data = ERPService.get_role_permissions(db, role_name)
+        allowed_permissions, forbidden_permissions = role_permissions_data
+        
+        # Check if any selected permissions are forbidden for the role
+        for perm in selected_permissions:
+            if perm in forbidden_permissions:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST, 
+                    detail=f"Permission '{perm}' is forbidden for role '{role_name}' and cannot be assigned."
+                )
+        
+        role_permissions = allowed_permissions 
+
+        # Calculate what needs to be added/removed
+        added, removed = calculate_permission_overrides(
+            role_permissions,
+            selected_permissions
+        )
+
+        try:
+            staff_user.role = role
+
+            # Add custom permissions
+            for perm_name in added:
+                perm = db.query(Permission).filter(Permission.name == perm_name).first()
+                if perm:
+                    db.add(UserPermissions(
+                        user_id=staff_user.id,
+                        permission_id=perm.id,
+                        is_active=True
+                    ))
+            
+                # Remove permissions
+            for perm_name in removed:
+                perm = db.query(Permission).filter(Permission.name == perm_name).first()
+                if perm:
+                    db.add(UserPermissions(
+                        user_id=staff_user.id,
+                        permission_id=perm.id,
+                        is_active=False
+                    ))
+
+            db.commit()
+            db.refresh(staff_user)
+
+        except IntegrityError as e:
+            print(e)
+            db.rollback()
+            raise HTTPException(status_code=400, detail="Database integrity error")
+        except SQLAlchemyError as e:
+            db.rollback()
+            raise HTTPException(
+                status_code=500, detail=f"An error occurred saving entity: {e}"
+            )
+        except Exception as e:
+            print(e)
+            db.rollback()
+            raise HTTPException(status_code=500, detail="An unknown error occurred")
+        
+
+        return staff_user
