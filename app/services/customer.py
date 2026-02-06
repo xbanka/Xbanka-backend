@@ -1,12 +1,17 @@
+import logging
 from uuid import UUID
 from app.core.base.services import Service
 from app.models.customer import Customer
 from app.schemas.customer import CustomerCreateBase
 from app.services.affiliate import AffiliateService
-from fastapi import HTTPException, status
-from sqlalchemy.orm import Session
-from sqlalchemy import select, or_, desc
 from app.utils.validators import is_valid_email
+from fastapi import HTTPException, status
+from sqlalchemy import select, or_, desc
+from sqlalchemy.exc import SQLAlchemyError
+from sqlalchemy.orm import Session
+
+
+logger = logging.getLogger(__name__)
 
 class CustomerService(Service):
     @staticmethod
@@ -76,3 +81,18 @@ class CustomerService(Service):
 
             customers = db.execute(stmt).scalars().all()
             return customers
+        
+
+    @staticmethod
+    def delete_customer(db: Session, customer_id: UUID):
+        customer = db.get(Customer, customer_id)
+        if not customer:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Customer not found")
+
+        try: 
+            db.delete(customer)
+            db.commit()
+        except SQLAlchemyError:
+            db.rollback()
+            logger.exception("Failed to delete customer %s", customer_id)
+            raise HTTPException(status_code=500, detail="An error occurred deleting customer")

@@ -61,3 +61,15 @@ def search_customers(q: str = Query(...), db: Session = Depends(get_db)):
 def get_customer(customer_id: UUID, db: Session = Depends(get_db)):
     customers = CustomerService.fetch(db, customer_id)
     return customers
+
+
+@customer.delete("/{customer_id}", status_code=status.HTTP_200_OK)
+def delete_customer(
+    customer_id: UUID, 
+    db: Session = Depends(get_db), 
+    current_user: CurrentUser = Depends(require_roles("super"))
+):
+    CustomerService.delete_customer(db, customer_id)
+    return {
+        "message": "Customer deleted successfully."
+    }
