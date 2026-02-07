@@ -1,5 +1,5 @@
 from typing import List
-from pydantic import BaseModel, ConfigDict, field_serializer, field_validator, ValidationInfo
+from pydantic import BaseModel, ConfigDict, Field, field_serializer, field_validator, ValidationInfo
 from fastapi import HTTPException
 from uuid import UUID
 from pydantic import EmailStr
@@ -10,17 +10,22 @@ class PermissionResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
     name: str
+    
 
 class RoleResponse(BaseModel):
-    model_config = ConfigDict(from_attributes=True)
+    model_config = ConfigDict(from_attributes=True, populate_by_name=True)
 
     id: UUID
     name: str
-    permissions: List[PermissionResponse]
+    permission_links: List[str] = Field(..., alias="allowed_permissions")
 
-    # @field_serializer("permissions")
-    # def filter_permissions(self, permissions, _info):
-    #     return [p for p in permissions if p.is_allowed]
+    @field_validator("permission_links", mode="before")
+    def _filter_out_forbidden(cls, v):
+        allowed_links = list(filter(lambda x: x.is_allowed, v))
+        return [
+            getattr(getattr(link, "permission", None), "name", None)
+            for link in allowed_links
+        ]
 
 class ERPMeResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
