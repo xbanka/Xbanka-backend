@@ -8,7 +8,7 @@ class BankDetails(BaseModel):
     __tablename__ = "bank_details"
     
     bank_name = Column(String(255), nullable=False)
-    account_number = Column(String(20), nullable=False)
+    account_number = Column(String(127), nullable=False)
     # account_name = Column(String(255), nullable=False)
     affiliate_id = Column(UUID, ForeignKey("affiliates.id", ondelete="CASCADE"), nullable=False)
     
