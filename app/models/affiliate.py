@@ -11,8 +11,6 @@ class Affiliate(BaseModel):
     email: Mapped[str] = mapped_column(String(120), unique=True, nullable=False, index=True)
     username: Mapped[str] = mapped_column(String(100), unique=True, nullable=True, index=True)
     phone_no: Mapped[str] = mapped_column(String(50), nullable=False)
-    bank: Mapped[str] = mapped_column(String(50), nullable=False, index=True)
-    account_no: Mapped[str] = mapped_column(String(50), nullable=False)
     hashed_password: Mapped[str] = mapped_column(String(255), nullable=False)
     verified: Mapped[bool] = mapped_column(Boolean, nullable=False)
     ref_code: Mapped[str] = mapped_column(String(50), nullable=False, unique=True)
