@@ -15,6 +15,7 @@ from .affiliate_commissions import AffiliateCommission
 from .affiliate_monthly_volume import AffiliateMonthlyVolume
 from .affiliate_tiers import AffiliateTier
 from .tier_volume_bands import TierVolumeBand
+from .bank_details import BankDetails
 
 
 __all__ = [
@@ -34,5 +35,6 @@ __all__ = [
     "AffiliateCommission",
     "AffiliateMonthlyVolume",
     "AffiliateTier",
-    "TierVolumeBand"
+    "TierVolumeBand",
+    "BankDetails"
 ]

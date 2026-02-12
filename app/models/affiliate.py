@@ -34,5 +34,7 @@ class Affiliate(BaseModel):
 
     commissions = relationship("AffiliateCommission", back_populates="affiliate", cascade="all, delete-orphan")
 
+    bank_details = relationship("BankDetails", back_populates="affiliate", cascade="all, delete-orphan")
+
     def __repr__(self):
         return f"<Affiliate(first_name='{self.first_name}', last_name='{self.last_name}', email='{self.email}', phone_no='{self.phone_no}', bank='{self.bank}', account_no='{self.account_no}', is_verified={self.verified})>"

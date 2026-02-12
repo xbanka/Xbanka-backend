@@ -7,6 +7,7 @@ from app.models.affiliate import Affiliate
 from app.models.affiliate_commissions import AffiliateCommission
 from app.models.affiliate_tiers import AffiliateTier
 from app.models.affiliate_visit import AffiliateVisit
+from app.models.bank_details import BankDetails
 from app.models.payouts import Payout
 from app.models.transactions import Transaction
 from app.models.customer import Customer
@@ -465,4 +466,30 @@ class AffiliateService(Service):
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail="Failed to update bank details"
+            ) from e
+        
+
+    @staticmethod
+    def create_bank_details(db: Session, affiliate: Affiliate, bank_details: UpdateBankDetailsRequest) -> None:
+        
+        # Validate Nigerian bank account number (10 digits)
+        if not is_valid_account_number(bank_details.account_number):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Invalid account number"
+            )
+        
+        try:
+            new_details = BankDetails(
+                bank_name=bank_details.bank_name,
+                account_number=bank_details.account_number,
+                affiliate_id=affiliate.id
+            )
+            db.add(new_details)
+            db.commit()
+        except Exception as e:
+            db.rollback()
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Failed to create bank details"
             ) from e

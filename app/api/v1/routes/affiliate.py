@@ -171,3 +171,19 @@ def record_visitor(
     AffiliateService.record_unique_visit(db, current_user.user, request, response)
 
     return {"message": "Affiliate referral recorded."}
+
+
+
+@affiliate.post("/bank-details", status_code=status.HTTP_201_CREATED)
+def create_bank_details(
+    bank_details: UpdateBankDetailsRequest,
+    db: Session = Depends(get_db),
+    current_user: CurrentUser = Depends(require_roles("affiliate")),
+):
+    AffiliateService.create_bank_details(db, current_user.user, bank_details)
+
+    return {
+        "message": "Bank details created successfully", 
+        "bank_name": bank_details.bank_name,
+        "account_number": bank_details.account_number
+        }
