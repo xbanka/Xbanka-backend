@@ -4,6 +4,8 @@ from app.core.base.services import Service
 from app.core.enums import PayoutStatusEnum
 from app.core.hash import Hasher
 from app.models.affiliate import Affiliate
+from app.models.affiliate_commissions import AffiliateCommission
+from app.models.affiliate_tiers import AffiliateTier
 from app.models.affiliate_visit import AffiliateVisit
 from app.models.payouts import Payout
 from app.models.transactions import Transaction
@@ -70,6 +72,10 @@ class AffiliateService(Service):
             if not db.query(Affiliate).filter_by(ref_code=generated_code).first():
                 break
 
+        bronze_tier = db.execute(
+            select(AffiliateTier).where(AffiliateTier.name == "Bronze")
+        ).scalars().first()
+
         try:
             affiliate = Affiliate(
                 first_name=obj_in.first_name,
@@ -81,7 +87,8 @@ class AffiliateService(Service):
                 account_no=obj_in.account_no,
                 hashed_password=Hasher.get_password_hash(obj_in.password),
                 verified=False,
-                ref_code=generated_code
+                ref_code=generated_code,
+                current_tier_id=bronze_tier.id if bronze_tier else None
             )
 
             db.add(affiliate)
@@ -240,13 +247,12 @@ class AffiliateService(Service):
 
     @staticmethod
     def get_commissions(db: Session, affiliate_id, page: int, limit: int):
-        stmt = select(Transaction)
+        stmt = select(AffiliateCommission).join(Transaction)
 
         stmt = (
-            stmt.options(selectinload(Transaction.customer))
-            .join(Customer)
-            .where(Customer.affiliate_id == affiliate_id)
-            .order_by(Transaction.created_at.desc())
+            stmt.options(selectinload(AffiliateCommission.transaction).selectinload(Transaction.customer))
+            .where(AffiliateCommission.affiliate_id == affiliate_id)
+            .order_by(AffiliateCommission.created_at.desc())
             .offset((page - 1) * limit)
             .limit(limit)
         )
@@ -256,9 +262,8 @@ class AffiliateService(Service):
 
         total = db.scalar(
             select(func.count()).select_from(
-                select(Transaction)
-                .join(Customer)
-                .where(Customer.affiliate_id == affiliate_id)
+                select(AffiliateCommission)
+                .where(AffiliateCommission.affiliate_id == affiliate_id)
                 .subquery()
             )
         ) or 0
@@ -273,16 +278,16 @@ class AffiliateService(Service):
     
     @staticmethod
     def export_commissions(db: Session, affiliate_id):
-        stmt = select(Transaction)
+        stmt = select(AffiliateCommission).join(Transaction)
 
         stmt = (
-            stmt.options(selectinload(Transaction.customer))
-            .join(Customer)
-            .where(Customer.affiliate_id == affiliate_id)
-            .order_by(Transaction.created_at.desc())
+            stmt.options(selectinload(AffiliateCommission.transaction).selectinload(Transaction.customer))
+            .where(AffiliateCommission.affiliate_id == affiliate_id)
+            .order_by(AffiliateCommission.created_at.desc())
         )
 
-        commissions = db.execute(stmt).scalars().all()
+        result = db.execute(stmt)
+        commissions = result.scalars().all()
 
         wb = Workbook()
         ws = wb.active or wb.create_sheet(title="Commissions")

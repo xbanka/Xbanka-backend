@@ -7,8 +7,17 @@ from app.schemas.payout import PayoutBase
 
 from datetime import datetime
 from fastapi import HTTPException
-from sqlalchemy import select, func
+from sqlalchemy import select, func, text
 from sqlalchemy.orm import Session
+
+
+def generate_payout_ref(db):
+    year = datetime.now().year
+    seq = db.execute(
+        text(f"SELECT nextval('payouts_{year}_seq')")
+    ).scalar()
+
+    return f"PO-{year}{str(seq).zfill(5)}"
 
 class PayoutService(Service):
     @staticmethod

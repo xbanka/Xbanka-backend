@@ -7,6 +7,13 @@ from uuid import UUID
 from app.core.enums import PayoutStatusEnum
 
 
+
+class AffiliateTierResponse(BaseModel):
+    id: UUID
+    name: str
+    description: Optional[str] = None
+    is_restricted: bool
+
 class AffiliateMeResponse(BaseModel):
     id: UUID
     first_name: str
@@ -19,6 +26,7 @@ class AffiliateMeResponse(BaseModel):
     ref_code: str
     custom_refcode: Optional[str] = None
     created_at: datetime
+    current_tier: AffiliateTierResponse
 
 class AffiliateCodename(BaseModel):
     model_config = ConfigDict(from_attributes=True)

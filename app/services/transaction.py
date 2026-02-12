@@ -86,6 +86,21 @@ class TransactionService(Service):
         db.add(new_transaction)
         db.commit()
         db.refresh(new_transaction)
+
+        if customer.affiliate:
+            from app.utils.tiers import process_transaction
+            try:
+                process_transaction(
+                    db=db,
+                    affiliate_id=customer.affiliate.id,
+                    transaction_id=UUID(str(new_transaction.id)),
+                    transaction_amount=float(new_transaction.amount_in),
+                    transaction_date=datetime.now()
+                )
+            except ValueError as e:
+                logging.error(f"Error processing transaction for affiliate tier: {e}")
+
+
         return new_transaction
     
 

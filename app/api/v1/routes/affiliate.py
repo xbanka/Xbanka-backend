@@ -60,8 +60,7 @@ def get_all_affiliates(
 
 @affiliate.get(
     "/commissions",
-    status_code=status.HTTP_200_OK,
-    response_model=PaginatedTransactionResponse,
+    status_code=status.HTTP_200_OK
 )
 def get_commissions(
     db: Session = Depends(get_db),
