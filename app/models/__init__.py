@@ -11,6 +11,10 @@ from .service_type import ServiceType
 from .transactions import Transaction
 from .transaction_type import TransactionType
 from .user_permissions import UserPermissions
+from .affiliate_commissions import AffiliateCommission
+from .affiliate_monthly_volume import AffiliateMonthlyVolume
+from .affiliate_tiers import AffiliateTier
+from .tier_volume_bands import TierVolumeBand
 
 
 __all__ = [
@@ -27,4 +31,8 @@ __all__ = [
     "Transaction",
     "TransactionType",
     "UserPermissions",
+    "AffiliateCommission",
+    "AffiliateMonthlyVolume",
+    "AffiliateTier",
+    "TierVolumeBand"
 ]

@@ -51,6 +51,8 @@ class Transaction(BaseModel):
 
     customer = relationship("Customer", back_populates="transactions")
 
+    commission = relationship("AffiliateCommission", back_populates="transaction")
+
     def __repr__(self):
         return (
             f"<Transaction(id={self.id}, customer_id={self.customer_id}, "
