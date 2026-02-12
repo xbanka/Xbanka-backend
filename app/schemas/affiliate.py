@@ -14,6 +14,10 @@ class AffiliateTierResponse(BaseModel):
     description: Optional[str] = None
     is_restricted: bool
 
+class BankDetailsResponse(BaseModel):
+    bank_name: str
+    account_number: str
+
 class AffiliateMeResponse(BaseModel):
     id: UUID
     first_name: str
@@ -21,12 +25,11 @@ class AffiliateMeResponse(BaseModel):
     email: EmailStr
     username: Optional[str] = None
     phone_no: str
-    bank: str
-    account_no: str
     ref_code: str
     custom_refcode: Optional[str] = None
     created_at: datetime
     current_tier: AffiliateTierResponse
+    bank_details: List[BankDetailsResponse]
 
 class AffiliateCodename(BaseModel):
     model_config = ConfigDict(from_attributes=True)

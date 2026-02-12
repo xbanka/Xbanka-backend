@@ -174,13 +174,13 @@ def record_visitor(
 
 
 
-@affiliate.post("/bank-details", status_code=status.HTTP_201_CREATED)
-def create_bank_details(
+@affiliate.post("/me/bank-details", status_code=status.HTTP_201_CREATED)
+def add_bank_details(
     bank_details: UpdateBankDetailsRequest,
     db: Session = Depends(get_db),
     current_user: CurrentUser = Depends(require_roles("affiliate")),
 ):
-    AffiliateService.create_bank_details(db, current_user.user, bank_details)
+    AffiliateService.add_bank_details(db, current_user.user, bank_details)
 
     return {
         "message": "Bank details created successfully", 

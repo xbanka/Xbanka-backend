@@ -470,7 +470,7 @@ class AffiliateService(Service):
         
 
     @staticmethod
-    def create_bank_details(db: Session, affiliate: Affiliate, bank_details: UpdateBankDetailsRequest) -> None:
+    def add_bank_details(db: Session, affiliate: Affiliate, bank_details: UpdateBankDetailsRequest) -> None:
         
         # Validate Nigerian bank account number (10 digits)
         if not is_valid_account_number(bank_details.account_number):
