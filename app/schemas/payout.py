@@ -1,11 +1,9 @@
-from typing import Optional
 from pydantic import BaseModel, ConfigDict, field_validator
 
 
-class PayoutBase(BaseModel):
+class PayoutRequest(BaseModel):
     amount: float | str
     bank: str
-    payment_ref: Optional[str] = None
 
     @field_validator("amount", mode="before")
     def parse_amount(cls, v):
@@ -13,11 +11,19 @@ class PayoutBase(BaseModel):
             v = v.replace(",", "")  # remove commas
         return float(v)
 
+
+class PayoutResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    amount: float
+    bank: str
+    payment_ref: str
+
 class NewPayoutResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
     message: str
-    payout: PayoutBase
+    payout: PayoutResponse
 
 class PayoutSummary(BaseModel):
     model_config = ConfigDict(from_attributes=True)

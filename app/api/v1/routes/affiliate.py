@@ -7,8 +7,7 @@ from app.schemas.affiliate import (
     UpdateBankDetailsRequest,
     UpdateBankDetailsResponse
 )
-from app.schemas.transactions import PaginatedTransactionResponse
-from app.schemas.payout import PayoutSummary, PayoutBase, NewPayoutResponse
+from app.schemas.payout import PayoutSummary, PayoutRequest, NewPayoutResponse
 from app.services.affiliate import AffiliateService
 from app.services.affiliate_payout import PayoutService
 from app.services.erp_user import ERPService
@@ -87,7 +86,7 @@ def export_commissions(
 
 @affiliate.post("/payout", status_code=status.HTTP_201_CREATED, response_model=NewPayoutResponse)
 def post_payout(
-    create_request: PayoutBase, 
+    create_request: PayoutRequest, 
     db: Session = Depends(get_db),
     current_user: CurrentUser = Depends(require_roles("affiliate"))
 ):

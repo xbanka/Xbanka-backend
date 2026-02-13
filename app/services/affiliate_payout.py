@@ -1,27 +1,28 @@
+import secrets
 from app.core.base.services import Service
 from app.core.enums import PayoutStatusEnum
 from app.models.customer import Customer
 from app.models.payouts import Payout
 from app.models.transactions import Transaction
-from app.schemas.payout import PayoutBase
+from app.schemas.payout import PayoutRequest
 
 from datetime import datetime
 from fastapi import HTTPException
-from sqlalchemy import select, func, text
+from sqlalchemy import select, func
 from sqlalchemy.orm import Session
 
 
-def generate_payout_ref(db):
-    year = datetime.now().year
-    seq = db.execute(
-        text(f"SELECT nextval('payouts_{year}_seq')")
-    ).scalar()
-
-    return f"PO-{year}{str(seq).zfill(5)}"
+# With timestamp for extra uniqueness (and sortability)
+def generate_payout_ref_time() -> str:
+    timestamp = datetime.now().strftime("%y%m%d")  # YYMMDD
+    random_part = secrets.token_hex(3).upper()  # 6 chars
+    return f"PYN-{timestamp}-{random_part}"
+    # Returns: PYN-250213-A3F2B8
+    
 
 class PayoutService(Service):
     @staticmethod
-    def create_new(db: Session, obj_in: PayoutBase, affiliate_id) -> Payout:
+    def create_new(db: Session, obj_in: PayoutRequest, affiliate_id) -> Payout:
 
         total_earnings = db.scalar(
             select(func.coalesce(func.sum(Transaction.commission_amount), 0))
@@ -38,13 +39,6 @@ class PayoutService(Service):
         amount_withdrawn = total_payouts
         available_balance = total_earnings - amount_withdrawn
         
-        existing_ref = db.execute(
-            select(Payout).where(Payout.payment_ref == obj_in.payment_ref)
-        ).scalar_one_or_none()
-        
-        if existing_ref:
-            raise HTTPException(status_code=400, detail="Payment reference already exists.")
-        
         try:
             obj_in.amount = float(obj_in.amount)
         except ValueError:
@@ -59,7 +53,7 @@ class PayoutService(Service):
         new_payout = Payout(
             amount=obj_in.amount,
             bank=obj_in.bank,
-            payment_ref=obj_in.payment_ref,
+            payment_ref=generate_payout_ref_time(),
             paid_at=datetime.now(),
             affiliate_id=affiliate_id
         )

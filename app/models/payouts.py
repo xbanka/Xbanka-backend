@@ -12,7 +12,7 @@ class Payout(BaseModel):
 
     amount: Mapped[float] = mapped_column(DECIMAL(12, 2), nullable=False)
     status: Mapped[PayoutStatusEnum] = mapped_column(Enum(PayoutStatusEnum), default=PayoutStatusEnum.pending, nullable=False)
-    payment_ref: Mapped[str] = mapped_column(String(120), unique=True, nullable=True)
+    payment_ref: Mapped[str] = mapped_column(String(255), unique=True, nullable=True)
     paid_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
     bank: Mapped[str] = mapped_column(String(100), nullable=False)
 
