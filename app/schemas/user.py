@@ -32,8 +32,6 @@ class RegisterBase(BaseModel):
     email: str
     username: Optional[str] = None
     phone_no: str
-    bank: str
-    account_no: str
     password: str
     confirm_password: str
 

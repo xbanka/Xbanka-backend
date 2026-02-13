@@ -84,8 +84,6 @@ class AffiliateService(Service):
                 email=obj_in.email,
                 username=obj_in.username,
                 phone_no=obj_in.phone_no,
-                bank=obj_in.bank,
-                account_no=obj_in.account_no,
                 hashed_password=Hasher.get_password_hash(obj_in.password),
                 verified=False,
                 ref_code=generated_code,

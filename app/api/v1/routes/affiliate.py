@@ -144,22 +144,6 @@ def get_payouts_summary(
 ):
     return AffiliateService.get_payouts_summary(db, current_user.user.id)
 
-
-@affiliate.patch("/bank", status_code=status.HTTP_200_OK, response_model=UpdateBankDetailsResponse)
-def update_bank_details(
-    bank_details: UpdateBankDetailsRequest,
-    db: Session = Depends(get_db),
-    current_user: CurrentUser = Depends(require_roles("affiliate")),
-):
-    AffiliateService.update_bank_details(db, current_user.user, bank_details)
-
-    return {
-        "message": "Bank details updated successfully", 
-        "bank_name": bank_details.bank_name,
-        "account_number": bank_details.account_number
-        }
-
-
 @affiliate.post("/visits", status_code=status.HTTP_200_OK)
 def record_visitor(
     request: Request,
