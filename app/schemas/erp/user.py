@@ -1,5 +1,5 @@
 from typing import List
-from pydantic import BaseModel, ConfigDict, Field, field_serializer, field_validator, ValidationInfo
+from pydantic import BaseModel, ConfigDict, Field, field_validator, ValidationInfo
 from fastapi import HTTPException
 from uuid import UUID
 from pydantic import EmailStr
@@ -20,7 +20,18 @@ class RoleResponse(BaseModel):
     permission_links: List[str] = Field(..., alias="allowed_permissions")
 
     @field_validator("permission_links", mode="before")
-    def _filter_out_forbidden(cls, v):
+    def _filter_out_forbidden(cls, v, info: ValidationInfo):
+        # Return all permissions for superadmin, else filter out forbidden
+        role_name = info.data.get("name")
+        
+        if role_name == "Super Admin":
+            # Return all permissions for superadmin
+            return [
+                getattr(getattr(link, "permission", None), "name", None)
+                for link in v
+            ]
+        
+        # Filter out forbidden permissions for other roles
         allowed_links = list(filter(lambda x: x.is_allowed, v))
         return [
             getattr(getattr(link, "permission", None), "name", None)
