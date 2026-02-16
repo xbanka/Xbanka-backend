@@ -1,6 +1,6 @@
 from decimal import Decimal
 from app.models.base_model import BaseModel
-from sqlalchemy import ForeignKey, String, Enum, DECIMAL, Computed, Numeric
+from sqlalchemy import ForeignKey, String, Numeric
 from sqlalchemy.dialects.postgresql import UUID 
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 

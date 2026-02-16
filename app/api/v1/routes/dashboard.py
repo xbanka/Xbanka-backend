@@ -1,7 +1,5 @@
 from app.db.database import get_db
-from app.models.affiliate import Affiliate
 from app.schemas.dashboard import DashboardDisplay
-from app.services.auth import AuthService
 from app.services.affiliate_dashboard import DashboardService
 from app.utils.auth import require_roles
 from app.utils.schema import CurrentUser

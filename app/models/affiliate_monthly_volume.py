@@ -1,7 +1,7 @@
 from datetime import date
 from decimal import Decimal
 from app.models.base_model import BaseModel
-from sqlalchemy import ForeignKey, String, Enum, DECIMAL, Computed, Numeric, Date, UniqueConstraint
+from sqlalchemy import ForeignKey, Numeric, Date, UniqueConstraint
 from sqlalchemy.dialects.postgresql import UUID 
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
