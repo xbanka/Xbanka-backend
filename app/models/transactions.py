@@ -51,7 +51,7 @@ class Transaction(BaseModel):
 
     customer = relationship("Customer", back_populates="transactions")
 
-    commission = relationship("AffiliateCommission", back_populates="transaction")
+    commission = relationship("AffiliateCommission", back_populates="transaction", cascade="all, delete-orphan", passive_deletes=True)
 
     def __repr__(self):
         return (

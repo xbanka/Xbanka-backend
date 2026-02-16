@@ -9,14 +9,36 @@ from app.core.enums import PayoutStatusEnum
 
 
 class AffiliateTierResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
     id: UUID
     name: str
     description: Optional[str] = None
     is_restricted: bool
 
 class BankDetailsResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
     bank_name: str
     account_number: str
+
+class VolumeBandResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    min_volume: Decimal
+    max_volume: Optional[Decimal]
+    commission_rate: Decimal
+
+
+class AffiliateProgressResponse(BaseModel):
+    # model_config = ConfigDict(from_attributes=True)
+
+    current_monthly_volume: Decimal
+    current_band: Optional[VolumeBandResponse]
+    next_band: Optional[VolumeBandResponse]
+    next_tier: Optional[AffiliateTierResponse]
+    amount_to_next_band: Optional[Decimal]
+
 
 class AffiliateMeResponse(BaseModel):
     id: UUID
@@ -28,8 +50,9 @@ class AffiliateMeResponse(BaseModel):
     ref_code: str
     custom_refcode: Optional[str] = None
     created_at: datetime
-    current_tier: AffiliateTierResponse
     bank_details: List[BankDetailsResponse]
+    current_tier: AffiliateTierResponse
+    progress: AffiliateProgressResponse
 
 class AffiliateCodename(BaseModel):
     model_config = ConfigDict(from_attributes=True)

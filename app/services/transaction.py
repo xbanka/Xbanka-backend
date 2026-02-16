@@ -1,4 +1,5 @@
-from datetime import datetime
+from datetime import datetime, date
+from decimal import Decimal
 from botocore.exceptions import ClientError
 import logging
 from uuid import UUID
@@ -6,6 +7,10 @@ from uuid import UUID
 from fastapi import UploadFile, HTTPException
 from sqlalchemy import func, select, text
 from app.core.base.services import Service
+from app.models.affiliate import Affiliate
+from app.models.affiliate_commissions import AffiliateCommission
+from app.models.affiliate_monthly_volume import AffiliateMonthlyVolume
+from app.models.tier_volume_bands import TierVolumeBand
 from app.models.transactions import Transaction
 from app.schemas.transactions import TransactionCreatePayload
 from sqlalchemy.orm import Session
@@ -88,14 +93,13 @@ class TransactionService(Service):
         db.refresh(new_transaction)
 
         if customer.affiliate:
-            from app.utils.tiers import process_transaction
             try:
-                process_transaction(
+                TransactionService.process_commission(
                     db=db,
                     affiliate_id=customer.affiliate.id,
                     transaction_id=UUID(str(new_transaction.id)),
                     transaction_amount=float(new_transaction.amount_in),
-                    transaction_date=datetime.now()
+                    transaction_date=date.today()
                 )
             except ValueError as e:
                 logging.error(f"Error processing transaction for affiliate tier: {e}")
@@ -170,3 +174,59 @@ class TransactionService(Service):
             db.commit()
 
             raise HTTPException(status_code=500, detail="An error occured. Attachment upload failed")
+
+
+    @staticmethod
+    def process_commission(db: Session, affiliate_id: UUID, transaction_id: UUID, transaction_amount: float, transaction_date: date):
+        month_start = transaction_date.replace(day=1)
+        
+        # 1️⃣ Get affiliate and tier
+        affiliate = db.get(Affiliate, affiliate_id)
+        tier = affiliate.current_tier if affiliate else None
+        if not affiliate or not tier:
+            raise ValueError("Affiliate or tier not found")
+
+        # Get or create monthly volume record
+        monthly = db.scalar(
+            select(AffiliateMonthlyVolume).where(
+                AffiliateMonthlyVolume.affiliate_id == affiliate_id,
+                AffiliateMonthlyVolume.month == month_start
+            )
+        )
+        if not monthly:
+            monthly = AffiliateMonthlyVolume(affiliate_id=affiliate_id, month=month_start)
+            db.add(monthly)
+            db.flush()  # use flush instead of commit
+
+        # Update monthly volume
+        new_total_volume = float(monthly.total_volume) + transaction_amount
+
+        # Get rate from tier bands
+        band = db.scalar(
+            select(TierVolumeBand).where(
+                TierVolumeBand.tier_id == tier.id,
+                TierVolumeBand.min_volume <= new_total_volume,
+                (TierVolumeBand.max_volume.is_(None)) | (TierVolumeBand.max_volume > new_total_volume)
+            )
+        )
+        rate = band.commission_rate if band else Decimal(0.0)
+
+        # Calculate commission
+        commission_amount = Decimal(transaction_amount) * rate
+
+        # Update monthly totals
+        monthly.total_volume = Decimal(new_total_volume)
+        monthly.total_commission = Decimal(monthly.total_commission) + Decimal(commission_amount)
+
+        # Store commission trace
+        commission = AffiliateCommission(
+            transaction_id=transaction_id,
+            affiliate_id=affiliate.id,
+            commission_amount=commission_amount,
+            commission_rate=rate,
+            month=month_start
+        )
+        db.add(commission)
+        db.commit()
+
+        return commission

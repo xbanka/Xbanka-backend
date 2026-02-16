@@ -2,13 +2,17 @@ from typing import Optional
 from app.core.enums import PayoutStatusEnum, PayoutMethodEnum
 from app.schemas.affiliate import (
     AffiliateMeResponse,
-    AffiliateCodename,  
+    AffiliateCodename,
+    AffiliateProgressResponse,
+    AffiliateTierResponse,  
     PaginatedPayoutResponse,
     UpdateBankDetailsRequest,
-    UpdateBankDetailsResponse
+    UpdateBankDetailsResponse,
+    VolumeBandResponse
 )
 from app.schemas.payout import PayoutSummary, PayoutRequest, NewPayoutResponse
 from app.services.affiliate import AffiliateService
+from app.services.affiliate_dashboard import DashboardService
 from app.services.affiliate_payout import PayoutService
 from app.services.erp_user import ERPService
 from app.db.database import get_db
@@ -26,7 +30,35 @@ def get_current_affiliate(
     db: Session = Depends(get_db),
     current_user: CurrentUser = Depends(require_roles("affiliate")),
 ):
-    return current_user.user
+    affiliate = current_user.user
+
+    progress_data = DashboardService.get_affiliate_progress(db, affiliate)
+
+    return AffiliateMeResponse(
+        id=affiliate.id,
+        first_name=affiliate.first_name,
+        last_name=affiliate.last_name,
+        email=affiliate.email,
+        username=affiliate.username,
+        phone_no=affiliate.phone_no,
+        ref_code=affiliate.ref_code,
+        custom_refcode=affiliate.custom_refcode,
+        created_at=affiliate.created_at,
+        current_tier=AffiliateTierResponse.model_validate(affiliate.current_tier),
+        progress=AffiliateProgressResponse(
+            current_monthly_volume=progress_data["total_volume"],
+            current_band=VolumeBandResponse.model_validate(progress_data["current_band"])
+                if progress_data["current_band"] else None,
+            next_band=VolumeBandResponse.model_validate(progress_data["next_band"])
+                if progress_data["next_band"] else None,
+            next_tier=AffiliateTierResponse.model_validate(progress_data["next_tier"])
+                if progress_data["next_tier"] else None,
+            amount_to_next_band=progress_data["amount_to_next_band"],
+        ),
+        bank_details=affiliate.bank_details,
+    )
+
+
 
 @affiliate.post(
     "/codename", status_code=status.HTTP_201_CREATED, response_model=AffiliateCodename
@@ -157,7 +189,7 @@ def record_visitor(
 
 
 
-@affiliate.post("/me/bank-details", status_code=status.HTTP_201_CREATED)
+@affiliate.post("/me/bank-details", status_code=status.HTTP_201_CREATED, response_model=UpdateBankDetailsResponse)
 def add_bank_details(
     bank_details: UpdateBankDetailsRequest,
     db: Session = Depends(get_db),
