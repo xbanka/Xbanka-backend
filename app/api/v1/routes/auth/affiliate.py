@@ -122,7 +122,8 @@ def refresh_token(request: Request, response: Response):
         )
 
     access_token, refresh_token = AuthService.refresh_access_token(
-        current_refresh_token
+        current_refresh_token,
+        "affiliate"
     )
 
     # Add refresh token to cookies

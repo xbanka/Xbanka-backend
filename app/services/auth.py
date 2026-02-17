@@ -196,7 +196,7 @@ class AuthService(Service):
             raise credentials_exception
 
     @staticmethod
-    def refresh_access_token(current_refresh_token: str):
+    def refresh_access_token(current_refresh_token: str, role: str):
         """Method to refresh access token with refresh token"""
 
         credentials_exception = HTTPException(
@@ -214,8 +214,13 @@ class AuthService(Service):
                     detail="Invalid refresh token",
                 )
 
-            new_access_token = AuthService.create_access_token(data={"sub": str(token.id)})
-            new_refresh_token = AuthService.create_refresh_token(data={"sub": str(token.id)})
+            payload = {
+                "sub": str(token.id), 
+                "role": role
+            }
+
+            new_access_token = AuthService.create_access_token(data=payload)
+            new_refresh_token = AuthService.create_refresh_token(data=payload)
 
             return new_access_token, new_refresh_token
 
@@ -279,7 +284,7 @@ class AuthService(Service):
 
             token_data = TokenData(id=user_id)
 
-        except InvalidTokenError:
+        except (InvalidTokenError, ExpiredSignatureError, DecodeError):
             raise credentials_exception
         
         if user_role == "affiliate":
