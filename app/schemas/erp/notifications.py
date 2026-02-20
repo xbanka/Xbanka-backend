@@ -4,7 +4,7 @@ from pydantic import BaseModel, ConfigDict
 
 from app.core.enums import NotificationTypeEnum
 from typing import Optional
-from app.schemas.affiliate import AffiliateMeResponse
+from app.schemas.affiliate import AffiliateSummaryResponse
 
 class NotificationsResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
@@ -17,7 +17,7 @@ class NotificationsResponse(BaseModel):
     read_at: Optional[datetime]
     amount: float
     method: str
-    affiliate: AffiliateMeResponse
+    affiliate: AffiliateSummaryResponse
 
 
 class NotificationReadResponse(BaseModel):

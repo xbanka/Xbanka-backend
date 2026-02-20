@@ -2,7 +2,7 @@ from datetime import datetime
 from pydantic import BaseModel, ConfigDict
 from uuid import UUID
 from typing import Optional
-from app.schemas.affiliate import AffiliateMeResponse
+from app.schemas.affiliate import AffiliateSummaryResponse
 
 class CustomerRead(BaseModel):
     model_config = ConfigDict(from_attributes=True)
@@ -11,7 +11,7 @@ class CustomerRead(BaseModel):
     last_name: str
     email: str
     phone_no: str
-    affiliate: Optional[AffiliateMeResponse] = None
+    affiliate: Optional[AffiliateSummaryResponse] = None
     note: Optional[str] = None
 
 
@@ -44,7 +44,7 @@ class CustomerResponse(BaseModel):
     email: str
     phone_no: str
     created_at: datetime
-    affiliate: Optional[AffiliateMeResponse] = None
+    affiliate: Optional[AffiliateSummaryResponse] = None
 
 
 class CustomerCreateResponse(BaseModel):

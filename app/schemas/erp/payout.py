@@ -4,7 +4,7 @@ from decimal import Decimal
 from typing import List
 from uuid import UUID
 from app.core.enums import PayoutStatusEnum
-from app.schemas.affiliate import AffiliateMeResponse
+from app.schemas.affiliate import AffiliateSummaryResponse
 
 class ERPPayoutResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
@@ -14,7 +14,7 @@ class ERPPayoutResponse(BaseModel):
     status: PayoutStatusEnum
     payment_ref: str
     paid_at: datetime
-    affiliate: AffiliateMeResponse
+    affiliate: AffiliateSummaryResponse
 
 
 class ERPPaginatedPayoutResponse(BaseModel):
