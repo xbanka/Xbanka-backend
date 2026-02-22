@@ -1,10 +1,13 @@
-from pydantic import BaseModel, ConfigDict
 from datetime import datetime
 from decimal import Decimal
 from typing import List
 from uuid import UUID
+
+from pydantic import BaseModel, ConfigDict
+
 from app.core.enums import PayoutStatusEnum
 from app.schemas.affiliate import AffiliateSummaryResponse
+
 
 class ERPPayoutResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)

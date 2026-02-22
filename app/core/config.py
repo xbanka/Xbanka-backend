@@ -1,7 +1,8 @@
-from app.utils.settings import settings
-from fastapi_mail import ConnectionConfig
 from pathlib import Path
 
+from fastapi_mail import ConnectionConfig
+
+from app.utils.settings import settings
 
 MAIL_USERNAME = settings.MAIL_USERNAME
 MAIL_PASSWORD = settings.MAIL_PASSWORD

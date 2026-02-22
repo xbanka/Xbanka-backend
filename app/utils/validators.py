@@ -4,10 +4,10 @@ from uuid import UUID
 
 def is_valid_phone(phone: str):
     phone_regex = r"^(?:\+234[789][01]\d{8}|0[789][01]\d{8}|\+\d{1,15})$"
-    
+
     if not re.match(phone_regex, phone):
         return False
-    
+
     return True
 
 

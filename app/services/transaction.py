@@ -1,35 +1,35 @@
-from datetime import datetime, date
-from decimal import Decimal
-from botocore.exceptions import ClientError
 import logging
+from datetime import date, datetime
+from decimal import Decimal
 from uuid import UUID
 
-from fastapi import UploadFile, HTTPException
+from botocore.exceptions import ClientError
+from fastapi import HTTPException, UploadFile
 from sqlalchemy import func, select, text
+from sqlalchemy.orm import Session
+
 from app.core.base.services import Service
+from app.core.enums import ServiceTypeEnum, UploadStatusEnum
 from app.models.affiliate import Affiliate
 from app.models.affiliate_commissions import AffiliateCommission
 from app.models.affiliate_monthly_volume import AffiliateMonthlyVolume
 from app.models.tier_volume_bands import TierVolumeBand
 from app.models.transactions import Transaction
 from app.schemas.transactions import TransactionCreatePayload
-from sqlalchemy.orm import Session
-from app.core.enums import ServiceTypeEnum, UploadStatusEnum
-from app.utils.currency import convert_amount, parse_crypto_pair
-from app.utils.settings import settings
-from app.utils.s3_utils import upload_file, validate_file
 from app.services.customer import CustomerService
-
+from app.utils.currency import convert_amount, parse_crypto_pair
+from app.utils.s3_utils import upload_file, validate_file
+from app.utils.settings import settings
 
 S3_BUCKET_NAME = settings.S3_BUCKET_NAME
 
+
 def generate_txn_id(db):
     year = datetime.now().year
-    seq = db.execute(
-        text(f"SELECT nextval('txn_{year}_seq')")
-    ).scalar()
+    seq = db.execute(text(f"SELECT nextval('txn_{year}_seq')")).scalar()
 
     return f"TX-{year}{str(seq).zfill(5)}"
+
 
 class TransactionService(Service):
     @staticmethod
@@ -37,15 +37,14 @@ class TransactionService(Service):
         customer = CustomerService.fetch(db, obj_in.customer_id)
         if not customer:
             raise HTTPException(status_code=404, detail="Customer not found.")
-        
-        affiliate_username = customer.affiliate.username if customer.affiliate else None
 
+        affiliate_username = customer.affiliate.username if customer.affiliate else None
 
         if obj_in.service_type == ServiceTypeEnum.crypto:
             # Calculate expected payout for crypto and gift card transactions
             xbanka_rate = getattr(obj_in, "xbanka_rate")
             vendor_rate = getattr(obj_in, "vendor_rate")
-            
+
             crypto_pair = getattr(obj_in, "crypto_pair")
             # xbanka_account = getattr(obj_in, "xbanka_account")
             currency_in, currency_out = parse_crypto_pair(crypto_pair)
@@ -57,7 +56,10 @@ class TransactionService(Service):
             vendor_rate = getattr(obj_in, "vendor_rate")
 
             expected_payout = convert_amount(
-                float(obj_in.amount_in), float(xbanka_rate), "USD", getattr(obj_in, "currency")
+                float(obj_in.amount_in),
+                float(xbanka_rate),
+                "USD",
+                getattr(obj_in, "currency"),
             )
             currency_in = getattr(obj_in, "currency", None)
             currency_out = "NGN"
@@ -68,7 +70,7 @@ class TransactionService(Service):
             currency_in = currency_out = "NGN"
 
         new_transaction = Transaction(
-            txn_id = generate_txn_id(db=db),
+            txn_id=generate_txn_id(db=db),
             service_type=obj_in.service_type,
             amount_in=obj_in.amount_in,
             amount_out=expected_payout,
@@ -85,7 +87,7 @@ class TransactionService(Service):
             currency_out=currency_out,
             quantity=getattr(obj_in, "quantity", None),
             customer_id=obj_in.customer_id,
-            attachment_url=""
+            attachment_url="",
         )
 
         db.add(new_transaction)
@@ -99,19 +101,17 @@ class TransactionService(Service):
                     affiliate_id=customer.affiliate.id,
                     transaction_id=UUID(str(new_transaction.id)),
                     transaction_amount=float(new_transaction.amount_in),
-                    transaction_date=date.today()
+                    transaction_date=date.today(),
                 )
             except ValueError as e:
                 logging.error(f"Error processing transaction for affiliate tier: {e}")
 
-
         return new_transaction
-    
 
     @staticmethod
     def fetch(db: Session, id: UUID):
         return db.get(Transaction, id)
-    
+
     @staticmethod
     def fetch_all_paginated(db: Session, page: int, limit: int):
         stmt = select(Transaction)
@@ -123,22 +123,20 @@ class TransactionService(Service):
 
         result = db.execute(stmt)
         transactions = result.scalars().all()
-        
-        total = db.scalar(
-            select(func.count()).select_from(
-                select(Transaction)
-                .subquery()
-            )
-        ) or 0
+
+        total = (
+            db.scalar(select(func.count()).select_from(select(Transaction).subquery()))
+            or 0
+        )
 
         return {
             "page": page,
             "limit": limit,
             "total": total,
             "pages": (total + limit - 1) // limit,
-            "data": transactions
+            "data": transactions,
         }
-    
+
     @staticmethod
     def fetch_by_customer_paginated(db: Session, customer_id: UUID):
         stmt = (
@@ -149,16 +147,16 @@ class TransactionService(Service):
 
         transactions = db.execute(stmt).scalars().all()
         return transactions
-    
+
     @staticmethod
     def upload_attachment(db: Session, transaction_id: UUID, attachment: UploadFile):
         transaction = db.get(Transaction, transaction_id)
         if not transaction:
             raise HTTPException(status_code=404, detail="Transaction not found.")
-        
+
         try:
             attachment_url = validate_file(attachment, transaction_id)
-        
+
             upload_file(attachment.file, S3_BUCKET_NAME, attachment_url)
 
             transaction.attachment_url = attachment_url
@@ -167,19 +165,26 @@ class TransactionService(Service):
             db.refresh(transaction)
 
             return transaction
-    
+
         except ClientError as e:
             logging.error(e)
             transaction.upload_status = UploadStatusEnum.failed
             db.commit()
 
-            raise HTTPException(status_code=500, detail="An error occured. Attachment upload failed")
-
+            raise HTTPException(
+                status_code=500, detail="An error occured. Attachment upload failed"
+            )
 
     @staticmethod
-    def process_commission(db: Session, affiliate_id: UUID, transaction_id: UUID, transaction_amount: float, transaction_date: date):
+    def process_commission(
+        db: Session,
+        affiliate_id: UUID,
+        transaction_id: UUID,
+        transaction_amount: float,
+        transaction_date: date,
+    ):
         month_start = transaction_date.replace(day=1)
-        
+
         # 1️⃣ Get affiliate and tier
         affiliate = db.get(Affiliate, affiliate_id)
         tier = affiliate.current_tier if affiliate else None
@@ -190,11 +195,13 @@ class TransactionService(Service):
         monthly = db.scalar(
             select(AffiliateMonthlyVolume).where(
                 AffiliateMonthlyVolume.affiliate_id == affiliate_id,
-                AffiliateMonthlyVolume.month == month_start
+                AffiliateMonthlyVolume.month == month_start,
             )
         )
         if not monthly:
-            monthly = AffiliateMonthlyVolume(affiliate_id=affiliate_id, month=month_start)
+            monthly = AffiliateMonthlyVolume(
+                affiliate_id=affiliate_id, month=month_start
+            )
             db.add(monthly)
             db.flush()  # use flush instead of commit
 
@@ -206,7 +213,8 @@ class TransactionService(Service):
             select(TierVolumeBand).where(
                 TierVolumeBand.tier_id == tier.id,
                 TierVolumeBand.min_volume <= new_total_volume,
-                (TierVolumeBand.max_volume.is_(None)) | (TierVolumeBand.max_volume > new_total_volume)
+                (TierVolumeBand.max_volume.is_(None))
+                | (TierVolumeBand.max_volume > new_total_volume),
             )
         )
         rate = band.commission_rate if band else Decimal(0.0)
@@ -216,7 +224,9 @@ class TransactionService(Service):
 
         # Update monthly totals
         monthly.total_volume = Decimal(new_total_volume)
-        monthly.total_commission = Decimal(monthly.total_commission) + Decimal(commission_amount)
+        monthly.total_commission = Decimal(monthly.total_commission) + Decimal(
+            commission_amount
+        )
 
         # Store commission trace
         commission = AffiliateCommission(
@@ -224,7 +234,7 @@ class TransactionService(Service):
             affiliate_id=affiliate.id,
             commission_amount=commission_amount,
             commission_rate=rate,
-            month=month_start
+            month=month_start,
         )
         db.add(commission)
         db.commit()

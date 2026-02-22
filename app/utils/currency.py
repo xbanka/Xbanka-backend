@@ -8,11 +8,13 @@ def parse_crypto_pair(crypto_pair: str) -> tuple[str, str]:
         tuple[str, str]: A tuple containing the base currency and quote currency.
     """
     try:
-        base_currency, quote_currency = crypto_pair.split('-')
+        base_currency, quote_currency = crypto_pair.split("-")
         return base_currency, quote_currency
     except ValueError:
-        raise ValueError(f"Invalid crypto pair format: {crypto_pair}. Expected format 'BASE-QUOTE'.")
-    
+        raise ValueError(
+            f"Invalid crypto pair format: {crypto_pair}. Expected format 'BASE-QUOTE'."
+        )
+
 
 def calculate_expected_payout(amount: float, xbanka_rate: float) -> float:
     """Calculate the expected payout based on the amount and xbanka rate.
@@ -28,7 +30,9 @@ def calculate_expected_payout(amount: float, xbanka_rate: float) -> float:
     return amount * xbanka_rate
 
 
-def convert_amount(amount: float, xbanka_rate: float, base_currency: str, quote_currency: str) -> float:
+def convert_amount(
+    amount: float, xbanka_rate: float, base_currency: str, quote_currency: str
+) -> float:
     """Convert the amount based on the xbanka rate and cryptocurrency pair.
 
     Args:

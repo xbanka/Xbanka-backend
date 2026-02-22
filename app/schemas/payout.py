@@ -19,11 +19,13 @@ class PayoutResponse(BaseModel):
     bank: str
     payment_ref: str
 
+
 class NewPayoutResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
     message: str
     payout: PayoutResponse
+
 
 class PayoutSummary(BaseModel):
     model_config = ConfigDict(from_attributes=True)
@@ -32,5 +34,3 @@ class PayoutSummary(BaseModel):
     pending_payouts: float
     amount_withdrawn: float
     available_balance: float
-
-    

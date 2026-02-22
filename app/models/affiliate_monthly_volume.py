@@ -1,22 +1,30 @@
 from datetime import date
 from decimal import Decimal
-from app.models.base_model import BaseModel
-from sqlalchemy import ForeignKey, Numeric, Date, UniqueConstraint
-from sqlalchemy.dialects.postgresql import UUID 
+
+from sqlalchemy import Date, ForeignKey, Numeric, UniqueConstraint
+from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
+
+from app.models.base_model import BaseModel
 
 
 class AffiliateMonthlyVolume(BaseModel):
-    __tablename__ = 'affiliate_monthly_volume'
+    __tablename__ = "affiliate_monthly_volume"
 
     __table_args__ = (
-        UniqueConstraint('affiliate_id', 'month', name='uix_affiliate_monthly_volume'),
+        UniqueConstraint("affiliate_id", "month", name="uix_affiliate_monthly_volume"),
     )
 
-    affiliate_id: Mapped[UUID] = mapped_column(ForeignKey('affiliates.id'), nullable=False, index=True)
+    affiliate_id: Mapped[UUID] = mapped_column(
+        ForeignKey("affiliates.id"), nullable=False, index=True
+    )
     month: Mapped[date] = mapped_column(Date, nullable=False)  # Format: 'YYYY-MM'
-    total_volume: Mapped[Decimal] = mapped_column(Numeric(18, 2), nullable=False, default=0.00)
-    total_commission: Mapped[Decimal] = mapped_column(Numeric(18, 2), nullable=False, default=0.00)
+    total_volume: Mapped[Decimal] = mapped_column(
+        Numeric(18, 2), nullable=False, default=0.00
+    )
+    total_commission: Mapped[Decimal] = mapped_column(
+        Numeric(18, 2), nullable=False, default=0.00
+    )
 
     affiliate = relationship("Affiliate", back_populates="monthly_volumes")
 

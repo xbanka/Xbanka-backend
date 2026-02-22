@@ -1,9 +1,9 @@
-""" The database module
-"""
-from sqlalchemy.orm import sessionmaker, scoped_session, declarative_base
-from sqlalchemy import create_engine
-from app.utils.settings import settings
+"""The database module"""
 
+from sqlalchemy import create_engine
+from sqlalchemy.orm import declarative_base, scoped_session, sessionmaker
+
+from app.utils.settings import settings
 
 DB_HOST = settings.DB_HOST
 DB_PORT = settings.DB_PORT
@@ -15,9 +15,10 @@ DB_TYPE = settings.DB_TYPE
 
 def get_db_engine(test_mode: bool = False):
     DATABASE_URL = f"postgresql://{DB_USER}:{DB_PASSWORD}@{DB_HOST}:{DB_PORT}/{DB_NAME}"
-        
+
     return create_engine(DATABASE_URL)
-        
+
+
 engine = get_db_engine()
 
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
@@ -25,6 +26,7 @@ SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 db_session = scoped_session(SessionLocal)
 
 Base = declarative_base()
+
 
 def get_db():
     db = db_session()

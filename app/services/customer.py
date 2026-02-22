@@ -1,17 +1,19 @@
 import logging
 from uuid import UUID
+
+from fastapi import HTTPException, status
+from sqlalchemy import desc, or_, select
+from sqlalchemy.exc import SQLAlchemyError
+from sqlalchemy.orm import Session
+
 from app.core.base.services import Service
 from app.models.customer import Customer
 from app.schemas.customer import CustomerCreateBase
 from app.services.affiliate import AffiliateService
 from app.utils.validators import is_valid_email
-from fastapi import HTTPException, status
-from sqlalchemy import select, or_, desc
-from sqlalchemy.exc import SQLAlchemyError
-from sqlalchemy.orm import Session
-
 
 logger = logging.getLogger(__name__)
+
 
 class CustomerService(Service):
     @staticmethod
@@ -22,7 +24,7 @@ class CustomerService(Service):
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid email address."
             )
-        
+
         # if email exists
         existing_customer = db.execute(
             select(Customer).where(Customer.email == obj_in.email)
@@ -30,7 +32,8 @@ class CustomerService(Service):
 
         if existing_customer:
             raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST, detail="Customer with this email already exists."
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Customer with this email already exists.",
             )
 
         customer_affiliate = (
@@ -44,25 +47,22 @@ class CustomerService(Service):
             last_name=obj_in.last_name,
             email=obj_in.email,
             phone_no=obj_in.phone_no,
-            affiliate_id=customer_affiliate.id if customer_affiliate else None
+            affiliate_id=customer_affiliate.id if customer_affiliate else None,
         )
 
         db.add(new_customer)
         db.commit()
         db.refresh(new_customer)
         return new_customer
-    
 
     @staticmethod
     def fetch(db: Session, id: UUID):
         return db.get(Customer, id)
 
-    
     @staticmethod
     def fetch_all(db: Session):
         stmt = select(Customer).order_by(desc(Customer.created_at))
         return db.scalars(stmt).all()
-    
 
     @staticmethod
     def search_customers(db: Session, search: str):
@@ -75,24 +75,27 @@ class CustomerService(Service):
                     Customer.first_name.ilike(search_query),
                     Customer.last_name.ilike(search_query),
                     Customer.phone_no.ilike(search_query),
-                    Customer.email.ilike(search_query)
+                    Customer.email.ilike(search_query),
                 )
             )
 
             customers = db.execute(stmt).scalars().all()
             return customers
-        
 
     @staticmethod
     def delete_customer(db: Session, customer_id: UUID):
         customer = db.get(Customer, customer_id)
         if not customer:
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Customer not found")
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND, detail="Customer not found"
+            )
 
-        try: 
+        try:
             db.delete(customer)
             db.commit()
         except SQLAlchemyError:
             db.rollback()
             logger.exception("Failed to delete customer %s", customer_id)
-            raise HTTPException(status_code=500, detail="An error occurred deleting customer")
+            raise HTTPException(
+                status_code=500, detail="An error occurred deleting customer"
+            )

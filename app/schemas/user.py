@@ -1,14 +1,18 @@
 from typing import Optional
-from pydantic import BaseModel, ConfigDict, field_validator, ValidationInfo
-from fastapi import HTTPException
 from uuid import UUID
+
+from fastapi import HTTPException
+from pydantic import BaseModel, ConfigDict, ValidationInfo, field_validator
+
 
 class TokenData(BaseModel):
     id: UUID
 
+
 class LoginBase(BaseModel):
     email: str
     password: str
+
 
 class UserBase(BaseModel):
     model_config = ConfigDict(from_attributes=True)
@@ -20,11 +24,13 @@ class UserBase(BaseModel):
     bank: str
     verified: bool
 
+
 class LoginResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
     access_token: str
     token_type: str
+
 
 class RegisterBase(BaseModel):
     first_name: str
@@ -41,12 +47,14 @@ class RegisterBase(BaseModel):
         if password and v != password:
             raise HTTPException(status_code=400, detail="Passwords do not match")
         return v
-    
+
+
 class RegisterResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
     message: str
     user: UserBase
+
 
 class LogoutResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
@@ -56,10 +64,12 @@ class LogoutResponse(BaseModel):
 
 
 class VerifyResponse(BaseModel):
-    """ Schema for successful verification response """
+    """Schema for successful verification response"""
+
     model_config = ConfigDict(from_attributes=True)
 
     message: str
+
 
 class AccountVerificationRequest(BaseModel):
     first_name: str
@@ -70,19 +80,22 @@ class AccountVerificationRequest(BaseModel):
 
 class AccountVerificationResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
-    
+
     status: str
     message: str
     verified_name: str
     bank: str
 
+
 class ForgotPasswordRequest(BaseModel):
     email: str
+
 
 class ForgotPasswordResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
     message: str
+
 
 class ResetPasswordRequest(BaseModel):
     token: str

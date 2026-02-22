@@ -1,12 +1,14 @@
 from pathlib import Path
+
 from pydantic import SecretStr
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 # Use this to build paths inside the project
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
 
+
 class Settings(BaseSettings):
-    """ Class to hold application's config values."""
+    """Class to hold application's config values."""
 
     AFFILIATE_FRONTEND_URL: str
     ERP_FRONTEND_URL: str
@@ -52,7 +54,7 @@ class Settings(BaseSettings):
         env_file=str(BASE_DIR / ".env"),  # Absolute path to .env
         env_file_encoding="utf-8",
         case_sensitive=True,
-        extra="ignore"
+        extra="ignore",
     )
 
 

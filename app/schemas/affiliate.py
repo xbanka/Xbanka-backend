@@ -1,14 +1,16 @@
 from datetime import datetime
 from decimal import Decimal
-from pydantic import BaseModel, ConfigDict, EmailStr
 from typing import List, Optional
 from uuid import UUID
-from app.core.enums import PayoutStatusEnum
 
+from pydantic import BaseModel, ConfigDict, EmailStr
+
+from app.core.enums import PayoutStatusEnum
 
 
 class AffiliateSummaryResponse(BaseModel):
     """used when an affiliate is represented as a nested object in another response, e.g. in customer details"""
+
     model_config = ConfigDict(from_attributes=True)
 
     id: UUID
@@ -27,11 +29,13 @@ class AffiliateTierResponse(BaseModel):
     description: Optional[str] = None
     is_restricted: bool
 
+
 class BankDetailsResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
     bank_name: str
     account_number: str
+
 
 class VolumeBandResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
@@ -67,11 +71,13 @@ class AffiliateMeResponse(BaseModel):
     current_tier: AffiliateTierResponse
     progress: AffiliateProgressResponse
 
+
 class AffiliateCodename(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
     message: str
     codename: str
+
 
 class PayoutResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)

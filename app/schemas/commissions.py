@@ -1,7 +1,5 @@
-
-
-
 from typing import List
+
 from pydantic import BaseModel, ConfigDict
 
 
@@ -19,6 +17,7 @@ class CommissionBrief(BaseModel):
     currency_out: str
     commission_rate: float
     commission_amount: float
+
 
 class PaginatedCommissionResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)

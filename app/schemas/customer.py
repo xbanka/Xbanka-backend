@@ -1,8 +1,11 @@
 from datetime import datetime
-from pydantic import BaseModel, ConfigDict
-from uuid import UUID
 from typing import Optional
+from uuid import UUID
+
+from pydantic import BaseModel, ConfigDict
+
 from app.schemas.affiliate import AffiliateSummaryResponse
+
 
 class CustomerRead(BaseModel):
     model_config = ConfigDict(from_attributes=True)
@@ -17,12 +20,14 @@ class CustomerRead(BaseModel):
 
 class CustomerBrief(BaseModel):
     """Minimal customer representation for transaction-related responses"""
+
     model_config = ConfigDict(from_attributes=True)
 
     first_name: str
     last_name: str
     email: str
     phone_no: str
+
 
 class CustomerCreateBase(BaseModel):
     model_config = ConfigDict(from_attributes=True)

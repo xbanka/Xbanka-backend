@@ -1,16 +1,23 @@
-from typing import List
-from pydantic import BaseModel, ConfigDict, Field, field_validator, ValidationInfo
-from fastapi import HTTPException
-from uuid import UUID
-from pydantic import EmailStr
 from datetime import datetime
+from typing import List
+from uuid import UUID
+
+from fastapi import HTTPException
+from pydantic import (
+    BaseModel,
+    ConfigDict,
+    EmailStr,
+    Field,
+    ValidationInfo,
+    field_validator,
+)
 
 
 class PermissionResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
     name: str
-    
+
 
 class RoleResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True, populate_by_name=True)
@@ -23,20 +30,20 @@ class RoleResponse(BaseModel):
     def _filter_out_forbidden(cls, v, info: ValidationInfo):
         # Return all permissions for superadmin, else filter out forbidden
         role_name = info.data.get("name")
-        
+
         if role_name == "Super Admin":
             # Return all permissions for superadmin
             return [
-                getattr(getattr(link, "permission", None), "name", None)
-                for link in v
+                getattr(getattr(link, "permission", None), "name", None) for link in v
             ]
-        
+
         # Filter out forbidden permissions for other roles
         allowed_links = list(filter(lambda x: x.is_allowed, v))
         return [
             getattr(getattr(link, "permission", None), "name", None)
             for link in allowed_links
         ]
+
 
 class ERPMeResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
@@ -48,11 +55,13 @@ class ERPMeResponse(BaseModel):
     role: RoleResponse
     created_at: datetime
 
+
 class AllStaffResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
     staff: List[ERPMeResponse]
     count: int
+
 
 class UserBase(BaseModel):
     model_config = ConfigDict(from_attributes=True)
@@ -80,7 +89,7 @@ class RegisterBase(BaseModel):
         if password and v != password:
             raise HTTPException(status_code=400, detail="Passwords do not match")
         return v
-    
+
 
 class LoginResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
@@ -124,10 +133,11 @@ class ResetPasswordRequest(BaseModel):
         if password and v != password:
             raise HTTPException(status_code=400, detail="Passwords do not match")
         return v
-    
+
 
 class VerifyResponse(BaseModel):
-    """ Schema for successful verification response """
+    """Schema for successful verification response"""
+
     model_config = ConfigDict(from_attributes=True)
 
     message: str

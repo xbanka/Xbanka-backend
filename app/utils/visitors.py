@@ -1,7 +1,8 @@
-from app.models.affiliate_visit import AffiliateVisit
-from datetime import datetime, timedelta
 import hashlib
 import uuid
+from datetime import datetime
+
+from app.models.affiliate_visit import AffiliateVisit
 
 
 def generate_visitor_id() -> str:
@@ -18,7 +19,7 @@ def already_counted_today(db, affiliate_id, visitor_id, fingerprint):
 
     query = db.query(AffiliateVisit).filter(
         AffiliateVisit.affiliate_id == affiliate_id,
-        AffiliateVisit.created_at >= today_start
+        AffiliateVisit.created_at >= today_start,
     )
 
     if visitor_id:
@@ -27,4 +28,3 @@ def already_counted_today(db, affiliate_id, visitor_id, fingerprint):
         query = query.filter(AffiliateVisit.fingerprint == fingerprint)
 
     return db.query(query.exists()).scalar()
-

@@ -60,6 +60,7 @@ rich==14.1.0
 rich-toolkit==0.15.1
 rignore==0.6.4
 rsa==4.9.1
+ruff==0.15.2
 s3transfer==0.16.0
 sentry-sdk==2.39.0
 shellingham==1.5.4

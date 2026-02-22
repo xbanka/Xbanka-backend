@@ -49,6 +49,7 @@ class CryptoPairEnum(str, enum.Enum):
     ETH_NGN = "ETH-NGN"
     NGN_ETH = "NGN-ETH"
 
+
 class RoleEnum(str, enum.Enum):
     ADMIN = "Admin"
     MANAGER = "Manager"
@@ -56,6 +57,7 @@ class RoleEnum(str, enum.Enum):
     CUSTOMER_REP = "Customer Rep"
     COMPLIANCE = "Compliance"
     VIEWER = "Viewer"
+
 
 # Define granular permissions organized by category
 class Permission(str, enum.Enum):
@@ -65,19 +67,19 @@ class Permission(str, enum.Enum):
     VERIFY_TRANSACTIONS = "transactions:verify"
     SETTLE_TRANSACTIONS = "transactions:settle"
     REFUND_TRANSACTIONS = "transactions:refund"
-    
+
     # Customers
     VIEW_CUSTOMERS = "customers:view"
     MANAGE_CUSTOMERS = "customers:manage"
     MANAGE_KYC = "customers:manage_kyc"
     FLAG_CUSTOMERS = "customers:flag"
-    
+
     # Finance
     VIEW_PAYMENTS = "finance:view_payments"
     APPROVE_PAYMENTS = "finance:approve_payments"
     REJECT_PAYMENTS = "finance:reject_payments"
     FLAG_PAYMENTS = "finance:flag_payments"
-    
+
     # Staff & Access Management
     VIEW_STAFF_LIST = "staff:view_list"
     ADD_STAFF = "staff:add"
@@ -86,7 +88,7 @@ class Permission(str, enum.Enum):
     SUSPEND_ACTIVATE = "staff:suspend_activate"
     RESET_PASSWORD = "staff:reset_password"
     RESEND_INVITES = "staff:resend_invites"
-    
+
     # System & Settings
     VIEW_SYSTEM_SETTINGS = "system:view_settings"
     EDIT_SYSTEM_SETTINGS = "system:edit_settings"

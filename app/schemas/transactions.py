@@ -1,11 +1,19 @@
 from datetime import datetime
 from decimal import Decimal
-from pydantic import BaseModel, ConfigDict, Discriminator, model_validator, Tag, computed_field
 from typing import Annotated, List, Literal, Optional, Union
 from uuid import UUID
 
-from app.core.enums import ServiceTypeEnum, CryptoPairEnum, UploadStatusEnum
-from app.schemas.customer import CustomerRead, CustomerBrief
+from pydantic import (
+    BaseModel,
+    ConfigDict,
+    Discriminator,
+    Tag,
+    computed_field,
+    model_validator,
+)
+
+from app.core.enums import CryptoPairEnum, ServiceTypeEnum, UploadStatusEnum
+from app.schemas.customer import CustomerBrief, CustomerRead
 
 
 class TransactionDetailResponse(BaseModel):
@@ -65,11 +73,13 @@ class BaseTransactionCreate(BaseModel):
     @model_validator(mode="after")
     def validate_single_service(self):
         return self
+
     amount_in: Decimal
     vendor: str
     customer_account: str
 
     customer_id: UUID
+
 
 class CryptoTransactionCreate(BaseTransactionCreate):
     service_type: Literal[ServiceTypeEnum.crypto]
@@ -96,7 +106,11 @@ class BillPaymentTransactionCreate(BaseTransactionCreate):
     biller_category: str
 
 
-def get_service_type(v: Union[CryptoTransactionCreate, GiftCardTransactionCreate, BillPaymentTransactionCreate]) -> str:
+def get_service_type(
+    v: Union[
+        CryptoTransactionCreate, GiftCardTransactionCreate, BillPaymentTransactionCreate
+    ],
+) -> str:
     return v.service_type.value
 
 
@@ -104,9 +118,11 @@ TransactionCreatePayload = Annotated[
     Union[
         Annotated[CryptoTransactionCreate, Tag(ServiceTypeEnum.crypto.value)],
         Annotated[GiftCardTransactionCreate, Tag(ServiceTypeEnum.gift_card.value)],
-        Annotated[BillPaymentTransactionCreate, Tag(ServiceTypeEnum.bill_payments.value)]
+        Annotated[
+            BillPaymentTransactionCreate, Tag(ServiceTypeEnum.bill_payments.value)
+        ],
     ],
-    Discriminator('service_type')
+    Discriminator("service_type"),
 ]
 
 
@@ -115,7 +131,7 @@ class TransactionCreateResponse(BaseModel):
 
     message: str
     transaction: TransactionBrief
-    
+
 
 class PaginatedTransactionResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)

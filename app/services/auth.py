@@ -1,27 +1,23 @@
+from datetime import datetime, timedelta
+from typing import Annotated, Optional, Union
+
 import jwt
 import requests
-from datetime import datetime, timedelta
 from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
 from jose import JWTError
+from jwt.exceptions import DecodeError, ExpiredSignatureError, InvalidTokenError
 from sqlalchemy.orm import Session
-from jwt.exceptions import InvalidTokenError, ExpiredSignatureError, DecodeError
-from typing import Annotated, Optional, Union
+
 from app.core.base.services import Service
 from app.core.hash import Hasher
 from app.db.database import get_db
 from app.models.affiliate import Affiliate
 from app.models.erp_user import ERPUser
-from app.schemas.user import (
-    TokenData,
-    AccountVerificationRequest
-)
-from app.services.affiliate import AffiliateService
-from app.services.erp_user import ERPService
+from app.schemas.user import AccountVerificationRequest, TokenData
 from app.utils.schema import CurrentUser
 from app.utils.settings import settings
 from app.utils.validators import is_valid_email
-
 
 ACCESS_TOKEN_EXPIRE_MINUTES = settings.ACCESS_TOKEN_EXPIRE_MINUTES
 JWT_REFRESH_EXPIRY = settings.JWT_REFRESH_EXPIRY
@@ -81,7 +77,7 @@ class AuthService(Service):
         encoded_jwt = jwt.encode(to_encode, settings.SECRET_KEY, settings.ALGORITHM)
 
         return encoded_jwt
-    
+
     @staticmethod
     def create_password_reset_token(data: dict, expires_delta: timedelta | None = None):
         """Method to create access token"""
@@ -121,7 +117,7 @@ class AuthService(Service):
                 raise HTTPException(status_code=404, detail="user not found")
 
             return user
-        
+
         except (ExpiredSignatureError, JWTError, DecodeError):
             raise credentials_exception
 
@@ -170,8 +166,7 @@ class AuthService(Service):
 
         except (ExpiredSignatureError, JWTError, DecodeError):
             raise credentials_exception
-        
-    
+
     @staticmethod
     def verify_password_reset_token(access_token: str, credentials_exception):
         """Method to verify validity of access token"""
@@ -214,10 +209,7 @@ class AuthService(Service):
                     detail="Invalid refresh token",
                 )
 
-            payload = {
-                "sub": str(token.id), 
-                "role": role
-            }
+            payload = {"sub": str(token.id), "role": role}
 
             new_access_token = AuthService.create_access_token(data=payload)
             new_refresh_token = AuthService.create_refresh_token(data=payload)
@@ -229,7 +221,8 @@ class AuthService(Service):
 
         except Exception as e:
             raise HTTPException(
-                status_code=500, detail=f"An error occurred refreshing access token: {str(e)}"
+                status_code=500,
+                detail=f"An error occurred refreshing access token: {str(e)}",
             ) from e
 
     @staticmethod
@@ -241,7 +234,9 @@ class AuthService(Service):
                 status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid email address."
             )
 
-        user: Optional[Union[ERPUser, Affiliate]] = db.query(model).filter_by(email=email).first()
+        user: Optional[Union[ERPUser, Affiliate]] = (
+            db.query(model).filter_by(email=email).first()
+        )
 
         if user and not user.hashed_password:
             raise HTTPException(
@@ -254,15 +249,14 @@ class AuthService(Service):
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail="Invalid credentials",  # hide true error e.g invalid salt
             )
-        
+
         if not user.verified:
             raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED, 
-                detail="User profile verification required" 
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="User profile verification required",
             )
-        
-        return user    
-        
+
+        return user
 
     @staticmethod
     def get_current_user(
@@ -286,7 +280,7 @@ class AuthService(Service):
 
         except (InvalidTokenError, ExpiredSignatureError, DecodeError):
             raise credentials_exception
-        
+
         if user_role == "affiliate":
             user = db.query(Affiliate).filter(Affiliate.id == token_data.id).first()
 
@@ -296,17 +290,16 @@ class AuthService(Service):
                     detail="User has not been verified",
                     headers={"WWW-Authenticate": "Bearer"},
                 )
-    
+
         elif user_role == "erp" or user_role == "super":
             user = db.query(ERPUser).filter_by(id=user_id).first()
         else:
             raise HTTPException(401, "Invalid user type")
-        
+
         if user is None:
             raise credentials_exception
-        
-        return CurrentUser(user, user_role)
 
+        return CurrentUser(user, user_role)
 
     @staticmethod
     def verify_bank_information(request: AccountVerificationRequest):
@@ -371,9 +364,11 @@ class AuthService(Service):
         return {
             "message": f"Verification email resent to {request.first_name} {request.last_name}"
         }
-    
+
     @staticmethod
-    def update_user_password(db: Session, data: TokenData, new_password: str, user_service):
+    def update_user_password(
+        db: Session, data: TokenData, new_password: str, user_service
+    ):
         """Method to update user's password"""
         try:
             user = user_service.get_user_by_id(db, data.id)
