@@ -49,6 +49,8 @@ class Settings(BaseSettings):
     AWS_SECRET_ACCESS_KEY: str
     AWS_REGION: str
 
+    VERIFY_TOKEN: str
+
     # Add this configuration
     model_config = SettingsConfigDict(
         env_file=str(BASE_DIR / ".env"),  # Absolute path to .env
