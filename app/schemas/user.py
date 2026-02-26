@@ -21,7 +21,7 @@ class UserBase(BaseModel):
     last_name: str
     email: str
     phone_no: str
-    bank: str
+    # bank: str
     verified: bool
 
 

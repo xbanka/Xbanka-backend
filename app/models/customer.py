@@ -34,12 +34,12 @@ class Customer(BaseModel):
         passive_deletes=True,
     )
 
-    chat_rooms = relationship(
-        "ChatRoom",
-        back_populates="support_agent",
-        cascade="all, delete-orphan",
-        passive_deletes=True,
-    )
+    # chat_rooms = relationship(
+    #     "ChatRoom",
+    #     back_populates="support_agent",
+    #     cascade="all, delete-orphan",
+    #     passive_deletes=True,
+    # )
 
     def __repr__(self):
         return f"<Customer(first_name='{self.first_name}', last_name='{self.last_name}', email='{self.email}')>"

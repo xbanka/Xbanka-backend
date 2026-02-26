@@ -22,7 +22,7 @@ class ERPUser(BaseModel):
     )
     role = relationship("Role", back_populates="users")
 
-    chat_rooms = relationship("ChatRoom", back_populates="customer")
+    # chat_rooms = relationship("ChatRoom", back_populates="customer")
 
     permission_links = relationship(
         "UserPermissions",

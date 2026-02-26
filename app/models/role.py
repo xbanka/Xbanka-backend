@@ -14,7 +14,7 @@ class Role(BaseModel):
     users = relationship("ERPUser", back_populates="role")
 
     permissions = relationship(
-        "Permission", secondary="role_permissions", back_populates="roles"
+        "Permission", secondary="role_permissions", back_populates="roles", viewonly=True, overlaps="permission_links,permissions"
     )
     permission_links = relationship(
         "RolePermissions",
