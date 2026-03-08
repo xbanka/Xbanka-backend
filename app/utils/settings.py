@@ -25,6 +25,7 @@ class Settings(BaseSettings):
     JWT_REFRESH_EXPIRY: int = 5
 
     PAYSTACK_SECRET_KEY: str
+    NUBAN_SECRET_KEY: str
 
     # Database configurations
     DB_USER: str

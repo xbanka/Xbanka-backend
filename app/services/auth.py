@@ -3,6 +3,8 @@ from typing import Annotated, Optional, Union
 
 import jwt
 import requests
+import logging
+from requests.exceptions import RequestException
 from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
 from jose import JWTError
@@ -24,11 +26,15 @@ JWT_REFRESH_EXPIRY = settings.JWT_REFRESH_EXPIRY
 ALGORITHM = settings.ALGORITHM
 SECRET_KEY = settings.SECRET_KEY
 PAYSTACK_SECRET_KEY = settings.PAYSTACK_SECRET_KEY
+NUBAN_SECRET_KEY = settings.NUBAN_SECRET_KEY
 
 PAYSTACK_BASE_URL = "https://api.paystack.co"
+NUBAN_BASE_URL = "https://app.nuban.com.ng/api"
 
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="api/auth/token")
+
+logger = logging.getLogger(__name__)
 
 
 class AuthService(Service):
@@ -307,8 +313,14 @@ class AuthService(Service):
         banks_url = f"{PAYSTACK_BASE_URL}/bank"
         headers = {"Authorization": f"Bearer {PAYSTACK_SECRET_KEY}"}
 
-        banks_response = requests.get(banks_url, headers=headers)
-        banks_data = banks_response.json()
+        try:
+            banks_response = requests.get(banks_url, headers=headers)
+            banks_data = banks_response.json()
+        except RequestException as e:
+            logger.error(f"Error fetching banks list from Paystack: {str(e)}")
+            raise HTTPException(
+                status_code=500, detail="Failed to fetch banks list"
+            ) from e
 
         if not banks_data.get("status"):
             raise HTTPException(status_code=500, detail="Failed to fetch banks list")
@@ -328,22 +340,45 @@ class AuthService(Service):
 
         bank_code = bank["code"]
 
-        # Verify acc no
-        resolve_url = f"{PAYSTACK_BASE_URL}/bank/resolve"
-        params = {"account_number": request.account_number, "bank_code": bank_code}
+        # Verify acc no using NUBAN api
+        resolve_url = f"{NUBAN_BASE_URL}/{NUBAN_SECRET_KEY}"
+        params = {"acc_no": request.account_number, "bank_code": bank_code}
 
-        verify_response = requests.get(resolve_url, headers=headers, params=params)
-        verify_data = verify_response.json()
+        try:
+            verify_response = requests.get(resolve_url, headers=headers, params=params)
+            verify_data = verify_response.json()
+        except RequestException as e:
+            logger.error(f"Error verifying account information with NUBAN: {str(e)}")
+            raise HTTPException(
+                status_code=500, detail="Failed to verify account information"
+            ) from e
 
-        if not verify_data.get("status"):
-            raise HTTPException(status_code=400, detail="Unable to verify account")
+        if isinstance(verify_data, dict) and verify_data.get("error"):
+            raise HTTPException(
+                status_code=400,
+                detail=f"Account verification failed: {verify_data.get('message', 'Unknown error')}",
+            )
 
-        account_name: str = verify_data["data"]["account_name"].lower()
+        if isinstance(verify_data, list):
+            if not verify_data:
+                raise HTTPException(
+                    status_code=400,
+                    detail="Account verification failed: No data returned from NUBAN",
+                )
+            verify_data = verify_data[0]
+
+        if not verify_data.get("account_name"):
+            raise HTTPException(
+                status_code=400,
+                detail="Account verification failed: No account name returned from NUBAN",
+            )
+
+        account_name: str = verify_data["account_name"]
 
         # Compare names
         if (
-            request.first_name.lower() in account_name.split()
-            and request.last_name.lower() in account_name.split()
+            request.first_name.lower() in account_name.lower().split()
+            and request.last_name.lower() in account_name.lower().split()
         ):
             return {
                 "status": "success",
