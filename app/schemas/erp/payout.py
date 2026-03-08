@@ -17,6 +17,7 @@ class ERPPayoutResponse(BaseModel):
     status: PayoutStatusEnum
     payment_ref: str
     paid_at: datetime
+    bank: str
     affiliate: AffiliateSummaryResponse
 
 
