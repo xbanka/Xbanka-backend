@@ -1,4 +1,5 @@
 import logging
+import sentry_sdk
 
 from fastapi import FastAPI, Request, status
 from fastapi.exceptions import RequestValidationError, ResponseValidationError
@@ -18,6 +19,24 @@ from app.api.v1.routes import api_version_one
 #     yield
 #     # Shutdown
 #     pass
+
+sentry_sdk.init(
+    dsn="https://b0584051d0d02d52fb631498cf07af48@o4510994791006208.ingest.de.sentry.io/4510996099760208",
+    # Add data like request headers and IP for users,
+    # see https://docs.sentry.io/platforms/python/data-management/data-collected/ for more info
+    send_default_pii=True,
+    # Enable sending logs to Sentry
+    enable_logs=True,
+    # Set traces_sample_rate to 1.0 to capture 100%
+    # of transactions for tracing.
+    traces_sample_rate=1.0,
+    # Set profile_session_sample_rate to 1.0 to profile 100%
+    # of profile sessions.
+    profile_session_sample_rate=1.0,
+    # Set profile_lifecycle to "trace" to automatically
+    # run the profiler on when there is an active transaction
+    profile_lifecycle="trace",
+)
 
 app = FastAPI()
 app.include_router(api_version_one)
@@ -90,3 +109,9 @@ async def response_validation_exception_handler(
 @app.get("/")
 def read_root():
     return {"message": "Welcome to XBanka API"}
+
+
+@app.get("/sentry-debug")
+def sentry():
+    div_by_zero = 1 / 0
+    return {"result": div_by_zero}
