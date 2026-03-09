@@ -44,6 +44,8 @@ class Settings(BaseSettings):
     MAIL_PORT: int
     MAIL_SERVER: str
 
+    RESEND_API_KEY: str
+
     S3_BUCKET_NAME: str
 
     AWS_ACCESS_KEY_ID: str
