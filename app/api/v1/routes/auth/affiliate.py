@@ -198,6 +198,7 @@ async def forgot_password(
     background_tasks: BackgroundTasks,
     db: Session = Depends(get_db),
 ):
+    print(f"Received forgot password request for email: {forgot_request.email}")
     user = AffiliateService.get_user_by_mail(db, forgot_request.email)
     if not user:
         raise HTTPException(

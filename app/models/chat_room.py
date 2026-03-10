@@ -16,11 +16,18 @@ class ChatRoom(BaseModel):
     customer_id: Mapped[UUID] = mapped_column(ForeignKey("customers.id"))
     customer = relationship("Customer", back_populates="chat_rooms")
 
-    support_agent_id: Mapped[UUID] = mapped_column(
+    assigned_to: Mapped[UUID] = mapped_column(
         ForeignKey("erp_users.id"), nullable=True
     )
-    support_agent = relationship("ERPUser", back_populates="chat_rooms")
+    assigned_staff = relationship("ERPUser", back_populates="assiged_chat_rooms")
 
     subject: Mapped[str] = mapped_column(String(255), nullable=True)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
     closed_at: Mapped[datetime] = mapped_column(DateTime, nullable=True)
+
+    chats = relationship(
+        "ChatMessage",
+        back_populates="chat_room",
+        cascade="all, delete-orphan",
+        passive_deletes=True,
+    )

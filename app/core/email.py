@@ -11,8 +11,9 @@ from app.utils.settings import settings
 
 AFFILIATE_FRONTEND_URL = settings.AFFILIATE_FRONTEND_URL
 ERP_FRONTEND_URL = settings.ERP_FRONTEND_URL
-TEST_EMAIL = settings.TEST_EMAIL
+MAIL_FROM = settings.MAIL_FROM
 RESEND_API_KEY = settings.RESEND_API_KEY
+TEST_EMAIL = settings.TEST_EMAIL
 
 
 resend.api_key = RESEND_API_KEY
@@ -82,23 +83,23 @@ async def send_forgot_password_email(
     template_url = url_map.get(email_type)
     
     params: resend.Emails.SendParams = {
-        "from": os.environ.get("EMAIL_FROM", "Acme <onboarding@resend.dev>"),
-        "to": ["delivered@resend.dev"],
-        "subject": "Email from Template - Python Example",
-        # Use a template instead of html/text
+        "from": "xbankang.com@xbankang.com",
+        "to": [recipient],
+        "subject": "Reset Your Password",
         "template": {
             "id": "ffaff905-1e5b-499d-aa15-706004736296",
-            # Variables must match EXACTLY (case-sensitive!)
             "variables": {
                 "first_name": first_name,
                 "last_name": last_name,
                 "reset_url": reset_url,
-                "frontend_url": template_url
+                "frontend_url": template_url,
+                "year": 2026,
             },
         },
     }
 
     email = resend.Emails.send(params)
+    print(f"Email sent: {email}")
 
     # template_url = url_map.get(email_type)
 
