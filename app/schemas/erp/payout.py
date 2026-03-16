@@ -1,13 +1,25 @@
 from datetime import datetime
 from decimal import Decimal
-from typing import List
+from typing import List, Optional
 from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict
 
 from app.core.enums import PayoutStatusEnum
-from app.schemas.affiliate import AffiliateSummaryResponse
+from app.schemas.affiliate import AffiliateSummaryResponse, AffiliatePayoutResponse
 
+
+
+class ERPPayoutDetailResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: UUID
+    amount: Decimal
+    status: PayoutStatusEnum
+    payment_ref: str
+    paid_at: Optional[datetime] = None
+    bank: str
+    affiliate: AffiliatePayoutResponse
 
 class ERPPayoutResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
@@ -16,7 +28,7 @@ class ERPPayoutResponse(BaseModel):
     amount: Decimal
     status: PayoutStatusEnum
     payment_ref: str
-    paid_at: datetime
+    paid_at: Optional[datetime] = None
     bank: str
     affiliate: AffiliateSummaryResponse
 

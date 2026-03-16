@@ -10,7 +10,7 @@ from app.schemas.erp.notifications import (
     NotificationReadResponse,
     NotificationsResponse,
 )
-from app.schemas.erp.payout import ERPPaginatedPayoutResponse, ERPPayoutResponse
+from app.schemas.erp.payout import ERPPaginatedPayoutResponse, ERPPayoutResponse, ERPPayoutDetailResponse
 from app.schemas.erp.user import ERPMeResponse
 from app.services.erp_user import ERPService
 from app.utils.auth import require_roles
@@ -63,7 +63,7 @@ def get_all_payouts(
 @erp.get(
     "/payouts/{payout_id}",
     status_code=status.HTTP_200_OK,
-    response_model=ERPPayoutResponse,
+    response_model=ERPPayoutDetailResponse,
 )
 def get_payout_details(
     payout_id: UUID,

@@ -8,16 +8,14 @@ from app.db.database import get_db
 from app.schemas.affiliate import (
     AffiliateCodename,
     AffiliateMeResponse,
-    AffiliateProgressResponse,
     AffiliateTierResponse,
     PaginatedPayoutResponse,
     UpdateBankDetailsRequest,
     UpdateBankDetailsResponse,
-    VolumeBandResponse,
 )
 from app.schemas.payout import NewPayoutResponse, PayoutRequest, PayoutSummary
 from app.services.affiliate import AffiliateService
-from app.services.affiliate_dashboard import DashboardService
+from app.services.affiliate_progress_service import AffiliateProgressService
 from app.services.affiliate_payout import PayoutService
 from app.services.erp_user import ERPService
 from app.utils.auth import require_roles
@@ -35,7 +33,7 @@ def get_current_affiliate(
 ):
     affiliate = current_user.user
 
-    progress_data = DashboardService.get_affiliate_progress(db, affiliate)
+    progress = AffiliateProgressService.get_affiliate_progress(db, affiliate)
 
     return AffiliateMeResponse(
         id=affiliate.id,
@@ -48,21 +46,7 @@ def get_current_affiliate(
         custom_refcode=affiliate.custom_refcode,
         created_at=affiliate.created_at,
         current_tier=AffiliateTierResponse.model_validate(affiliate.current_tier),
-        progress=AffiliateProgressResponse(
-            current_monthly_volume=progress_data["total_volume"],
-            current_band=VolumeBandResponse.model_validate(
-                progress_data["current_band"]
-            )
-            if progress_data["current_band"]
-            else None,
-            next_band=VolumeBandResponse.model_validate(progress_data["next_band"])
-            if progress_data["next_band"]
-            else None,
-            next_tier=AffiliateTierResponse.model_validate(progress_data["next_tier"])
-            if progress_data["next_tier"]
-            else None,
-            amount_to_next_band=progress_data["amount_to_next_band"],
-        ),
+        progress=progress,
         bank_details=affiliate.bank_details,
     )
 

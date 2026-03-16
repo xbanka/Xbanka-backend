@@ -1,3 +1,4 @@
+from decimal import Decimal
 import logging
 from datetime import datetime
 from typing import List, Optional, Sequence
@@ -21,6 +22,8 @@ from app.models.permission import Permission
 from app.models.role import Role
 from app.models.role_permissions import RolePermissions
 from app.models.user_permissions import UserPermissions
+from app.services.affiliate import AffiliateService
+from app.schemas.erp.payout import ERPPayoutDetailResponse
 from app.schemas.erp.user import RegisterBase
 from app.utils.permissions import calculate_permission_overrides
 from app.utils.settings import settings
@@ -125,7 +128,7 @@ class ERPService(Service):
         db: Session,
         user: ERPUser,
         message: str,
-        amount: float | str,
+        amount: Decimal | str,
         method: PayoutMethodEnum,
         affiliate_id: SA_UUID,
     ) -> Notification:
@@ -174,13 +177,24 @@ class ERPService(Service):
         }
 
     @staticmethod
-    def get_payout_details(db: Session, payout_id: UUID) -> Payout:
+    def get_payout_details(db: Session, payout_id: UUID) -> ERPPayoutDetailResponse:
         payout = db.get(Payout, payout_id)
         if not payout:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND, detail="Payout not found"
             )
-        return payout
+        
+        affiliate_summary = AffiliateService.build_affiliate_summary(db, payout.affiliate)
+
+        return ERPPayoutDetailResponse(
+            id=UUID(str(payout.id)),
+            amount=payout.amount,
+            status=payout.status,
+            payment_ref=payout.payment_ref,
+            paid_at=payout.paid_at,
+            bank=payout.bank,
+            affiliate=affiliate_summary
+        )
 
     @staticmethod
     def process_payout(db: Session, payout_id: UUID) -> Payout:

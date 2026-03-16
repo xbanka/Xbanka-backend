@@ -1,4 +1,5 @@
 from datetime import datetime
+from decimal import Decimal
 from typing import Optional
 
 from sqlalchemy import DECIMAL, DateTime, Enum, ForeignKey, String
@@ -12,7 +13,7 @@ from app.models.base_model import BaseModel
 class Payout(BaseModel):
     __tablename__ = "payouts"
 
-    amount: Mapped[float] = mapped_column(DECIMAL(12, 2), nullable=False)
+    amount: Mapped[Decimal] = mapped_column(DECIMAL(12, 2), nullable=False)
     status: Mapped[PayoutStatusEnum] = mapped_column(
         Enum(PayoutStatusEnum), default=PayoutStatusEnum.pending, nullable=False
     )

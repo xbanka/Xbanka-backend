@@ -8,19 +8,6 @@ from pydantic import BaseModel, ConfigDict, EmailStr
 from app.core.enums import PayoutStatusEnum
 
 
-class AffiliateSummaryResponse(BaseModel):
-    """used when an affiliate is represented as a nested object in another response, e.g. in customer details"""
-
-    model_config = ConfigDict(from_attributes=True)
-
-    id: UUID
-    first_name: str
-    last_name: str
-    email: EmailStr
-    username: Optional[str] = None
-    created_at: datetime
-
-
 class AffiliateTierResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
@@ -53,6 +40,32 @@ class AffiliateProgressResponse(BaseModel):
     next_band: Optional[VolumeBandResponse]
     next_tier: Optional[AffiliateTierResponse]
     amount_to_next_band: Optional[Decimal]
+
+
+class AffiliatePayoutResponse(BaseModel):
+
+    model_config = ConfigDict(from_attributes=True)
+
+    id: UUID
+    first_name: str
+    last_name: str
+    email: EmailStr
+    username: Optional[str] = None
+    created_at: datetime
+    progress: AffiliateProgressResponse
+
+
+class AffiliateSummaryResponse(BaseModel):
+    """used when an affiliate is represented as a nested object in another response, e.g. in customer details"""
+
+    model_config = ConfigDict(from_attributes=True)
+
+    id: UUID
+    first_name: str
+    last_name: str
+    email: EmailStr
+    username: Optional[str] = None
+    created_at: datetime
 
 
 class AffiliateMeResponse(BaseModel):
