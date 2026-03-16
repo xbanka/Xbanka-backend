@@ -4,7 +4,7 @@ from sqlalchemy import DECIMAL, Computed, Enum, ForeignKey, Numeric, String
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from app.core.enums import CryptoPairEnum, ServiceTypeEnum, UploadStatusEnum
+from app.core.enums import CryptoPairEnum, ServiceTypeEnum, TransactionStatusEnum, UploadStatusEnum
 from app.models.base_model import BaseModel
 
 
@@ -33,9 +33,8 @@ class Transaction(BaseModel):
         Computed("amount_in * commission_rate / 100", persisted=True),
         nullable=False,
     )
-    upload_status: Mapped[UploadStatusEnum] = mapped_column(
-        Enum(UploadStatusEnum), default=UploadStatusEnum.pending, nullable=False
-    )
+    status: Mapped[TransactionStatusEnum] = mapped_column(Enum(TransactionStatusEnum), default=TransactionStatusEnum.pending, nullable=False)
+    upload_status: Mapped[UploadStatusEnum] = mapped_column(Enum(UploadStatusEnum), default=UploadStatusEnum.pending, nullable=False)
 
     vendor: Mapped[str] = mapped_column(String, nullable=False)
 

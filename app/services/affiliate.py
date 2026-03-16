@@ -247,6 +247,9 @@ class AffiliateService(Service):
     def get_commissions(db: Session, affiliate_id, page: int, limit: int):
         stmt = select(AffiliateCommission).join(Transaction)
 
+        if status:
+            stmt = stmt.where(Transaction.status == status)
+
         stmt = (
             stmt.options(
                 selectinload(AffiliateCommission.transaction).selectinload(
@@ -284,6 +287,9 @@ class AffiliateService(Service):
     @staticmethod
     def export_commissions(db: Session, affiliate_id):
         stmt = select(AffiliateCommission).join(Transaction)
+
+        if status:
+            stmt = stmt.where(Transaction.status == status)
 
         stmt = (
             stmt.options(
@@ -421,14 +427,18 @@ class AffiliateService(Service):
 
     @staticmethod
     def get_payouts_summary(db: Session, affiliate_id):
-        total_earnings = (
-            db.scalar(
-                select(func.coalesce(func.sum(Transaction.commission_amount), 0))
-                .join(Customer, Customer.id == Transaction.customer_id)
-                .where(Customer.affiliate_id == affiliate_id)
-            )
-            or 0
-        )
+        total_earnings = db.scalar(
+            select(func.coalesce(func.sum(Transaction.commission_amount), 0))
+            .join(Customer, Customer.id == Transaction.customer_id)
+            .where(Customer.affiliate_id == affiliate_id)
+        ) or 0
+
+        available_payouts = db.scalar(
+            select(func.coalesce(func.sum(Transaction.commission_amount), 0))
+            .join(Customer, Customer.id == Transaction.customer_id)
+            .where(Customer.affiliate_id == affiliate_id)
+            .where(Transaction.status == TransactionStatusEnum.approved)
+        ) or 0
 
         total_payouts = (
             db.scalar(
@@ -440,7 +450,7 @@ class AffiliateService(Service):
         )
 
         amount_withdrawn = total_payouts
-        available_payouts = total_earnings - amount_withdrawn
+        available_payouts -= amount_withdrawn
 
         pending_payouts = (
             db.scalar(
@@ -457,11 +467,12 @@ class AffiliateService(Service):
         #     .where(Payout.status == PayoutStatusEnum.failed)
         # ) or 0
 
-        # pending_earnings = db.scalar(
-        #     select(func.coalesce(func.sum(Transaction.commission_amount), 0))
-        #     .join(Customer, Customer.id == Transaction.customer_id)
-        #     .where(Customer.affiliate_id == affiliate_id)
-        # ) or 0
+        pending_earnings = db.scalar(
+            select(func.coalesce(func.sum(Transaction.commission_amount), 0))
+            .join(Customer, Customer.id == Transaction.customer_id)
+            .where(Customer.affiliate_id == affiliate_id)
+            .where(Transaction.status == TransactionStatusEnum.pending)
+        ) or 0
 
         return {
             "total_earnings": total_earnings,
