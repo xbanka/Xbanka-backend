@@ -3,6 +3,7 @@ import secrets
 from datetime import datetime, timezone
 from io import BytesIO
 from typing import Optional, cast
+from uuid import UUID
 
 from fastapi import HTTPException, Request, Response, status
 from openpyxl import Workbook
@@ -11,7 +12,7 @@ from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from sqlalchemy.orm import Session, selectinload
 
 from app.core.base.services import Service
-from app.core.enums import PayoutStatusEnum
+from app.core.enums import PayoutStatusEnum, TransactionStatusEnum
 from app.core.hash import Hasher
 from app.models.affiliate import Affiliate
 from app.models.affiliate_commissions import AffiliateCommission
@@ -21,8 +22,9 @@ from app.models.bank_details import BankDetails
 from app.models.customer import Customer
 from app.models.payouts import Payout
 from app.models.transactions import Transaction
-from app.schemas.affiliate import UpdateBankDetailsRequest
+from app.schemas.affiliate import AffiliatePayoutResponse, UpdateBankDetailsRequest
 from app.schemas.user import RegisterBase
+from app.services.affiliate_progress_service import AffiliateProgressService
 from app.utils.validators import (
     is_valid_account_number,
     is_valid_email,
@@ -247,9 +249,6 @@ class AffiliateService(Service):
     def get_commissions(db: Session, affiliate_id, page: int, limit: int):
         stmt = select(AffiliateCommission).join(Transaction)
 
-        if status:
-            stmt = stmt.where(Transaction.status == status)
-
         stmt = (
             stmt.options(
                 selectinload(AffiliateCommission.transaction).selectinload(
@@ -287,9 +286,6 @@ class AffiliateService(Service):
     @staticmethod
     def export_commissions(db: Session, affiliate_id):
         stmt = select(AffiliateCommission).join(Transaction)
-
-        if status:
-            stmt = stmt.where(Transaction.status == status)
 
         stmt = (
             stmt.options(
@@ -528,3 +524,18 @@ class AffiliateService(Service):
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail="Failed to create bank details",
             ) from e
+        
+
+    @staticmethod
+    def build_affiliate_summary(db: Session, affiliate: Affiliate):
+        progress = AffiliateProgressService.get_affiliate_progress(db, affiliate)
+
+        return AffiliatePayoutResponse(
+            id=UUID(str(affiliate.id)),
+            first_name=affiliate.first_name,
+            last_name=affiliate.last_name,
+            email=affiliate.email,
+            username=affiliate.username,
+            created_at=affiliate.created_at,
+            progress=progress,
+        )
