@@ -155,7 +155,8 @@ class TransactionService(Service):
             raise HTTPException(status_code=404, detail="Transaction not found.")
 
         try:
-            attachment_url = validate_file(attachment, transaction_id)
+            attachment_key = validate_file(attachment, transaction_id)
+            attachment_url = f"transactions/{attachment_key}"
 
             upload_file(attachment.file, S3_BUCKET_NAME, attachment_url)
 

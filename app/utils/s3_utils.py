@@ -17,7 +17,7 @@ ALLOWED_CONTENT_TYPES = {
 }
 
 
-def validate_file(file: UploadFile, trans_id: UUID) -> str:
+def validate_file(file: UploadFile, id: UUID) -> str:
     filename = file.filename
     content_type = file.content_type
 
@@ -32,9 +32,9 @@ def validate_file(file: UploadFile, trans_id: UUID) -> str:
         raise HTTPException(400, "Invalid content type")
 
     ext = Path(filename).suffix.lower().lstrip(".")
-    key = f"{trans_id}_{uuid4().hex}.{ext}"
+    key = f"{id}_{uuid4().hex}.{ext}"
 
-    return f"transactions/{key}"  # upload to transactions directory in s3 bucket
+    return key
 
 
 def upload_file(file, bucket, object_name=None):

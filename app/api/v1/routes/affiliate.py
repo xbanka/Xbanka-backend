@@ -1,6 +1,7 @@
 from typing import Optional
+from uuid import UUID
 
-from fastapi import APIRouter, Depends, Query, Request, Response, status
+from fastapi import APIRouter, Depends, File, Query, Request, Response, UploadFile, status
 from sqlalchemy.orm import Session
 
 from app.core.enums import PayoutMethodEnum, PayoutStatusEnum
@@ -126,6 +127,22 @@ def post_payout(
         "message": "New payout has been created.",
         "payout": payout,
     }
+
+@affiliate.post(
+    "/payouts/{payout_id}/attachment",
+    status_code=status.HTTP_200_OK,
+    response_model=NewPayoutResponse,
+)
+def upload_payout_attachment(
+    payout_id: UUID,
+    attachment: UploadFile = File(...),
+    db: Session = Depends(get_db),
+    current_user: CurrentUser = Depends(require_roles("erp")),
+):
+    transaction = PayoutService.upload_attachment(
+        db=db, payout_id=payout_id, attachment=attachment
+    )
+    return {"message": "Attachment uploaded successfully", "transaction": transaction}
 
 
 @affiliate.get(
