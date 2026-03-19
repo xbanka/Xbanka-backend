@@ -1,4 +1,5 @@
 from decimal import Decimal
+from typing import Optional
 
 from pydantic import BaseModel, ConfigDict, field_validator
 
@@ -36,3 +37,7 @@ class PayoutSummary(BaseModel):
     pending_payouts: float
     amount_withdrawn: float
     available_balance: float
+
+
+class ProcessPayoutRequest(BaseModel):
+    note: Optional[str] = None

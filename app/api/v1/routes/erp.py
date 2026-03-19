@@ -1,7 +1,7 @@
 from typing import List, Optional
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, Query, status
+from fastapi import APIRouter, Depends, File, Query, UploadFile, status
 from sqlalchemy.orm import Session
 
 from app.core.enums import PayoutMethodEnum, PayoutStatusEnum
@@ -10,8 +10,9 @@ from app.schemas.erp.notifications import (
     NotificationReadResponse,
     NotificationsResponse,
 )
-from app.schemas.erp.payout import ERPPaginatedPayoutResponse, ERPPayoutResponse, ERPPayoutDetailResponse
+from app.schemas.erp.payout import ERPPaginatedPayoutResponse, ERPPayoutResponse, ERPPayoutDetailResponse, ERPProcessPayoutResponse
 from app.schemas.erp.user import ERPMeResponse
+from app.schemas.payout import ProcessPayoutRequest
 from app.services.erp_user import ERPService
 from app.utils.auth import require_roles
 from app.utils.schema import CurrentUser
@@ -80,10 +81,11 @@ def get_payout_details(
 )
 def process_payout(
     payout_id: UUID,
+    process_request: ProcessPayoutRequest,
     db: Session = Depends(get_db),
     current_user: CurrentUser = Depends(require_roles("erp")),
 ):
-    payout = ERPService.process_payout(db, payout_id)
+    payout = ERPService.process_payout(db, payout_id, process_request)
 
     ERPService.new_notification(
         db,
@@ -119,3 +121,20 @@ def reject_payout(
     )
 
     return payout
+
+
+@erp.post(
+    "/payouts/{payout_id}/attachment",
+    status_code=status.HTTP_200_OK,
+    response_model=ERPProcessPayoutResponse,
+)
+def upload_payout_attachment(
+    payout_id: UUID,
+    attachment: UploadFile = File(...),
+    db: Session = Depends(get_db),
+    current_user: CurrentUser = Depends(require_roles("erp")),
+):
+    payout = ERPService.upload_attachment(
+        db=db, payout_id=payout_id, attachment=attachment
+    )
+    return {"message": "Attachment uploaded successfully", "payout": payout}

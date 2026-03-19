@@ -5,7 +5,7 @@ from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict
 
-from app.core.enums import PayoutStatusEnum
+from app.core.enums import PayoutStatusEnum, UploadStatusEnum
 from app.schemas.affiliate import AffiliateSummaryResponse, AffiliatePayoutResponse
 
 
@@ -20,6 +20,9 @@ class ERPPayoutDetailResponse(BaseModel):
     paid_at: Optional[datetime] = None
     bank: str
     affiliate: AffiliatePayoutResponse
+    upload_status: Optional[UploadStatusEnum] = None
+    notes: Optional[str] = None
+    attachment_url: Optional[str] = None
 
 class ERPPayoutResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
@@ -31,6 +34,9 @@ class ERPPayoutResponse(BaseModel):
     paid_at: Optional[datetime] = None
     bank: str
     affiliate: AffiliateSummaryResponse
+    upload_status: Optional[UploadStatusEnum] = None
+    notes: Optional[str] = None
+    attachment_url: Optional[str] = None
 
 
 class ERPPaginatedPayoutResponse(BaseModel):
@@ -39,3 +45,8 @@ class ERPPaginatedPayoutResponse(BaseModel):
     total: int
     pages: int
     data: List[ERPPayoutResponse]
+
+
+class ERPProcessPayoutResponse(BaseModel):
+    message: str
+    payout: ERPPayoutResponse

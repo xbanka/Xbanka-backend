@@ -13,9 +13,6 @@ from app.models.payouts import Payout
 from app.models.transactions import Transaction
 from app.schemas.payout import PayoutRequest
 from app.utils.s3_utils import upload_file, validate_file
-from app.utils.settings import settings
-
-S3_BUCKET_NAME = settings.S3_BUCKET_NAME
 
 
 # With timestamp for extra uniqueness (and sortability)
@@ -52,7 +49,7 @@ class PayoutService(Service):
         available_balance = total_earnings - amount_withdrawn
 
         try:
-            obj_in.amount = float(obj_in.amount)
+            obj_in.amount = obj_in.amount
         except ValueError:
             raise HTTPException(status_code=400, detail="Invalid amount format.")
 
@@ -80,32 +77,3 @@ class PayoutService(Service):
         db.refresh(new_payout)
 
         return new_payout
-
-
-    @staticmethod
-    def upload_attachment(db: Session, payout_id: UUID, attachment: UploadFile):
-        transaction = db.get(Transaction, payout_id)
-        if not transaction:
-            raise HTTPException(status_code=404, detail="Transaction not found.")
-
-        try:
-            attachment_key = validate_file(attachment, payout_id)
-            attachment_url = f"payouts/{attachment_key}"
-
-            upload_file(attachment.file, S3_BUCKET_NAME, attachment_url)
-
-            transaction.attachment_url = attachment_url
-            transaction.upload_status = UploadStatusEnum.pending
-            db.commit()
-            db.refresh(transaction)
-
-            return transaction
-
-        except ClientError as e:
-            logging.error(e)
-            transaction.upload_status = UploadStatusEnum.failed
-            db.commit()
-
-            raise HTTPException(
-                status_code=500, detail="An error occured. Attachment upload failed"
-            )

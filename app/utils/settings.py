@@ -46,7 +46,8 @@ class Settings(BaseSettings):
 
     RESEND_API_KEY: str
 
-    S3_BUCKET_NAME: str
+    S3_BUCKET_TRANSACTIONS: str
+    S3_BUCKET_PAYOUTS: str
 
     AWS_ACCESS_KEY_ID: str
     AWS_SECRET_ACCESS_KEY: str

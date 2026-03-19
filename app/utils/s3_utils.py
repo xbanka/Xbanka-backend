@@ -6,7 +6,7 @@ from fastapi import HTTPException, UploadFile
 
 from app.utils.settings import settings
 
-S3_BUCKET_NAME = settings.S3_BUCKET_NAME
+S3_BUCKET_TRANSACTIONS = settings.S3_BUCKET_TRANSACTIONS
 
 ALLOWED_EXTENSIONS = {"jpg", "jpeg", "png", "pdf"}
 
@@ -59,6 +59,6 @@ def get_image_url(key):
     s3_client = boto3.client("s3")
     return s3_client.generate_presigned_url(
         "get_object",
-        Params={"Bucket": S3_BUCKET_NAME, "Key": key},
+        Params={"Bucket": S3_BUCKET_TRANSACTIONS, "Key": key},
         ExpiresIn=900,  # 15 minutes
     )

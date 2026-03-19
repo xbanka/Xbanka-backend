@@ -4,7 +4,8 @@ from datetime import datetime
 from typing import List, Optional, Sequence
 from uuid import UUID
 
-from fastapi import HTTPException, status
+from botocore.exceptions import ClientError
+from fastapi import HTTPException, UploadFile, status
 from psycopg2 import IntegrityError
 from sqlalchemy import and_, func, select
 from sqlalchemy.dialects.postgresql import UUID as SA_UUID
@@ -12,7 +13,7 @@ from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
 from app.core.base.services import Service
-from app.core.enums import PayoutMethodEnum, PayoutStatusEnum
+from app.core.enums import PayoutMethodEnum, PayoutStatusEnum, UploadStatusEnum
 from app.core.hash import Hasher
 from app.models.affiliate import Affiliate
 from app.models.erp_user import ERPUser
@@ -22,12 +23,16 @@ from app.models.permission import Permission
 from app.models.role import Role
 from app.models.role_permissions import RolePermissions
 from app.models.user_permissions import UserPermissions
+from app.schemas.payout import ProcessPayoutRequest
 from app.services.affiliate import AffiliateService
 from app.schemas.erp.payout import ERPPayoutDetailResponse
 from app.schemas.erp.user import RegisterBase
 from app.utils.permissions import calculate_permission_overrides
+from app.utils.s3_utils import upload_file, validate_file
 from app.utils.settings import settings
 from app.utils.validators import is_valid_email, is_valid_password
+
+S3_BUCKET_PAYOUTS = settings.S3_BUCKET_PAYOUTS
 
 logger = logging.getLogger(__name__)
 
@@ -193,11 +198,14 @@ class ERPService(Service):
             payment_ref=payout.payment_ref,
             paid_at=payout.paid_at,
             bank=payout.bank,
-            affiliate=affiliate_summary
+            affiliate=affiliate_summary,
+            upload_status=payout.upload_status,
+            notes=payout.note,
+            attachment_url=payout.attachment_url,
         )
 
     @staticmethod
-    def process_payout(db: Session, payout_id: UUID) -> Payout:
+    def process_payout(db: Session, payout_id: UUID, process_request: ProcessPayoutRequest) -> Payout:
         payout = db.get(Payout, payout_id)
         if not payout:
             raise HTTPException(
@@ -206,6 +214,8 @@ class ERPService(Service):
 
         payout.status = PayoutStatusEnum.paid
         payout.paid_at = datetime.now()
+
+        payout.note = process_request.note
 
         db.commit()
         db.refresh(payout)
@@ -610,3 +620,32 @@ class ERPService(Service):
             raise HTTPException(status_code=500, detail="An unknown error occurred")
 
         return staff_user
+
+
+    @staticmethod
+    def upload_attachment(db: Session, payout_id: UUID, attachment: UploadFile):
+        payout = db.get(Payout, payout_id)
+        if not payout:
+            raise HTTPException(status_code=404, detail="Payout not found.")
+
+        try:
+            attachment_key = validate_file(attachment, payout_id)
+            attachment_url = f"payouts/{attachment_key}"
+
+            upload_file(attachment.file, S3_BUCKET_PAYOUTS, attachment_url)
+
+            payout.attachment_url = attachment_url
+            payout.upload_status = UploadStatusEnum.completed
+            db.commit()
+            db.refresh(payout)
+
+            return payout
+
+        except ClientError as e:
+            logging.error(e)
+            payout.upload_status = UploadStatusEnum.failed
+            db.commit()
+
+            raise HTTPException(
+                status_code=500, detail="An error occured. Attachment upload failed"
+            )

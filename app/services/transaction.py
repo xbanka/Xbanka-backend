@@ -21,7 +21,7 @@ from app.utils.currency import convert_amount, parse_crypto_pair
 from app.utils.s3_utils import upload_file, validate_file
 from app.utils.settings import settings
 
-S3_BUCKET_NAME = settings.S3_BUCKET_NAME
+S3_BUCKET_TRANSACTIONS = settings.S3_BUCKET_TRANSACTIONS
 
 
 def generate_txn_id(db):
@@ -158,10 +158,10 @@ class TransactionService(Service):
             attachment_key = validate_file(attachment, transaction_id)
             attachment_url = f"transactions/{attachment_key}"
 
-            upload_file(attachment.file, S3_BUCKET_NAME, attachment_url)
+            upload_file(attachment.file, S3_BUCKET_TRANSACTIONS, attachment_url)
 
             transaction.attachment_url = attachment_url
-            transaction.upload_status = UploadStatusEnum.pending
+            transaction.upload_status = UploadStatusEnum.completed
             db.commit()
             db.refresh(transaction)
 
