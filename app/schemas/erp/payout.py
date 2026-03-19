@@ -20,7 +20,7 @@ class ERPPayoutDetailResponse(BaseModel):
     paid_at: Optional[datetime] = None
     bank: str
     affiliate: AffiliatePayoutResponse
-    upload_status: Optional[UploadStatusEnum] = None
+    upload_status: UploadStatusEnum
     notes: Optional[str] = None
     attachment_url: Optional[str] = None
 
@@ -34,7 +34,7 @@ class ERPPayoutResponse(BaseModel):
     paid_at: Optional[datetime] = None
     bank: str
     affiliate: AffiliateSummaryResponse
-    upload_status: Optional[UploadStatusEnum] = None
+    upload_status: UploadStatusEnum
     notes: Optional[str] = None
     attachment_url: Optional[str] = None
 

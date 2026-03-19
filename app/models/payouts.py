@@ -17,7 +17,7 @@ class Payout(BaseModel):
     status: Mapped[PayoutStatusEnum] = mapped_column(
         Enum(PayoutStatusEnum), default=PayoutStatusEnum.pending, nullable=False
     )
-    upload_status: Mapped[UploadStatusEnum] = mapped_column(Enum(UploadStatusEnum), default=UploadStatusEnum.pending, nullable=True)
+    upload_status: Mapped[UploadStatusEnum] = mapped_column(Enum(UploadStatusEnum), default=UploadStatusEnum.pending, nullable=False)
     payment_ref: Mapped[str] = mapped_column(String(255), unique=True, nullable=True)
     paid_at: Mapped[Optional[datetime]] = mapped_column(
         DateTime(timezone=True), nullable=True
