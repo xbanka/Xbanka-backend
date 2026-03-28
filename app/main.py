@@ -21,7 +21,7 @@ from app.api.v1.routes import api_version_one
 #     pass
 
 sentry_sdk.init(
-    dsn="https://b0584051d0d02d52fb631498cf07af48@o4510994791006208.ingest.de.sentry.io/4510996099760208",
+    dsn="https://3b0caa4bd51b30c493e60d5a746c1e78@o4511098605862912.ingest.de.sentry.io/4511098608549968",
     # Add data like request headers and IP for users,
     # see https://docs.sentry.io/platforms/python/data-management/data-collected/ for more info
     send_default_pii=True,
