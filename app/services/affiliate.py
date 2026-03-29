@@ -12,7 +12,7 @@ from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from sqlalchemy.orm import Session, selectinload
 
 from app.core.base.services import Service
-from app.core.enums import PayoutStatusEnum, TransactionStatusEnum
+from app.core.enums import AuthProviderEnum, PayoutStatusEnum, TransactionStatusEnum
 from app.core.hash import Hasher
 from app.models.affiliate import Affiliate
 from app.models.affiliate_commissions import AffiliateCommission
@@ -39,6 +39,43 @@ from app.utils.visitors import (
 
 logger = logging.getLogger(__name__)
 
+
+def _generate_unique_ref_code(db: Session) -> str:
+    while True:
+        generated_code = secrets.token_urlsafe(16)
+        if not db.query(Affiliate).filter_by(ref_code=generated_code).first():
+            break
+    return generated_code
+
+def _get_bronze_tier(db: Session) -> Optional[AffiliateTier]:
+    return (
+        db.execute(select(AffiliateTier).where(AffiliateTier.name == "Bronze"))
+        .scalars()
+        .first()
+    )
+
+def _save_affiliate(db: Session, affiliate: Affiliate) -> Affiliate:
+    try:
+        db.add(affiliate)
+        db.commit()
+        db.refresh(affiliate)
+
+    except IntegrityError:
+        logger.exception("Integrity error while creating affiliate")
+        db.rollback()
+        raise HTTPException(status_code=400, detail="Database integrity error")
+    except SQLAlchemyError:
+        logger.exception("SQLAlchemy error while creating affiliate")
+        db.rollback()
+        raise HTTPException(
+            status_code=500, detail="An error occurred saving entity"
+        )
+    except Exception:
+        logger.exception("Unexpected error while creating affiliate")
+        db.rollback()
+        raise HTTPException(status_code=500, detail="An unknown error occurred")
+
+    return affiliate
 
 class AffiliateService(Service):
     @staticmethod
@@ -74,50 +111,51 @@ class AffiliateService(Service):
                 detail="Phone number must be a valid Nigerian (+234) or international format",
             )
 
-        while True:
-            generated_code = secrets.token_urlsafe(16)
-            if not db.query(Affiliate).filter_by(ref_code=generated_code).first():
-                break
+        generated_code = _generate_unique_ref_code(db)
 
-        bronze_tier = (
-            db.execute(select(AffiliateTier).where(AffiliateTier.name == "Bronze"))
-            .scalars()
-            .first()
+        bronze_tier = _get_bronze_tier(db)
+
+        affiliate = Affiliate(
+            first_name=obj_in.first_name,
+            last_name=obj_in.last_name,
+            email=obj_in.email,
+            username=obj_in.username,
+            phone_no=obj_in.phone_no,
+            hashed_password=Hasher.get_password_hash(obj_in.password),
+            verified=False,
+            ref_code=generated_code,
+            auth_provider=AuthProviderEnum.email,
+            current_tier_id=bronze_tier.id if bronze_tier else None,
         )
 
-        try:
-            affiliate = Affiliate(
-                first_name=obj_in.first_name,
-                last_name=obj_in.last_name,
-                email=obj_in.email,
-                username=obj_in.username,
-                phone_no=obj_in.phone_no,
-                hashed_password=Hasher.get_password_hash(obj_in.password),
-                verified=False,
-                ref_code=generated_code,
-                current_tier_id=bronze_tier.id if bronze_tier else None,
-            )
+        return _save_affiliate(db, affiliate)
+    
+    @staticmethod
+    def create_from_google_user(db: Session, user_info: dict) -> Affiliate:
+        email = user_info.get("email")
+        first_name = user_info.get("given_name", "")
+        last_name = user_info.get("family_name", "")
 
-            db.add(affiliate)
-            db.commit()
-            db.refresh(affiliate)
-        except IntegrityError:
-            logger.exception("Integrity error while creating affiliate")
-            db.rollback()
-            raise HTTPException(status_code=400, detail="Database integrity error")
-        except SQLAlchemyError:
-            logger.exception("SQLAlchemy error while creating affiliate")
-            db.rollback()
-            raise HTTPException(
-                status_code=500, detail="An error occurred saving entity"
-            )
-        except Exception:
-            logger.exception("Unexpected error while creating affiliate")
-            db.rollback()
-            raise HTTPException(status_code=500, detail="An unknown error occurred")
+        generated_code = _generate_unique_ref_code(db)
 
-        return affiliate
+        bronze_tier = _get_bronze_tier(db)
 
+        affiliate = Affiliate(
+            first_name=first_name,
+            last_name=last_name,
+            email=email,
+            username=None,
+            phone_no=None,
+            hashed_password=None,
+            verified=True,  # Google accounts are already verified
+            ref_code=generated_code,
+            auth_provider=AuthProviderEnum.google,
+            current_tier_id=bronze_tier.id if bronze_tier else None,
+        )
+
+        return _save_affiliate(db, affiliate)
+
+        
     @staticmethod
     def get_user_by_id(db: Session, id: str) -> Affiliate:
         affiliate = db.query(Affiliate).get(id)
@@ -133,6 +171,16 @@ class AffiliateService(Service):
         if not affiliate:
             raise HTTPException(
                 status_code=404, detail="Affiliate with this username not found"
+            )
+        return affiliate
+    
+    @staticmethod
+    def get_by_email(db: Session, email: str) -> Affiliate:
+        stmt = select(Affiliate).where(Affiliate.email == email)
+        affiliate = db.execute(stmt).scalars().one_or_none()
+        if not affiliate:
+            raise HTTPException(
+                status_code=404, detail="Affiliate with this email not found"
             )
         return affiliate
 

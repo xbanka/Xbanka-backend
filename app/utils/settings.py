@@ -55,6 +55,10 @@ class Settings(BaseSettings):
 
     VERIFY_TOKEN: str
 
+    GOOGLE_CLIENT_ID: str
+    GOOGLE_CLIENT_SECRET: str
+    GOOGLE_REDIRECT_URI: str
+
     # Add this configuration
     model_config = SettingsConfigDict(
         env_file=str(BASE_DIR / ".env"),  # Absolute path to .env

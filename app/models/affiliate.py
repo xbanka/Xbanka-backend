@@ -1,7 +1,8 @@
-from sqlalchemy import Boolean, ForeignKey, String
+from sqlalchemy import Boolean, ForeignKey, String, Enum
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
+from app.core.enums import AuthProviderEnum
 from app.models.base_model import BaseModel
 
 
@@ -16,11 +17,13 @@ class Affiliate(BaseModel):
     username: Mapped[str] = mapped_column(
         String(100), unique=True, nullable=True, index=True
     )
-    phone_no: Mapped[str] = mapped_column(String(50), nullable=False)
-    hashed_password: Mapped[str] = mapped_column(String(255), nullable=False)
+    phone_no: Mapped[str] = mapped_column(String(50), nullable=True)
+    hashed_password: Mapped[str] = mapped_column(String(255), nullable=True)
     verified: Mapped[bool] = mapped_column(Boolean, nullable=False)
     ref_code: Mapped[str] = mapped_column(String(50), nullable=False, unique=True)
     custom_refcode: Mapped[str] = mapped_column(String(50), nullable=True, unique=True)
+
+    auth_provider: Mapped[AuthProviderEnum] = mapped_column(Enum(AuthProviderEnum), nullable=True, default=AuthProviderEnum.email)  # 'email' or 'google'
 
     current_tier_id: Mapped[UUID] = mapped_column(
         ForeignKey("affiliate_tiers.id"), nullable=True, index=True

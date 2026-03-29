@@ -1,6 +1,9 @@
 import enum
 
 
+class AuthProviderEnum(str, enum.Enum):
+    email = "email"
+    google = "google"
 
 class TransactionStatusEnum(str, enum.Enum):
     approved = "approved"
