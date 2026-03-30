@@ -135,6 +135,7 @@ class AffiliateService(Service):
         email = user_info.get("email")
         first_name = user_info.get("given_name", "")
         last_name = user_info.get("family_name", "")
+        google_id = user_info.get("sub")
 
         generated_code = _generate_unique_ref_code(db)
 
@@ -150,6 +151,7 @@ class AffiliateService(Service):
             verified=True,  # Google accounts are already verified
             ref_code=generated_code,
             auth_provider=AuthProviderEnum.google,
+            google_id=google_id,
             current_tier_id=bronze_tier.id if bronze_tier else None,
         )
 

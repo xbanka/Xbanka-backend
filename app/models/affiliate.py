@@ -24,6 +24,7 @@ class Affiliate(BaseModel):
     custom_refcode: Mapped[str] = mapped_column(String(50), nullable=True, unique=True)
 
     auth_provider: Mapped[AuthProviderEnum] = mapped_column(Enum(AuthProviderEnum), nullable=False, default=AuthProviderEnum.email)  # 'email' or 'google'
+    google_id: Mapped[str] = mapped_column(String(255), nullable=True, unique=True)  # Store Google user ID for affiliates authenticated via Google
 
     current_tier_id: Mapped[UUID] = mapped_column(
         ForeignKey("affiliate_tiers.id"), nullable=True, index=True
