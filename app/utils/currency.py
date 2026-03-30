@@ -48,9 +48,9 @@ def convert_amount(
     # Example conversion logic (this can be adjusted based on actual requirements)
     if quote_currency == "NGN":
         # USDT or other to NGN conversion
-        converted_amount = amount / xbanka_rate
+        converted_amount = amount * xbanka_rate
     else:
         # NGN to USDT or other conversion
-        converted_amount = amount * xbanka_rate
+        converted_amount = amount / xbanka_rate
 
     return converted_amount
