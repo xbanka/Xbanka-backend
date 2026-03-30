@@ -98,8 +98,7 @@ async def send_forgot_password_email(
     }
 
     email = resend.Emails.send(params)
-    print(f"Email sent: {email}")
-
+    
     # template_url = url_map.get(email_type)
 
     # if not template_url:

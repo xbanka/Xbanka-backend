@@ -43,35 +43,15 @@ async def auth_callback(
 ):
     """Handle the callback from Google after user authentication."""
     
-    # user_info = await GoogleAuthService.fetch(request)
+    # exchange code for token and fetch user info from Google
+    token_payload = await GoogleAuthService.exchange_code(code)
 
-    # affiliate = AffiliateService.get_by_email(db, user_info.get("email"))
-    # if not affiliate:
-    #     print("No affiliate found with this email, creating a new one.")
-    #     # create a new affiliate record if one doesn't exist
-    #     affiliate = AffiliateService.create_from_google_user(db, user_info)
+    user_info = await GoogleAuthService.fetch_user_info(token_payload["access_token"])
 
-    # access_token = AuthService.create_access_token(
-    #     data={"sub": str(affiliate.id), "role": "affiliate"}
-    # )
-    # refresh_token = AuthService.create_refresh_token(
-    #     data={"sub": str(affiliate.id), "role": "affiliate"}
-    # )
-
-    # exchange code for token
-    token_data = await GoogleAuthService.exchange_code(code)
-    # Fetch user info from Google
-    user_info = await GoogleAuthService.fetch_user_info(token_data["access_token"])
-
-    print("Google user info:", user_info)
-
-    google_id: str = user_info["sub"] # add google_id to user model and add
     email: str = user_info["email"]
-    name: str = user_info.get("name", "")
 
     affiliate = AffiliateService.get_by_email(db, email)
     if not affiliate:
-        print("No affiliate found with this email, creating a new one.")
         # create a new affiliate record if one doesn't exist
         affiliate = AffiliateService.create_from_google_user(db, user_info)
 
@@ -102,6 +82,5 @@ async def auth_callback(
         max_age=ACCESS_TOKEN_EXPIRE_MINUTES * 60,
     )
 
-    # Redirect to your frontend after successful login
-    url = f"{AFFILIATE_FRONTEND_URL}/auth/callback?access_token={access_token}"
+    url = f"{AFFILIATE_FRONTEND_URL}/auth/callback?token={access_token}"
     return RedirectResponse(url=url)
