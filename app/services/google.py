@@ -1,6 +1,17 @@
-from app.integrations.oauth import oauth
 from fastapi import HTTPException, Request
+import httpx
 
+from app.integrations.oauth import oauth
+from app.utils.settings import settings
+
+
+
+GOOGLE_TOKEN_URL = "https://oauth2.googleapis.com/token"
+GOOGLE_USERINFO_URL = "https://www.googleapis.com/oauth2/v3/userinfo"
+
+GOOGLE_CLIENT_ID = settings.GOOGLE_CLIENT_ID
+GOOGLE_CLIENT_SECRET = settings.GOOGLE_CLIENT_SECRET
+GOOGLE_REDIRECT_URI = settings.GOOGLE_REDIRECT_URI
 
 class GoogleAuthService:
     @staticmethod
@@ -37,3 +48,31 @@ class GoogleAuthService:
             )
 
         return user_info
+    
+    @staticmethod
+    async def fetch_user_info(access_token: str) -> dict:
+        async with httpx.AsyncClient() as client:
+            resp = await client.get(
+                GOOGLE_USERINFO_URL,
+                headers={"Authorization": f"Bearer {access_token}"},
+            )
+        if resp.status_code != 200:
+            raise HTTPException(status_code=400, detail="Failed to fetch Google user info")
+        return resp.json()
+    
+    @staticmethod
+    async def exchange_code(code: str) -> dict:
+        async with httpx.AsyncClient() as client:
+            resp = await client.post(
+                GOOGLE_TOKEN_URL,
+                data={
+                    "code": code,
+                    "client_id": GOOGLE_CLIENT_ID,
+                    "client_secret": GOOGLE_CLIENT_SECRET,
+                    "redirect_uri": GOOGLE_REDIRECT_URI,
+                    "grant_type": "authorization_code",
+                },
+            )
+        if resp.status_code != 200:
+            raise HTTPException(status_code=400, detail="Failed to exchange Google code")
+        return resp.json()

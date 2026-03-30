@@ -12,6 +12,7 @@ from jwt.exceptions import DecodeError, ExpiredSignatureError, InvalidTokenError
 from sqlalchemy.orm import Session
 
 from app.core.base.services import Service
+from app.core.enums import AuthProviderEnum
 from app.core.hash import Hasher
 from app.db.database import get_db
 from app.models.affiliate import Affiliate
@@ -243,6 +244,13 @@ class AuthService(Service):
         user: Optional[Union[ERPUser, Affiliate]] = (
             db.query(model).filter_by(email=email).first()
         )
+
+        # check if auth provider is google and if so, prevent password login
+        if user and user.auth_provider == AuthProviderEnum.google:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="User registered with Google. Please use Google login.",
+            )
 
         if user and not user.hashed_password:
             raise HTTPException(

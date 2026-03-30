@@ -5,8 +5,13 @@ from fastapi import FastAPI, Request, status
 from fastapi.exceptions import RequestValidationError, ResponseValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
+from starlette.middleware.sessions import SessionMiddleware
 
 from app.api.v1.routes import api_version_one
+from app.utils.settings import settings
+
+
+SECRET_KEY = settings.SECRET_KEY
 
 # @asynccontextmanager
 # async def lifespan(app: FastAPI):
@@ -53,6 +58,8 @@ origins = [
 ]
 
 # Add the middleware to your FastAPI app
+# --- Middleware ---
+app.add_middleware(SessionMiddleware, secret_key=SECRET_KEY)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=origins,

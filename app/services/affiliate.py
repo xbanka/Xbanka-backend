@@ -177,12 +177,7 @@ class AffiliateService(Service):
     @staticmethod
     def get_by_email(db: Session, email: str) -> Affiliate:
         stmt = select(Affiliate).where(Affiliate.email == email)
-        affiliate = db.execute(stmt).scalars().one_or_none()
-        if not affiliate:
-            raise HTTPException(
-                status_code=404, detail="Affiliate with this email not found"
-            )
-        return affiliate
+        return db.execute(stmt).scalars().one_or_none()
 
     @staticmethod
     def get_by_refcode(db: Session, refcode: str) -> Affiliate:
