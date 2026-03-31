@@ -11,6 +11,7 @@ from app.utils.settings import settings
 
 
 GOOGLE_CLIENT_ID = settings.GOOGLE_CLIENT_ID
+GOOGLE_REDIRECT_URI = settings.GOOGLE_REDIRECT_URI
 JWT_REFRESH_EXPIRY = settings.JWT_REFRESH_EXPIRY
 ACCESS_TOKEN_EXPIRE_MINUTES = settings.ACCESS_TOKEN_EXPIRE_MINUTES
 AFFILIATE_FRONTEND_URL = settings.AFFILIATE_FRONTEND_URL
@@ -27,7 +28,7 @@ async def google_login(request: Request):
         "client_id": GOOGLE_CLIENT_ID,
         "response_type": "code",
         "scope": "openid email profile",
-        "redirect_uri": request.url_for("auth_callback"),
+        "redirect_uri": GOOGLE_REDIRECT_URI,
         "access_type": "offline",
         "prompt": "consent",
     }
