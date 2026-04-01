@@ -246,7 +246,7 @@ class AuthService(Service):
         )
 
         # check if auth provider is google and if so, prevent password login
-        if user and user.auth_provider == AuthProviderEnum.google:
+        if model is Affiliate and user and user.auth_provider == AuthProviderEnum.google:
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail="User registered with Google. Please use Google login.",
