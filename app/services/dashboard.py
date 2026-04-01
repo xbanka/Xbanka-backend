@@ -7,12 +7,12 @@ from app.models.affiliate import Affiliate
 from app.models.affiliate_visit import AffiliateVisit
 from app.models.customer import Customer
 from app.models.transactions import Transaction
-from app.schemas.dashboard import DashboardDisplay
+from app.schemas.dashboard import AffiliateDashboardDisplay, ERPDashboardDisplay
 
 
 class DashboardService(Service):
     @staticmethod
-    def get_summary(db: Session, current_user: Affiliate) -> DashboardDisplay | None:
+    def get_affiliate_summary(db: Session, current_user: Affiliate) -> AffiliateDashboardDisplay | None:
         stmt = select(
             func.count().label("total_customers"),
             func.sum(case((Customer.converted, 1), else_=0)).label("converted"),
@@ -43,9 +43,13 @@ class DashboardService(Service):
         #     )
         # ) or 0
 
-        return DashboardDisplay(
+        return AffiliateDashboardDisplay(
             visits=no_visits,
             signed_up=result.get("total_customers", 0) or 0,
             converted=result.get("converted", 0) or 0,
             total_commission=total_commissions,
         )
+    
+    @staticmethod
+    def get_erp_stats(db: Session) -> ERPDashboardDisplay | None:
+        pass
