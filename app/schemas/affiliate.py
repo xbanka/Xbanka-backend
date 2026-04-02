@@ -76,7 +76,7 @@ class AffiliateMeResponse(BaseModel):
     last_name: str
     email: EmailStr
     username: Optional[str] = None
-    phone_no: str
+    phone_no: Optional[str] = None
     ref_code: str
     custom_refcode: Optional[str] = None
     created_at: datetime
