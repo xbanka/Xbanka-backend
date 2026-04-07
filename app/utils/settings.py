@@ -13,7 +13,7 @@ class Settings(BaseSettings):
     AFFILIATE_FRONTEND_URL: str
     ERP_FRONTEND_URL: str
 
-    DEBUG: bool
+    ENVIRONMENT: str
 
     TEST_EMAIL: str
 
