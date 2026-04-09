@@ -1,15 +1,15 @@
 # Default compose files
-BASE=compose.yml
+BASE=compose.yaml
 
 # Environments
-STAGING=compose.staging.yml
-PROD=compose.prod.yml
+STAGING=compose.staging.yaml
+PROD=compose.prod.yaml
 
 # ------------------------
 # Local
 # ------------------------
 up:
-	docker compose up --build
+	docker compose up -d --build
 
 down:
 	docker compose down
