@@ -7,8 +7,6 @@ services:
     command: ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]
 
   db:
-    volumes:
-      - dbdata_staging:/var/lib/postgresql
     env_file:
       - .env.staging
     ports:
