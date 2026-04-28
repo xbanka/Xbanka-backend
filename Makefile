@@ -19,14 +19,14 @@ down:
 # ------------------------
 staging-up:
 	docker compose \
-		-p staging \
+		-p xbanka-staging \
 		-f $(BASE) \
 		-f $(STAGING) \
 		up -d --build
 
 staging-down:
 	docker compose \
-		-p staging \
+		-p xbanka-staging \
 		-f $(BASE) \
 		-f $(STAGING) \
 		down
@@ -36,14 +36,14 @@ staging-down:
 # ------------------------
 prod-up:
 	docker compose \
-		-p prod \
+		-p xbanka-prod \
 		-f $(BASE) \
 		-f $(PROD) \
 		up -d --build
 
 prod-down:
 	docker compose \
-		-p prod \
+		-p xbanka-prod \
 		-f $(BASE) \
 		-f $(PROD) \
 		down
