@@ -13,6 +13,7 @@ ERP_FRONTEND_URL = settings.ERP_FRONTEND_URL
 MAIL_FROM = settings.MAIL_FROM
 RESEND_API_KEY = settings.RESEND_API_KEY
 TEST_EMAIL = settings.TEST_EMAIL
+ENVIRONMENT = settings.ENVIRONMENT
 
 
 resend.api_key = RESEND_API_KEY
@@ -62,7 +63,7 @@ async def send_verification_email(
         subtype=MessageType.html,
     )
 
-    if settings.DEBUG:
+    if ENVIRONMENT == "development":
         message.recipients.append(TEST_EMAIL)
 
     fm = FastMail(conf)
@@ -79,51 +80,51 @@ async def send_forgot_password_email(
     background_tasks: BackgroundTasks,
 ):
     
-    template_url = url_map.get(email_type)
-    
-    params: resend.Emails.SendParams = {
-        "from": "xbankang.com@xbankang.com",
-        "to": [recipient],
-        "subject": "Reset Your Password",
-        "template": {
-            "id": "ffaff905-1e5b-499d-aa15-706004736296",
-            "variables": {
-                "first_name": first_name,
-                "last_name": last_name,
-                "reset_url": reset_url,
-                "frontend_url": template_url,
-                "year": 2026,
-            },
-        },
-    }
-
-    email = resend.Emails.send(params)
-    
     # template_url = url_map.get(email_type)
-
-    # if not template_url:
-    #     raise HTTPException(
-    #         status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-    #         detail="Environment variable for frontend URL is missing",
-    #     )
-
-    # template_body: Dict[str, str] = {
-    #     "first_name": first_name,
-    #     "last_name": last_name,
-    #     "reset_url": reset_url,
-    #     "frontend_url": template_url,
+    
+    # params: resend.Emails.SendParams = {
+    #     "from": "xbankang.com@xbankang.com",
+    #     "to": [recipient],
+    #     "subject": "Reset Your Password",
+    #     "template": {
+    #         "id": "ffaff905-1e5b-499d-aa15-706004736296",
+    #         "variables": {
+    #             "first_name": first_name,
+    #             "last_name": last_name,
+    #             "reset_url": reset_url,
+    #             "frontend_url": template_url,
+    #             "year": 2026,
+    #         },
+    #     },
     # }
 
-    # message = MessageSchema(
-    #     subject="Reset Your Password",
-    #     recipients=[recipient],
-    #     template_body=template_body,
-    #     subtype=MessageType.html,
-    # )
+    # email = resend.Emails.send(params)
+    
+    template_url = url_map.get(email_type)
 
-    # fm = FastMail(conf)
-    # # await fm.send_message(message, template_name='forgot_password_template.html')
-    # background_tasks.add_task(fm.send_message, message, "forgot_password_template.html")
+    if not template_url:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Environment variable for frontend URL is missing",
+        )
+
+    template_body: Dict[str, str] = {
+        "first_name": first_name,
+        "last_name": last_name,
+        "reset_url": reset_url,
+        "frontend_url": template_url,
+    }
+
+    message = MessageSchema(
+        subject="Reset Your Password",
+        recipients=[recipient],
+        template_body=template_body,
+        subtype=MessageType.html,
+    )
+
+    fm = FastMail(conf)
+    # await fm.send_message(message, template_name='forgot_password_template.html')
+    background_tasks.add_task(fm.send_message, message, "forgot_password_template.html")
 
 
 async def send_invite_email(
@@ -141,7 +142,7 @@ async def send_invite_email(
         subtype=MessageType.html,
     )
 
-    if settings.DEBUG:
+    if ENVIRONMENT == "development":
         message.recipients.append(TEST_EMAIL)
 
     fm = FastMail(conf)
