@@ -1,7 +1,6 @@
 from typing import Optional
-from uuid import UUID
 
-from fastapi import APIRouter, Depends, File, Query, Request, Response, UploadFile, status
+from fastapi import APIRouter, Depends, Query, Request, Response, status
 from sqlalchemy.orm import Session
 
 from app.core.enums import PayoutMethodEnum, PayoutStatusEnum

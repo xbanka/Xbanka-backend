@@ -93,8 +93,6 @@ async def register(
 ):
     user = ERPService.create(db, login_request)
 
-    # token = AuthService.create_magic_link_token(data={"sub": str(user.id)})
-
     return {
         "message": "Your profile has been created.",
         "user": user,

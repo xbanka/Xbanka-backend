@@ -9,6 +9,7 @@ from app.core.enums import EmailTypeEnum
 from app.utils.settings import settings
 
 AFFILIATE_FRONTEND_URL = settings.AFFILIATE_FRONTEND_URL
+ENVIRONMENT = settings.ENVIRONMENT
 ERP_FRONTEND_URL = settings.ERP_FRONTEND_URL
 MAIL_FROM = settings.MAIL_FROM
 RESEND_API_KEY = settings.RESEND_API_KEY

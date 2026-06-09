@@ -32,6 +32,7 @@ async def google_login(request: Request):
         "access_type": "offline",
         "prompt": "consent",
     }
+
     url = f"{GOOGLE_AUTH_URL}?{urlencode(params)}"
     return RedirectResponse(url=url)
 

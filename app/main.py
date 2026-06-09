@@ -12,6 +12,7 @@ from app.utils.settings import settings
 
 
 SECRET_KEY = settings.SECRET_KEY
+ENVIRONMENT = settings.ENVIRONMENT
 
 # @asynccontextmanager
 # async def lifespan(app: FastAPI):
@@ -41,6 +42,7 @@ sentry_sdk.init(
     # Set profile_lifecycle to "trace" to automatically
     # run the profiler on when there is an active transaction
     profile_lifecycle="trace",
+    environment=ENVIRONMENT,
 )
 
 app = FastAPI()
