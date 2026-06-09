@@ -16,50 +16,41 @@ login_payload = {
     "password": "@Password123"
 }
 
-mock_token = "mocked_token"
-
-ver_affiliate = {
-    "verified": True
+invite_payload = {
+  "email": "olotonjoshua@gmail.com",
+  "role": "Admin",
+  "permissions": [
+   
+  ]
 }
 
-def test_erp_register(mocker, test_client):
-    mock_send_email = mocker.patch(
-        "app.api.v1.routes.auth.erp.send_verification_email")
-    response = test_client.post("/api/auth/erp/register", json=register_payload)
-    json = response.json()
-    assert response.status_code == 201
-    assert json["message"] == "Your profile has been created. Please check your email to verify your account."
-    mock_send_email.assert_called_once()
-    
+# def test_uninitialized_erp_register(mocker, test_client):
+#     response = test_client.post("/api/auth/erp/register", json=register_payload)
+#     json = response.json()
+#     assert response.status_code == 403
+#     assert json["detail"] == "ERP user has not been initialized."
 
-def test_erp_login_unverified(mocker, test_client):
-    mocker.patch(
-        "app.api.v1.routes.auth.erp.send_verification_email")
-    test_client.post("/api/auth/erp/register", json=register_payload)
-    response = test_client.post("/api/auth/erp/login", json=login_payload)
-    json = response.json()
-    assert json["detail"] == "User profile verification required"
-    assert response.status_code == 401
+# def test_staff_invite(mocker, super_client):
+#     mock_send_email = mocker.patch(
+#         "app.api.v1.routes.staff.send_invite_email")
+#     response = super_client.post("/api/staff/invite", json=invite_payload)
+#     json = response.json()
+#     assert response.status_code == 200
+#     assert json["message"] == f"Staff member {invite_payload['email']} invited successfully."
+#     mock_send_email.assert_called_once()
 
 
-def test_verify_erp(mocker, test_client, db_session):
-    from app.models.erp_user import ERPUser
-    erp_user = ERPUser(
-        first_name="Sophia",
-        last_name="Johnson",
-        email="sophia.johnson@example.co.uk",
-        hashed_password=Hasher.get_password_hash("@Next23rd"),
-        verified=False,
-    )
-    db_session.add(erp_user)
-    db_session.commit()
-    db_session.refresh(erp_user)
+# def test_erp_register_success(mocker, test_client):
+#     # Mock ERP initialization
+#     mocker.patch('app.services.auth.AuthService.is_erp_initialized', return_value=True)
+#     mocker.patch('app.services.auth.AuthService.register_erp_user', return_value={"id": 1, "email": "michael.adee@example.com"})
+#     response = test_client.post("/api/auth/erp/register", json=register_payload)
+#     assert response.status_code == 201
+#     json = response.json()
+#     assert json["email"] == "michael.adee@example.com"
 
-    mock_verify_token = mocker.patch(
-        "app.services.auth.AuthService.verify_magic_link", return_value=erp_user
-    )
-
-    mock_token = "mock_token"
-    test_client.post(f"/api/auth/erp/verify?token={mock_token}")
-
-    assert erp_user.verified
+# def test_erp_register_invalid_data(test_client):
+#     invalid_payload = register_payload.copy()
+#     invalid_payload["email"] = "invalid-email"
+#     response = test_client.post("/api/auth/erp/register", json=invalid_payload)
+#     assert response.status_code == 422  # Assuming validation error

@@ -78,11 +78,10 @@ def verified_affiliate(db_session):
         email="sophia.johnson@example.co.uk",
         username="sophiee",
         phone_no="+123456789",
-        bank="United Bank",
-        account_no="0123456",
         hashed_password=Hasher.get_password_hash("@Next23rd"),
         verified=True,
-        ref_code=secrets.token_urlsafe(6)
+        ref_code=secrets.token_urlsafe(6),
+        auth_provider="email"
     )
     db_session.add(affiliate)
     db_session.commit()
@@ -134,5 +133,46 @@ def erp_token(verified_erp):
 def erp_client(test_client, erp_token):
     test_client.headers.update(
         {"Authorization": f"Bearer {erp_token}"}
+    )
+    return test_client
+
+@pytest.fixture
+def superadmin_role(db_session):
+    from app.models.role import Role
+    role = Role(name="Super Admin")
+    db_session.add(role)
+    db_session.commit()
+    db_session.refresh(role)
+    return role
+
+
+@pytest.fixture
+def verified_superadmin(db_session, superadmin_role):
+    from app.models.erp_user import ERPUser
+    from app.core.hash import Hasher
+
+    superadmin = ERPUser(
+        first_name="Super",
+        last_name="Admin",
+        email="superadmin1@xbankang.com",
+        hashed_password=Hasher.get_password_hash("@SuperAdmin123"),
+        verified=True,
+        role_id = superadmin_role.id
+    )
+    db_session.add(superadmin)
+    db_session.commit()
+    db_session.refresh(superadmin)
+    return superadmin
+
+@pytest.fixture
+def super_token(verified_superadmin):
+    return AuthService.create_access_token(
+        data={"sub": str(verified_superadmin.id), "role": "super"}
+    )
+
+@pytest.fixture
+def super_client(test_client, super_token):
+    test_client.headers.update(
+        {"Authorization": f"Bearer {super_token}"}
     )
     return test_client

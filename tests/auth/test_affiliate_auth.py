@@ -9,8 +9,6 @@ register_payload =  {
     "email": "sophia.johnson@example.co.uk",
     "username": "sophiee",
     "phone_no": "+447911223344",
-    "bank": "Stanbic IBTC",
-    "account_no": "3001239876",
     "password": "@Next23rd",
     "confirm_password": "@Next23rd"
 }
@@ -53,8 +51,6 @@ def test_verify_affiliates(mocker, test_client, db_session):
         email="sophia.johnson@example.co.uk",
         username="sophiee",
         phone_no="+123456789",
-        bank="United Bank",
-        account_no="0123456",
         hashed_password=Hasher.get_password_hash("@Next23rd"),
         verified=False,
         ref_code=secrets.token_urlsafe(6)
