@@ -11,3 +11,14 @@ class PostRatesRequest(BaseModel):
     buyFeeValue: float = Field(..., description="The value of the buy fee")
     sellFeeType: str = Field(..., description="The type of sell fee (e.g., percentage, fixed)")
     sellFeeValue: float = Field(..., description="The value of the sell fee")
+
+
+class SegmentSchema(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    name: str = Field(..., description="The name of the segment")
+    isActive: bool = Field(..., description="Whether the segment is active or not")
+    buyFeeType: str = Field(..., description="The type of buy fee (e.g., percentage, fixed)")
+    buySpread: float = Field(..., description="The value of the buy spread")
+    sellFeeType: str = Field(..., description="The type of sell fee (e.g., percentage, fixed)")
+    sellSpread: float = Field(..., description="The value of the sell spread")
