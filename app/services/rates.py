@@ -1,11 +1,9 @@
 from typing import List
 from uuid import UUID
-
 import requests
-from sqlalchemy.orm import Session
 
 from app.core.base.services import Service
-from app.schemas.erp.rates import PostRatesRequest, UpdatesSegmentsRequest
+from app.schemas.erp.rates import PostRatesRequest, SegmentSchema
 from app.utils.settings import settings
 
 
@@ -49,7 +47,7 @@ class RatesService(Service):
         return response.json()
     
     @staticmethod
-    def bulk_update_segments(segments: List[UpdatesSegmentsRequest]):
+    def bulk_update_segments(segments: List[SegmentSchema]):
         response = requests.put(
             "https://backend.xbankang.com/internal/wallets/crypto/segments/bulk",
             json={"segments": segments},
@@ -58,6 +56,7 @@ class RatesService(Service):
         return response.json()
     
 
+    @staticmethod
     def assign_crypto_to_segment(crypto_id: UUID, segment_id: UUID, override_segment: bool):
         response = requests.put(
             f"https://backend.xbankang.com/internal/wallets/crypto/accepts/{crypto_id}",
