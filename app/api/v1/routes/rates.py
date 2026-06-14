@@ -1,7 +1,8 @@
 from typing import List
+from uuid import UUID
 
 from fastapi import APIRouter
-from app.schemas.erp.rates import PostRatesRequest, SegmentSchema
+from app.schemas.erp.rates import RatesSchema, SegmentSchema
 from app.services.rates import RatesService
 
 
@@ -13,12 +14,12 @@ def get_crypto_rates():
 
 
 @rates.post("/crypto")
-def post_crypto_rate(request: PostRatesRequest):
+def post_crypto_rate(request: RatesSchema):
     return RatesService.post_crypto_rate(request)
 
 
 @rates.put("/crypto/{rate_id}")
-def update_crypto_rate(rate_id: str, request: PostRatesRequest):
+def update_crypto_rate(rate_id: UUID, request: RatesSchema):
     return RatesService.update_crypto_rate(rate_id, request)
 
 
@@ -27,14 +28,6 @@ def get_all_segments():
     return RatesService.get_all_segments()
 
 
-# @rates.put("/segments/bulk")
-# def bulk_update_segments(segments: List[SegmentSchema]):
-#     return RatesService.bulk_update_segments(segments)
-
-
-# # assign crypto to segment
-# @rates.put("/segments/{segment_id}/assign")
-# def assign_crypto_to_segment(segment_id: str, crypto_ids: List[str]):
-#     # Implement logic to assign crypto to segment
-#     pass
-
+@rates.put("/segments/bulk")
+def bulk_update_segments(segments: List[SegmentSchema]):
+    return RatesService.bulk_update_segments(segments)

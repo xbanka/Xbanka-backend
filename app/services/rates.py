@@ -3,7 +3,7 @@ from uuid import UUID
 import requests
 
 from app.core.base.services import Service
-from app.schemas.erp.rates import PostRatesRequest, SegmentSchema
+from app.schemas.erp.rates import RatesSchema, SegmentSchema
 from app.utils.settings import settings
 
 
@@ -20,7 +20,7 @@ class RatesService(Service):
     
     
     @staticmethod
-    def post_crypto_rate(request: PostRatesRequest):
+    def post_crypto_rate(request: RatesSchema):
         response = requests.post(
             "https://backend.xbankang.com/internal/wallets/crypto/accepts", json=request.model_dump(), 
             headers={"x-internal-key": INTERNAL_KEY}
@@ -29,9 +29,9 @@ class RatesService(Service):
     
     
     @staticmethod
-    def update_crypto_rate(rate_id: UUID, request: PostRatesRequest):
+    def update_crypto_rate(rate_id: UUID, request: RatesSchema):
         response = requests.put(
-            f"https://backend.xbankang.com/internal/wallets/crypto/accepts/{rate_id}", json=request.model_dump(), 
+            f"https://backend.xbankang.com/internal/wallets/crypto/accepts/{rate_id}", json=request.model_dump(exclude_unset=True), 
             headers={"x-internal-key": INTERNAL_KEY}
         )
         return response.json()
@@ -50,7 +50,10 @@ class RatesService(Service):
     def bulk_update_segments(segments: List[SegmentSchema]):
         response = requests.put(
             "https://backend.xbankang.com/internal/wallets/crypto/segments/bulk",
-            json={"segments": segments},
+            json={
+                "setupNote": "Update segment margins",
+                "segments": [segment.model_dump(mode="json") for segment in segments]
+            },
             headers={"x-internal-key": INTERNAL_KEY}
         )
         return response.json()
