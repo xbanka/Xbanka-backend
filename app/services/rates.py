@@ -3,7 +3,7 @@ from uuid import UUID
 import requests
 
 from app.core.base.services import Service
-from app.schemas.erp.rates import RatesSchema, SegmentSchema
+from app.schemas.erp.rates import AssetsRequest, SegmentRequest
 from app.utils.settings import settings
 
 
@@ -20,7 +20,7 @@ class RatesService(Service):
     
     
     @staticmethod
-    def post_crypto_rate(request: RatesSchema):
+    def post_crypto_rate(request: AssetsRequest):
         response = requests.post(
             "https://backend.xbankang.com/internal/wallets/crypto/accepts", json=request.model_dump(), 
             headers={"x-internal-key": INTERNAL_KEY}
@@ -29,7 +29,7 @@ class RatesService(Service):
     
     
     @staticmethod
-    def update_crypto_rate(rate_id: UUID, request: RatesSchema):
+    def update_crypto_rate(rate_id: UUID, request: AssetsRequest):
         response = requests.put(
             f"https://backend.xbankang.com/internal/wallets/crypto/accepts/{rate_id}", json=request.model_dump(exclude_unset=True), 
             headers={"x-internal-key": INTERNAL_KEY}
@@ -47,7 +47,7 @@ class RatesService(Service):
         return response.json()
     
     @staticmethod
-    def bulk_update_segments(segments: List[SegmentSchema]):
+    def bulk_update_segments(segments: List[SegmentRequest]):
         response = requests.put(
             "https://backend.xbankang.com/internal/wallets/crypto/segments/bulk",
             json={

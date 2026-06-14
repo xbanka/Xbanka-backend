@@ -1,9 +1,24 @@
+from datetime import datetime
+
 from pydantic import BaseModel, Field
 from pydantic import ConfigDict
-from typing import Optional
+from typing import List, Optional, Generic, TypeVar
 from uuid import UUID
 
-class RatesSchema(BaseModel):
+
+T = TypeVar("T")
+
+
+class ApiResponse(BaseModel, Generic[T]):
+    message: str
+    details: str
+    errorGroup: str
+    data: T | None = None
+
+# =========================
+# Request Models
+# =========================
+class AssetsRequest(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
     currency: Optional[str] = Field(None, description="The currency code (e.g., USD, EUR)")
@@ -16,7 +31,7 @@ class RatesSchema(BaseModel):
     segmentId: Optional[UUID] = Field(None, description="The id of segment crypto belongs to")
 
 
-class SegmentSchema(BaseModel):
+class SegmentRequest(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
     id: UUID = Field(..., description="The id of segment")
@@ -26,3 +41,66 @@ class SegmentSchema(BaseModel):
     buySpread: float = Field(..., description="The value of the buy spread")
     sellFeeType: str = Field(..., description="The type of sell fee (e.g., percentage, fixed)")
     sellSpread: float = Field(..., description="The value of the sell spread")
+
+
+# =========================
+# Shared Response Models
+# =========================
+
+class AssetSummary(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: UUID
+    currency: str
+    name: str
+    isActive: bool
+    buyFeeType: str
+    buyFeeValue: float
+    sellFeeType: str
+    sellFeeValue: float
+    overrideSegment: bool = False
+    segmentId: UUID
+    createdAt: datetime
+    updatedAt: datetime
+
+
+class SegmentSummary(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: UUID
+    name: str
+    isActive: bool
+    buyFeeType: str
+    buySpread: float
+    sellFeeType: str
+    sellSpread: float
+    createdAt: datetime
+    updatedAt: datetime
+
+
+# =========================
+# Segments Endpoint
+# =========================
+
+
+class SuccessData(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    success: bool
+    message: str
+class SegmentResponse(SegmentSummary):
+    assets: List[AssetSummary]
+
+BulkSegmentsResponse = ApiResponse[List[SegmentResponse]]
+BulkUpdateSegmentsResponse = ApiResponse[SuccessData]
+
+
+# =========================
+# Assets Endpoint
+# =========================
+
+class AssetResponse(AssetSummary):
+    segment: SegmentSummary
+
+BulkAssetsResponse = ApiResponse[List[AssetResponse]]
+UpdateAssetResponse = ApiResponse[AssetSummary]
