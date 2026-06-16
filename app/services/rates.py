@@ -22,7 +22,7 @@ class RatesService(Service):
     @staticmethod
     def post_crypto_rate(request: AssetsRequest):
         response = requests.post(
-            "https://backend.xbankang.com/internal/wallets/crypto/accepts", json=request.model_dump(), 
+            "https://backend.xbankang.com/internal/wallets/crypto/accepts", json=request.model_dump(mode="json"), 
             headers={"x-internal-key": INTERNAL_KEY}
         )
         return response.json()
@@ -31,7 +31,7 @@ class RatesService(Service):
     @staticmethod
     def update_crypto_rate(rate_id: UUID, request: AssetsRequest):
         response = requests.put(
-            f"https://backend.xbankang.com/internal/wallets/crypto/accepts/{rate_id}", json=request.model_dump(exclude_unset=True), 
+            f"https://backend.xbankang.com/internal/wallets/crypto/accepts/{rate_id}", json=request.model_dump(exclude_unset=True, mode="json"), 
             headers={"x-internal-key": INTERNAL_KEY}
         )
         return response.json()
@@ -59,14 +59,14 @@ class RatesService(Service):
         return response.json()
     
 
-    @staticmethod
-    def assign_crypto_to_segment(crypto_id: UUID, segment_id: UUID, override_segment: bool):
-        response = requests.put(
-            f"https://backend.xbankang.com/internal/wallets/crypto/accepts/{crypto_id}",
-            json={
-                "segmentId": segment_id,
-                "overrideSegment": override_segment
-            },
-            headers={"x-internal-key": INTERNAL_KEY}
-        )
-        return response.json()
+    # @staticmethod
+    # def assign_crypto_to_segment(crypto_id: UUID, segment_id: UUID, override_segment: bool):
+    #     response = requests.put(
+    #         f"https://backend.xbankang.com/internal/wallets/crypto/accepts/{crypto_id}",
+    #         json={
+    #             "segmentId": segment_id,
+    #             "overrideSegment": override_segment
+    #         },
+    #         headers={"x-internal-key": INTERNAL_KEY}
+    #     )
+    #     return response.json()
