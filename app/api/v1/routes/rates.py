@@ -2,7 +2,7 @@ from typing import List
 from uuid import UUID
 
 from fastapi import APIRouter
-from app.schemas.erp.rates import BulkAssetsResponse, BulkSegmentsResponse, AssetsRequest, BulkUpdateSegmentsResponse, SegmentRequest, UpdateAssetResponse
+from app.schemas.erp.rates import AssignAssetsToSegmentRequest, BulkAssetsResponse, BulkSegmentsResponse, AssetsRequest, BulkUpdateSegmentsResponse, SegmentRequest, UpdateAssetResponse
 from app.services.rates import RatesService
 
 
@@ -31,3 +31,8 @@ def get_all_segments():
 @rates.put("/segments/bulk", response_model=BulkUpdateSegmentsResponse)
 def bulk_update_segments(segments: List[SegmentRequest]):
     return RatesService.bulk_update_segments(segments)
+
+
+@rates.put("/segments/{segment_id}/bulk-assign", response_model=BulkUpdateSegmentsResponse)
+def bulk_assign_segments(segment_id: UUID, request: AssignAssetsToSegmentRequest):
+    return RatesService.bulk_assign_to_segments(segment_id, request)

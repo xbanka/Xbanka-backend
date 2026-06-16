@@ -42,6 +42,12 @@ class SegmentRequest(BaseModel):
     sellFeeType: str = Field(..., description="The type of sell fee (e.g., percentage, fixed)")
     sellSpread: float = Field(..., description="The value of the sell spread")
 
+class AssignAssetsToSegmentRequest(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    asset_ids: List[str] = Field(..., alias="assetIds")
+    setup_note: str = Field(..., alias="setupNote")
+
 
 # =========================
 # Shared Response Models
@@ -88,6 +94,7 @@ class SuccessData(BaseModel):
 
     success: bool
     message: str
+    
 class SegmentResponse(SegmentSummary):
     assets: List[AssetSummary]
 

@@ -3,7 +3,7 @@ from uuid import UUID
 import requests
 
 from app.core.base.services import Service
-from app.schemas.erp.rates import AssetsRequest, SegmentRequest
+from app.schemas.erp.rates import AssetsRequest, AssignAssetsToSegmentRequest, SegmentRequest
 from app.utils.settings import settings
 
 
@@ -54,6 +54,15 @@ class RatesService(Service):
                 "setupNote": "Update segment margins",
                 "segments": [segment.model_dump(mode="json") for segment in segments]
             },
+            headers={"x-internal-key": INTERNAL_KEY}
+        )
+        return response.json()
+    
+    @staticmethod
+    def bulk_assign_to_segments(segment_id: UUID, request: AssignAssetsToSegmentRequest):
+        response = requests.put(
+            f"https://backend.xbankang.com/internal/wallets/crypto/segments/{segment_id}/assets/bulk-assign",
+            json=request.model_dump(mode="json"),
             headers={"x-internal-key": INTERNAL_KEY}
         )
         return response.json()
