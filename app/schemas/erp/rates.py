@@ -45,8 +45,8 @@ class SegmentRequest(BaseModel):
 class AssignAssetsToSegmentRequest(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
-    asset_ids: List[str] = Field(..., alias="assetIds")
-    setup_note: str = Field(..., alias="setupNote")
+    assetIds: List[str] = Field(..., description="List of asset IDs to assign to the segment")
+    setupNote: str = Field(..., description="Note or reason for assigning these assets to the segment")
 
 
 # =========================
@@ -94,7 +94,7 @@ class SuccessData(BaseModel):
 
     success: bool
     message: str
-    
+
 class SegmentResponse(SegmentSummary):
     assets: List[AssetSummary]
 
