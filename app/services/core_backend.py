@@ -5,7 +5,7 @@ from app.core.base.services import Service
 from app.utils.settings import settings
 
 INTERNAL_KEY = settings.INTERNAL_KEY
-BASE_URL = settings.CORE_BACKEND_URL
+BASE_URL = settings.INTERNAL_BASE_URL
 
 class CoreBackendService(Service):
     
