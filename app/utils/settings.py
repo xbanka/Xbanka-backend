@@ -60,6 +60,7 @@ class Settings(BaseSettings):
     GOOGLE_REDIRECT_URI: str
 
     INTERNAL_KEY: str
+    CORE_BACKEND_URL: str = "https://backend.xbankang.com"
 
     # Add this configuration
     model_config = SettingsConfigDict(
