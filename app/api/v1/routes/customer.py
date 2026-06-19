@@ -54,7 +54,6 @@ def search_customers(q: str = Query(...), db: Session = Depends(get_db)):
     customers = CustomerService.search_customers(db, q)
     return customers
 
-
 @customer.get("/{customer_id}", response_model=CustomerResponse)
 def get_customer(customer_id: UUID, db: Session = Depends(get_db)):
     customers = CustomerService.fetch(db, customer_id)

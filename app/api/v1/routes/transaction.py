@@ -43,7 +43,6 @@ def fetch_all_transactions(
 ):
     return TransactionService.fetch_all_paginated(db, page, limit)
 
-
 @transaction.post(
     "/new",
     status_code=status.HTTP_201_CREATED,
