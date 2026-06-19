@@ -8,6 +8,7 @@ from fastapi.responses import JSONResponse
 from starlette.middleware.sessions import SessionMiddleware
 
 from app.api.v1.routes import api_version_one
+from app.api.v2.routes import api_version_two
 from app.utils.settings import settings
 
 
@@ -47,6 +48,7 @@ sentry_sdk.init(
 
 app = FastAPI()
 app.include_router(api_version_one)
+app.include_router(api_version_two)
 
 logger = logging.getLogger(__name__)
 
