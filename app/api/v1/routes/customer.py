@@ -1,7 +1,6 @@
-from typing import List
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session
 
 from app.db.database import get_db
@@ -10,6 +9,7 @@ from app.schemas.customer import (
     CustomerCreateResponse,
     CustomerResponse,
 )
+from app.services.core_backend import CoreBackendService
 from app.services.customer import CustomerService
 from app.utils.auth import require_roles
 from app.utils.schema import CurrentUser
@@ -41,18 +41,41 @@ def create_customer_public(
     return {"message": "Customer created successfully", "customer": customer}
 
 
-@customer.get("/all", response_model=List[CustomerResponse])
-def fetch_all_customers(db: Session = Depends(get_db)):
-    customers = CustomerService.fetch_all(db)
-    return customers
-
+@customer.get(
+    "/all", status_code=status.HTTP_200_OK
+)
+def fetch_all_customers(
+    current_user: CurrentUser = Depends(require_roles("affiliate", "erp", "super")),
+    page: int = Query(1, ge=1, description="Page number"),
+    limit: int = Query(10, ge=1, le=100, description="Items per page"),
+    search: str = Query(None, description="Search term for name, email, or phone"),
+    status_filter: str = Query(None, alias="status", description="Filter by user status/step"),
+    start_date: str = Query(None, alias="startDate", description="Start date (ISO)"),
+    end_date: str = Query(None, alias="endDate", description="End date (ISO)"),
+):
+    try:
+        return CoreBackendService.get_all_users(
+            page=page, 
+            limit=limit,
+            search=search,
+            status=status_filter,
+            startDate=start_date,
+            endDate=end_date
+        )
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 @customer.get(
-    "/search", response_model=List[CustomerResponse], status_code=status.HTTP_200_OK
+    "/search", status_code=status.HTTP_200_OK
 )
-def search_customers(q: str = Query(...), db: Session = Depends(get_db)):
-    customers = CustomerService.search_customers(db, q)
-    return customers
+def search_customers(
+    q: str = Query(...), 
+    current_user: CurrentUser = Depends(require_roles("affiliate", "erp", "super"))
+):
+    try:
+        return CoreBackendService.search_users(q)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 @customer.get("/{customer_id}", response_model=CustomerResponse)
 def get_customer(customer_id: UUID, db: Session = Depends(get_db)):
