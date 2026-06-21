@@ -12,8 +12,26 @@ from pydantic import (
     model_validator,
 )
 
-from app.core.enums import CryptoPairEnum, ServiceTypeEnum, UploadStatusEnum
+from app.core.enums import CryptoPairEnum, ServiceTypeEnum, TxnStatusEnum, UploadStatusEnum
 from app.schemas.customer import CustomerBrief, CustomerRead
+
+
+class TransactionMetaData(BaseModel):
+    isManual: bool = True
+    paymentMethod: str
+    partnerRate: float
+    xbankaRate: float
+    marginPercentage: str
+
+class LogManualTransactionsRequest(BaseModel):
+    email: str
+    firstName: str
+    lastName: str
+    transactionType: str
+    amount: float
+    currency: str
+    status: TxnStatusEnum
+    metadata: TransactionMetaData
 
 
 class TransactionDetailResponse(BaseModel):

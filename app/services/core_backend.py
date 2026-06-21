@@ -1,7 +1,7 @@
 import requests
-from typing import Dict, Any
 
 from app.core.base.services import Service
+from app.schemas.transactions import LogManualTransactionsRequest
 from app.utils.settings import settings
 
 INTERNAL_KEY = settings.INTERNAL_KEY
@@ -33,7 +33,7 @@ class CoreBackendService(Service):
         return CoreBackendService._request("GET", "/internal/users/all", params=params)
 
     @staticmethod
-    def log_manual_transaction(payload: Dict[str, Any]) -> dict:
+    def log_manual_transaction(payload: LogManualTransactionsRequest) -> dict:
         """Proxies the log manual transaction request to the core backend."""
         return CoreBackendService._request("POST", "/internal/wallet/transactions/manual", json=payload)
 

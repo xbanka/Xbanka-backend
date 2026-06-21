@@ -153,3 +153,8 @@ JOB_ROLE_PERMISSIONS = {
         Permission.VIEW_STAFF_LIST,
     },
 }
+
+class TxnStatusEnum(str, enum.Enum):
+    PENDING = "PENDING"
+    COMPLETED = "COMPLETED"
+    FAILED = "FAILED"
