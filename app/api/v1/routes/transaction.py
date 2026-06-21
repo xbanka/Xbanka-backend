@@ -6,7 +6,7 @@ from sqlalchemy.orm import Session
 
 from app.db.database import get_db
 from app.schemas.transactions import (
-    PaginatedTransactionResponse,
+    LogManualTransactionsRequest,
     TransactionBrief,
     TransactionCreatePayload,
     TransactionCreateResponse,
@@ -67,7 +67,7 @@ def fetch_all_transactions(
     "/manual-log", status_code=status.HTTP_201_CREATED
 )
 def create_manual_transaction_log(
-    payload: dict = Body(...),
+    payload: LogManualTransactionsRequest,
     current_user: CurrentUser = Depends(require_roles("affiliate", "erp", "super")),
 ):
     try:
