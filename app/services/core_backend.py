@@ -1,3 +1,6 @@
+from uuid import UUID
+from fastapi import HTTPException
+
 import requests
 
 from app.core.base.services import Service
@@ -41,3 +44,10 @@ class CoreBackendService(Service):
     def get_all_transactions(page: int = 1, limit: int = 10, **kwargs):
         params = {"page": page, "limit": limit, **kwargs}
         return CoreBackendService._request("GET", "/internal/wallet/transactions/all", params=params)
+    
+    @staticmethod
+    def get_transaction_by_id(id: UUID):
+        try:
+            return CoreBackendService._request("GET", f"/internal/wallet/transactions/{id}")
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=str(e))

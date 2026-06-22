@@ -63,6 +63,15 @@ def fetch_all_transactions(
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
     
+
+@transaction.get("/{transaction_id:uuid}", status_code=status.HTTP_200_OK)
+def fetch_single_transaction(
+    transaction_id: UUID, 
+    current_user: CurrentUser = Depends(require_roles("affiliate", "erp", "super"))
+):
+    return CoreBackendService.get_transaction_by_id(transaction_id)
+
+    
 @transaction.post(
     "/manual-log", status_code=status.HTTP_201_CREATED
 )
@@ -106,16 +115,3 @@ def upload_transaction_attachment(
         db=db, transaction_id=transaction_id, attachment=attachment
     )
     return {"message": "Attachment uploaded successfully", "transaction": transaction}
-
-
-@transaction.get(
-    "/{transaction_id:uuid}",
-    status_code=status.HTTP_200_OK,
-    response_model=TransactionDetailResponse,
-)
-def get_transaction(
-    transaction_id: UUID,
-    db: Session = Depends(get_db),
-    current_user: CurrentUser = Depends(require_roles("affiliate", "erp")),
-):
-    return TransactionService.fetch(db, transaction_id)
