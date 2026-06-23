@@ -77,10 +77,9 @@ def search_customers(
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
-@customer.get("/{customer_id}", response_model=CustomerResponse)
+@customer.get("/{customer_id:uuid}", status_code=status.HTTP_200_OK)
 def get_customer(customer_id: UUID, db: Session = Depends(get_db)):
-    customers = CustomerService.fetch(db, customer_id)
-    return customers
+    return CoreBackendService.get_user_by_id(customer_id)
 
 
 @customer.delete("/{customer_id}", status_code=status.HTTP_200_OK)

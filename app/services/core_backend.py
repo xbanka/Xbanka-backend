@@ -34,6 +34,13 @@ class CoreBackendService(Service):
     def get_all_users(page: int = 1, limit: int = 10, **kwargs):
         params = {"page": page, "limit": limit, **kwargs}
         return CoreBackendService._request("GET", "/internal/users/all", params=params)
+    
+    @staticmethod
+    def get_user_by_id(id: UUID):
+        try:
+            return CoreBackendService._request("GET", f"/internal/users/{id}")
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=str(e))
 
     @staticmethod
     def log_manual_transaction(payload: LogManualTransactionsRequest) -> dict:
