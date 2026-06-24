@@ -45,7 +45,8 @@ class CoreBackendService(Service):
     @staticmethod
     def log_manual_transaction(payload: LogManualTransactionsRequest) -> dict:
         """Proxies the log manual transaction request to the core backend."""
-        return CoreBackendService._request("POST", "/internal/wallet/transactions/manual", json=payload)
+        payload_data = payload.model_dump(mode="json") if hasattr(payload, "model_dump") else payload
+        return CoreBackendService._request("POST", "/internal/wallet/transactions/manual", json=payload_data)
 
     @staticmethod
     def get_all_transactions(page: int = 1, limit: int = 10, **kwargs):
