@@ -38,5 +38,10 @@ class ERPUser(BaseModel):
         viewonly=True,
     )
 
+    rate_requests = relationship(
+        "RateApprovalRequest",
+        back_populates="requested_by",
+    )
+
     def __repr__(self):
         return f"<ERPUser(first_name='{self.first_name}', last_name='{self.last_name}', email='{self.email}')>"

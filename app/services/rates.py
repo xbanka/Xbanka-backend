@@ -47,12 +47,17 @@ class RatesService(Service):
         return response.json()
     
     @staticmethod
-    def bulk_update_segments(segments: List[SegmentRequest]):
+    def bulk_update_segments(current_user, segments: List[SegmentRequest]):
         response = requests.put(
             "https://backend.xbankang.com/internal/wallets/crypto/segments/bulk",
             json={
                 "setupNote": "Update segment margins",
-                "segments": [segment.model_dump(mode="json") for segment in segments]
+                "segments": [segment.model_dump(mode="json") for segment in segments],
+                "user": {
+                    "name": current_user.name,
+                    "email": current_user.email,
+                    "role": current_user.role.name
+                }
             },
             headers={"x-internal-key": INTERNAL_KEY}
         )
