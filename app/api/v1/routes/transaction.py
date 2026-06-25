@@ -76,7 +76,7 @@ def fetch_single_transaction(
     "/manual-log", status_code=status.HTTP_201_CREATED
 )
 def create_manual_transaction_log(
-    payload: LogManualTransactionsRequest,
+    payload,
     current_user: CurrentUser = Depends(require_roles("affiliate", "erp", "super")),
 ):
     try:

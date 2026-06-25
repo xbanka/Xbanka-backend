@@ -43,7 +43,7 @@ class CoreBackendService(Service):
             raise HTTPException(status_code=500, detail=str(e))
 
     @staticmethod
-    def log_manual_transaction(payload: LogManualTransactionsRequest) -> dict:
+    def log_manual_transaction(payload) -> dict:
         """Proxies the log manual transaction request to the core backend."""
         payload_data = payload.model_dump(mode="json") if hasattr(payload, "model_dump") else payload
         return CoreBackendService._request("POST", "/internal/wallet/transactions/manual", json=payload_data)
