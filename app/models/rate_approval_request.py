@@ -15,8 +15,14 @@ class RateApprovalRequest(BaseModel):
         nullable=False, 
         index=True
     )
-    payload: Mapped[Dict[str, Any] | List[Dict[str, Any]]] = mapped_column(JSONB, nullable=False)
-    requested_by = relationship("ERPUser", back_populates="rate_requests")
+    payload: Mapped[Dict[str, Any] | List[Dict[str, Any]]] = mapped_column(
+        JSONB, 
+        nullable=False
+    )
+    requested_by: Mapped[UUID] = mapped_column(
+        ForeignKey("erp_users.id"), 
+        nullable=False, index=True
+    )
     status: Mapped[RatesApprovalStatusEnum] = mapped_column(
         Enum(RatesApprovalStatusEnum), 
         default=RatesApprovalStatusEnum.PENDING, 
