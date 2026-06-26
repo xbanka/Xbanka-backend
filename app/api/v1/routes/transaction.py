@@ -19,19 +19,6 @@ transaction = APIRouter(prefix="/transactions", tags=["Transactions"])
 
 
 @transaction.get(
-    "/customer/{customer_id:uuid}",
-    status_code=status.HTTP_200_OK,
-    response_model=List[TransactionBrief],
-)
-def fetch_customer_transactions(
-    customer_id: UUID,
-    db: Session = Depends(get_db),
-    current_user: CurrentUser = Depends(require_roles("affiliate", "erp")),
-):
-    return TransactionService.fetch_by_customer_paginated(db, customer_id)
-
-
-@transaction.get(
     "/all", status_code=status.HTTP_200_OK
 )
 def fetch_all_transactions(
@@ -82,20 +69,6 @@ def create_manual_transaction_log(
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
-
-@transaction.post(
-    "/new",
-    status_code=status.HTTP_201_CREATED,
-    response_model=TransactionCreateResponse,
-)
-def create_transaction(
-    trans_request: TransactionCreatePayload = Body(...),
-    db: Session = Depends(get_db),
-    current_user: CurrentUser = Depends(require_roles("affiliate", "erp")),
-):
-
-    transaction = TransactionService.create(obj_in=trans_request, db=db)
-    return {"message": "Transaction created successfully", "transaction": transaction}
 
 
 @transaction.post(
