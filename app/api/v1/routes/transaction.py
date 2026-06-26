@@ -1,13 +1,10 @@
-from typing import List
 from uuid import UUID
 
-from fastapi import APIRouter, Body, Depends, File, HTTPException, Query, UploadFile, status
+from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile, status
 from sqlalchemy.orm import Session
 
 from app.db.database import get_db
 from app.schemas.transactions import (
-    TransactionBrief,
-    TransactionCreatePayload,
     TransactionCreateResponse
 )
 from app.services.core_backend import CoreBackendService

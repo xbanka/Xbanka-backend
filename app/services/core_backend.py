@@ -4,7 +4,6 @@ from fastapi import HTTPException
 import requests
 
 from app.core.base.services import Service
-from app.schemas.transactions import LogManualTransactionsRequest
 from app.utils.settings import settings
 
 INTERNAL_KEY = settings.INTERNAL_KEY
