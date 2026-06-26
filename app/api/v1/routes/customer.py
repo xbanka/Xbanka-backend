@@ -77,9 +77,60 @@ def search_customers(
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
+
 @customer.get("/{customer_id:uuid}", status_code=status.HTTP_200_OK)
-def get_customer(customer_id: UUID, db: Session = Depends(get_db)):
+def get_customer(customer_id: UUID, current_user: CurrentUser = Depends(require_roles("affiliate", "erp", "super"))):
     return CoreBackendService.get_user_by_id(customer_id)
+
+
+@customer.get("/{customer_id:uuid}/transactions", status_code=status.HTTP_200_OK)
+def get_customer_transactions(
+    customer_id: UUID, 
+    page: int = Query(1, ge=1, description="Page number"),
+    limit: int = Query(10, ge=1, le=100, description="Items per page"),
+    current_user: CurrentUser = Depends(require_roles("affiliate", "erp", "super")),
+):
+    try:
+        return CoreBackendService.get_user_transactions(
+            user_id=customer_id,
+            page=page,
+            limit=limit
+        )
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+    
+
+@customer.get("/{customer_id:uuid}/assets")
+def get_customer_assets(
+    customer_id: UUID,
+    current_user: CurrentUser = Depends(require_roles("affiliate", "erp", "super"))
+):
+    try:
+        return CoreBackendService.get_user_assets(user_id=customer_id)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+    
+
+@customer.get("/{customer_id:uuid}/verification")
+def get_customer_verification(
+    customer_id: UUID,
+    current_user: CurrentUser = Depends(require_roles("affiliate", "erp", "super"))
+):
+    try:
+        return CoreBackendService.get_user_verification_details(user_id=customer_id)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+    
+
+@customer.put("/{customer_id:uuid}/status")
+def toggle_customer_status(
+    customer_id: UUID,
+    current_user: CurrentUser = Depends(require_roles("affiliate", "erp", "super"))
+):
+    try:
+        return CoreBackendService.toggle_user_status(user_id=customer_id)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 @customer.delete("/{customer_id}", status_code=status.HTTP_200_OK)
