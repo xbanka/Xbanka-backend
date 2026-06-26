@@ -59,17 +59,32 @@ class CoreBackendService(Service):
         except Exception as e:
             raise HTTPException(status_code=500, detail=str(e))
 
-    # @staticmethod
-    # def get_user_transactions(user_id: UUID, page: int = 1, limit: int = 10, **kwargs):
-    #     try:
-    #         params = {"page": page, "limit": limit, **kwargs}
-    #         return CoreBackendService._request("GET", f"/internal/users/{user_id}/transactions", params=params)
-    #     except Exception as e:
-    #         raise HTTPException(status_code=500, detail=str(e))
+    @staticmethod
+    def get_user_transactions(user_id: UUID, page: int = 1, limit: int = 10, **kwargs):
+        try:
+            params = {"page": page, "limit": limit, **kwargs}
+            return CoreBackendService._request("GET", f"/internal/users/{user_id}/transactions", params=params)
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=str(e))
         
-    # @staticmethod
-    # def get_user_assets(user_id: UUID):
-    #     try:
-    #         return CoreBackendService._request("GET", f"/internal/users/{user_id}/assets")
-    #     except Exception as e:
-    #         raise HTTPException(status_code=500, detail=str(e))
+    @staticmethod
+    def get_user_assets(user_id: UUID):
+        try:
+            return CoreBackendService._request("GET", f"/internal/users/{user_id}/assets")
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=str(e))
+        
+    @staticmethod
+    def get_user_verification_details(user_id: UUID):
+        try:
+            return CoreBackendService._request("GET", f"/internal/users/{user_id}/verification")
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=str(e))
+        
+
+    @staticmethod
+    def toggle_user_status(user_id: UUID):
+        try:
+            return CoreBackendService._request("PUT", f"/internal/users/{user_id}/status")
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=str(e))

@@ -68,14 +68,14 @@ class RatesService(Service):
         return response.json()
     
 
-    # @staticmethod
-    # def assign_crypto_to_segment(crypto_id: UUID, segment_id: UUID, override_segment: bool):
-    #     response = requests.put(
-    #         f"https://backend.xbankang.com/internal/wallets/crypto/accepts/{crypto_id}",
-    #         json={
-    #             "segmentId": segment_id,
-    #             "overrideSegment": override_segment
-    #         },
-    #         headers={"x-internal-key": INTERNAL_KEY}
-    #     )
-    #     return response.json()
+    @staticmethod
+    def assign_crypto_to_segment(crypto_id: UUID, segment_id: UUID, override_segment: bool):
+        response = requests.put(
+            f"https://backend.xbankang.com/internal/wallets/crypto/accepts/{crypto_id}",
+            json={
+                "segmentId": segment_id,
+                "overrideSegment": override_segment
+            },
+            headers={"x-internal-key": INTERNAL_KEY}
+        )
+        return response.json()
