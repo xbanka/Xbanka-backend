@@ -9,15 +9,12 @@ from sqlalchemy import func, select, text
 from sqlalchemy.orm import Session
 
 from app.core.base.services import Service
-from app.core.enums import ServiceTypeEnum, UploadStatusEnum
+from app.core.enums import UploadStatusEnum
 from app.models.affiliate import Affiliate
 from app.models.affiliate_commissions import AffiliateCommission
 from app.models.affiliate_monthly_volume import AffiliateMonthlyVolume
 from app.models.tier_volume_bands import TierVolumeBand
 from app.models.transactions import Transaction
-from app.schemas.transactions import TransactionCreatePayload
-from app.services.customer import CustomerService
-from app.utils.currency import convert_amount, parse_crypto_pair
 from app.utils.s3_utils import upload_file, validate_file
 from app.utils.settings import settings
 
@@ -32,82 +29,6 @@ def generate_txn_id(db):
 
 
 class TransactionService(Service):
-    @staticmethod
-    def create(db: Session, obj_in: TransactionCreatePayload):
-        customer = CustomerService.fetch(db, obj_in.customer_id)
-        if not customer:
-            raise HTTPException(status_code=404, detail="Customer not found.")
-
-        affiliate_username = customer.affiliate.username if customer.affiliate else None
-
-        if obj_in.service_type == ServiceTypeEnum.crypto:
-            # Calculate expected payout for crypto and gift card transactions
-            xbanka_rate = getattr(obj_in, "xbanka_rate")
-            vendor_rate = getattr(obj_in, "vendor_rate")
-
-            crypto_pair = getattr(obj_in, "crypto_pair")
-            # xbanka_account = getattr(obj_in, "xbanka_account")
-            currency_in, currency_out = parse_crypto_pair(crypto_pair)
-            expected_payout = convert_amount(
-                float(obj_in.amount_in), float(xbanka_rate), currency_in, currency_out
-            )
-        elif obj_in.service_type == ServiceTypeEnum.gift_card:
-            xbanka_rate = getattr(obj_in, "xbanka_rate")
-            vendor_rate = getattr(obj_in, "vendor_rate")
-
-            expected_payout = convert_amount(
-                float(obj_in.amount_in),
-                float(xbanka_rate),
-                "USD",
-                getattr(obj_in, "currency"),
-            )
-            currency_in = getattr(obj_in, "currency", None)
-            currency_out = "NGN"
-
-        else:
-            xbanka_rate, vendor_rate = None, None
-            expected_payout = obj_in.amount_in
-            currency_in = currency_out = "NGN"
-
-        new_transaction = Transaction(
-            txn_id=generate_txn_id(db=db),
-            service_type=obj_in.service_type,
-            amount_in=obj_in.amount_in,
-            amount_out=expected_payout,
-            affiliate_source=affiliate_username,
-            xbanka_rate=xbanka_rate,
-            vendor_rate=vendor_rate,
-            customer_account=obj_in.customer_account,
-            vendor=obj_in.vendor,
-            xbanka_account=getattr(obj_in, "xbanka_account", None),
-            crypto_pair=getattr(obj_in, "crypto_pair", None),
-            gift_card_type=getattr(obj_in, "gift_card_type", None),
-            gift_card_code=getattr(obj_in, "gift_card_code", None),
-            currency_in=currency_in,
-            currency_out=currency_out,
-            quantity=getattr(obj_in, "quantity", None),
-            customer_id=obj_in.customer_id,
-            attachment_url="",
-        )
-
-        db.add(new_transaction)
-        db.commit()
-        db.refresh(new_transaction)
-
-        if customer.affiliate:
-            try:
-                TransactionService.process_commission(
-                    db=db,
-                    affiliate_id=customer.affiliate.id,
-                    transaction_id=UUID(str(new_transaction.id)),
-                    transaction_amount=float(new_transaction.amount_in),
-                    transaction_date=date.today(),
-                )
-            except ValueError as e:
-                logging.error(f"Error processing transaction for affiliate tier: {e}")
-
-        return new_transaction
-
     @staticmethod
     def fetch(db: Session, id: UUID):
         return db.get(Transaction, id)
