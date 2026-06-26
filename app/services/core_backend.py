@@ -45,8 +45,7 @@ class CoreBackendService(Service):
     @staticmethod
     def log_manual_transaction(payload) -> dict:
         """Proxies the log manual transaction request to the core backend."""
-        payload_data = payload.model_dump(mode="json") if hasattr(payload, "model_dump") else payload
-        return CoreBackendService._request("POST", "/internal/wallet/transactions/manual", json=payload_data)
+        return CoreBackendService._request("POST", "/internal/wallet/transactions/manual", json=payload)
 
     @staticmethod
     def get_all_transactions(page: int = 1, limit: int = 10, **kwargs):
@@ -59,3 +58,18 @@ class CoreBackendService(Service):
             return CoreBackendService._request("GET", f"/internal/wallet/transactions/{id}")
         except Exception as e:
             raise HTTPException(status_code=500, detail=str(e))
+
+    # @staticmethod
+    # def get_user_transactions(user_id: UUID, page: int = 1, limit: int = 10, **kwargs):
+    #     try:
+    #         params = {"page": page, "limit": limit, **kwargs}
+    #         return CoreBackendService._request("GET", f"/internal/users/{user_id}/transactions", params=params)
+    #     except Exception as e:
+    #         raise HTTPException(status_code=500, detail=str(e))
+        
+    # @staticmethod
+    # def get_user_assets(user_id: UUID):
+    #     try:
+    #         return CoreBackendService._request("GET", f"/internal/users/{user_id}/assets")
+    #     except Exception as e:
+    #         raise HTTPException(status_code=500, detail=str(e))
