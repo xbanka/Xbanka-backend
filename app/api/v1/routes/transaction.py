@@ -6,11 +6,9 @@ from sqlalchemy.orm import Session
 
 from app.db.database import get_db
 from app.schemas.transactions import (
-    LogManualTransactionsRequest,
     TransactionBrief,
     TransactionCreatePayload,
-    TransactionCreateResponse,
-    TransactionDetailResponse,
+    TransactionCreateResponse
 )
 from app.services.core_backend import CoreBackendService
 from app.services.transaction import TransactionService
@@ -76,7 +74,7 @@ def fetch_single_transaction(
     "/manual-log", status_code=status.HTTP_201_CREATED
 )
 def create_manual_transaction_log(
-    payload,
+    payload: dict,
     current_user: CurrentUser = Depends(require_roles("affiliate", "erp", "super")),
 ):
     try:
