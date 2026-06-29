@@ -1,4 +1,4 @@
-from sqlalchemy import Column, ForeignKey, String, Enum
+from sqlalchemy import ForeignKey, Enum
 from sqlalchemy.dialects.postgresql import UUID, JSONB
 from sqlalchemy.orm import relationship, mapped_column, Mapped
 from typing import Dict, Any, List
@@ -11,7 +11,7 @@ class RateApprovalRequest(BaseModel):
     __tablename__ = "rate_approval_requests"
 
     type: Mapped[RateApprovalRequestTypeEnum] = mapped_column(
-        Enum(RateApprovalRequestTypeEnum), 
+        Enum(RateApprovalRequestTypeEnum),
         nullable=False, 
         index=True
     )
@@ -19,9 +19,13 @@ class RateApprovalRequest(BaseModel):
         JSONB, 
         nullable=False
     )
-    requested_by: Mapped[UUID] = mapped_column(
+    requested_by_id: Mapped[UUID] = mapped_column(
         ForeignKey("erp_users.id"), 
         nullable=False, index=True
+    )
+    requested_by = relationship(
+        "ERPUser", 
+        back_populates="rate_requests"
     )
     status: Mapped[RatesApprovalStatusEnum] = mapped_column(
         Enum(RatesApprovalStatusEnum), 
