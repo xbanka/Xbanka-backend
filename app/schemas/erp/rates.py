@@ -42,6 +42,12 @@ class SegmentRequest(BaseModel):
     sellFeeType: str = Field(..., description="The type of sell fee (e.g., percentage, fixed)")
     sellSpread: float = Field(..., description="The value of the sell spread")
 
+class SegmentsBulkUpdateRequest(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    segments: List[SegmentRequest]
+    setupNote: str = Field(..., description="Note or reason for assigning these assets to the segment")
+
 class AssignAssetsToSegmentRequest(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 

@@ -1,15 +1,35 @@
-from typing import List
 from uuid import UUID
+from fastapi import Depends
 import requests
+from sqlalchemy.orm import Session
 
 from app.core.base.services import Service
-from app.schemas.erp.rates import AssetsRequest, AssignAssetsToSegmentRequest, SegmentRequest
+from app.core.enums import RateApprovalRequestTypeEnum
+from app.db.database import get_db
+from app.schemas.erp.rates import AssetsRequest, AssignAssetsToSegmentRequest, SegmentsBulkUpdateRequest
+from app.models.rate_approval_request import RateApprovalRequest
+from app.utils.schema import CurrentUser
 from app.utils.settings import settings
-
 
 INTERNAL_KEY = settings.INTERNAL_KEY
 
 class RatesService(Service):
+    @staticmethod
+    def create_proposal(
+        db: Session, 
+        type: RateApprovalRequestTypeEnum, 
+        payload: dict,
+        current_user: CurrentUser
+    ):
+        new_request = RateApprovalRequest(
+            type=type,
+            payload=payload,
+            requested_by_id=current_user.user.id
+        )
+        db.add(new_request)
+        db.commit()
+        db.refresh(new_request)
+
     @staticmethod
     def get_all_exchange_rates():
         headers = {"x-internal-key": INTERNAL_KEY}
@@ -29,9 +49,30 @@ class RatesService(Service):
     
     
     @staticmethod
-    def update_crypto_rate(rate_id: UUID, request: AssetsRequest):
+    def update_crypto_rate(
+        rate_id: UUID, 
+        request: AssetsRequest,
+        current_user: CurrentUser,
+        db: Session = Depends(get_db)
+    ):
+        request_dict = request.model_dump(exclude_unset=True, mode="json")
+
+        if 1 == 1:
+            proposed_change = RatesService.create_proposal(
+                db,
+                RateApprovalRequestTypeEnum.ASSET_UPDATE,
+                request_dict,
+                current_user.user
+            )
+        
+            return {
+                "message": "Rate change proposal submitted successfully.",
+                "proposed_change": proposed_change
+            }
+
         response = requests.put(
-            f"https://backend.xbankang.com/internal/wallets/crypto/accepts/{rate_id}", json=request.model_dump(exclude_unset=True, mode="json"), 
+            f"https://backend.xbankang.com/internal/wallets/crypto/accepts/{rate_id}", 
+            json=request_dict, 
             headers={"x-internal-key": INTERNAL_KEY}
         )
         return response.json()
@@ -47,27 +88,58 @@ class RatesService(Service):
         return response.json()
     
     @staticmethod
-    def bulk_update_segments(current_user, segments: List[SegmentRequest]):
+    def bulk_update_segments(
+        current_user, 
+        request: SegmentsBulkUpdateRequest,
+        db: Session = Depends(get_db)
+    ):
+        request_dict = request.model_dump(mode="json")
+
+        if 1 == 1:
+            proposed_change = RatesService.create_proposal(
+                db,
+                RateApprovalRequestTypeEnum.SEGMENT_UPDATE,
+                request_dict,
+                current_user.user
+            )
+        
+            return {
+                "message": "Segment change proposal submitted successfully.",
+                "proposed_change": proposed_change
+            }
+
         response = requests.put(
             "https://backend.xbankang.com/internal/wallets/crypto/segments/bulk",
-            json={
-                "setupNote": "Update segment margins",
-                "segments": [segment.model_dump(mode="json") for segment in segments],
-                "user": {
-                    "name": current_user.name,
-                    "email": current_user.email,
-                    "role": current_user.role.name
-                }
-            },
+            json=request_dict,
             headers={"x-internal-key": INTERNAL_KEY}
         )
         return response.json()
     
     @staticmethod
-    def bulk_assign_to_segments(segment_id: UUID, request: AssignAssetsToSegmentRequest):
+    def bulk_assign_to_segments(
+        segment_id: UUID, 
+        request: AssignAssetsToSegmentRequest,
+        current_user: CurrentUser,
+        db: Session = Depends(get_db)
+    ):
+        request_dict = request.model_dump(mode="json")
+
+        if 1 == 1:
+            proposed_change = RatesService.create_proposal(
+                db,
+                RateApprovalRequestTypeEnum.SEGMENT_UPDATE,
+                request_dict,
+                current_user.user
+            )
+        
+            return {
+                "message": "Rate change proposal submitted successfully.",
+                "proposed_change": proposed_change
+            }
+        
         response = requests.put(
             f"https://backend.xbankang.com/internal/wallets/crypto/segments/{segment_id}/assets/bulk-assign",
-            json=request.model_dump(mode="json"),
+            json=request_dict,
             headers={"x-internal-key": INTERNAL_KEY}
         )
         return response.json()
