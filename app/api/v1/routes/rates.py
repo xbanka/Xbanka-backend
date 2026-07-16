@@ -1,6 +1,8 @@
 from uuid import UUID
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, status
+from sqlalchemy.orm import Session
+from app.db.database import get_db
 from app.schemas.erp.rates import (
     AssignAssetsToSegmentRequest, 
     BulkAssetsResponse, 
@@ -25,18 +27,23 @@ def get_crypto_rates(current_user: CurrentUser = Depends(require_roles("erp"))):
 @rates.post("/crypto")
 def post_crypto_rate(
     request: AssetsRequest,
+    db: Session = Depends(get_db),
     current_user: CurrentUser = Depends(require_roles("erp",))
 ):
-    return RatesService.post_crypto_rate(request)
+    return RatesService.post_crypto_rate(db, request)
 
 
-@rates.put("/crypto/{rate_id}", response_model=UpdateAssetResponse)
+@rates.put("/crypto/{rate_id}", 
+        #    response_model=UpdateAssetResponse
+        )
 def update_crypto_rate(
     rate_id: UUID, 
     request: AssetsRequest,
+    db: Session = Depends(get_db),
     current_user: CurrentUser = Depends(require_roles("erp"))
 ):
     return RatesService.update_crypto_rate(
+        db,
         rate_id, 
         request,
         current_user
@@ -48,22 +55,42 @@ def get_all_segments(current_user: CurrentUser = Depends(require_roles("erp"))):
     return RatesService.get_all_segments()
 
 
-@rates.put("/segments/bulk", response_model=BulkUpdateSegmentsResponse)
+@rates.put("/segments/bulk", 
+        #    response_model=BulkUpdateSegmentsResponse
+        )
 def bulk_update_segments(
     request: SegmentsBulkUpdateRequest,
-    current_user: CurrentUser = Depends(require_roles("erp")),
+    db: Session = Depends(get_db),
+    current_user: CurrentUser = Depends(require_roles("erp"))
 ):
-    return RatesService.bulk_update_segments(current_user, request)
+    return RatesService.bulk_update_segments(db, current_user, request)
 
 
-@rates.put("/segments/{segment_id}/bulk-assign", response_model=BulkUpdateSegmentsResponse)
+@rates.put("/segments/{segment_id}/bulk-assign",
+        #    response_model=BulkUpdateSegmentsResponse
+    )
 def bulk_assign_segments(
     segment_id: UUID, 
     request: AssignAssetsToSegmentRequest,
-    current_user: CurrentUser = Depends(require_roles("erp"))
+    current_user: CurrentUser = Depends(require_roles("erp")),
+    db: Session = Depends(get_db)  
 ):
     return RatesService.bulk_assign_to_segments(
+        db,
         segment_id, 
         request, 
         current_user
     )
+
+@rates.get(
+    "/proposals", status_code=status.HTTP_200_OK
+)
+def view_rate_management_proposals(
+    db: Session = Depends(get_db),
+    current_user: CurrentUser = Depends(require_roles("erp"))
+):
+    proposals = RatesService.get_proposals(db, current_user)
+
+    return {
+        "proposals": proposals
+    }

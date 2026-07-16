@@ -8,6 +8,20 @@ from uuid import UUID
 
 T = TypeVar("T")
 
+class ProposalResponse(BaseModel):
+    id: UUID
+    change_type: str
+    target_id: UUID
+    requested_by_id: UUID
+    status: str
+    target: str
+    target_currency: Optional[str] = None
+    previous_configuration: list[str]
+    new_configuration: list[str]
+    affected_assets: int
+    created_at: datetime
+    updated_at: datetime
+
 
 class ApiResponse(BaseModel, Generic[T]):
     message: str
