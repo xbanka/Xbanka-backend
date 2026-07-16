@@ -1,12 +1,10 @@
-from uuid import UUID
-from fastapi import Depends
 import requests
 from sqlalchemy.orm import Session
+from uuid import UUID
 
 from app.core.base.services import Service
 from app.core.enums import RateApprovalRequestTypeEnum
-from app.db.database import get_db
-from app.schemas.erp.rates import AssetsRequest, AssignAssetsToSegmentRequest, SegmentsBulkUpdateRequest
+from app.schemas.erp.rates import AssetsRequest, AssignAssetsToSegmentRequest, ProposalResponse, SegmentsBulkUpdateRequest
 from app.models.rate_approval_request import RateApprovalRequest
 from app.utils.schema import CurrentUser
 from app.utils.settings import settings
@@ -15,20 +13,191 @@ INTERNAL_KEY = settings.INTERNAL_KEY
 
 class RatesService(Service):
     @staticmethod
+    def _fetch_current_configuration(type: RateApprovalRequestTypeEnum, target_id: UUID):
+        headers = {"x-internal-key": INTERNAL_KEY}
+        if type == RateApprovalRequestTypeEnum.ASSET_UPDATE:
+            url = f"https://backend.xbankang.com/internal/wallets/crypto/accepts/id/{target_id}"
+        else:
+            url = f"https://backend.xbankang.com/internal/wallets/crypto/segments/{target_id}"
+
+        response = requests.get(
+            url, headers=headers
+        )
+        if response.status_code == 200:
+            result = response.json()
+            return result.get("data", {})
+
+        return {}
+    
+    @staticmethod
+    def _fetch_all_assets():
+        headers = {"x-internal-key": INTERNAL_KEY}
+        response = requests.get(
+            "https://backend.xbankang.com/internal/wallets/crypto/accepts", headers=headers
+        )
+        if response.status_code == 200:
+            result = response.json()
+            return result.get("data", [])
+
+        return []
+
+    @staticmethod
+    def _build_asset_updates(proposal: RateApprovalRequest, current: dict, current_user: CurrentUser):
+        payload = proposal.payload if isinstance(proposal.payload, dict) else {}
+
+        return ProposalResponse(
+            id=UUID(str(proposal.id)),
+            change_type=proposal.type,
+            target_id=UUID(str(proposal.target_id)),
+            requested_by_id=current_user.user.id,
+            status=proposal.status,
+            created_at=proposal.created_at,
+            updated_at=proposal.updated_at,
+            previous_configuration=[
+                f"Buy: {current.get('buyFeeValue')}%", 
+                f"Sell: {current.get('sellFeeValue')}%"
+            ],
+            new_configuration=[
+                f"Buy: {payload.get('buyFeeValue')}%", 
+                f"Sell: {payload.get('sellFeeValue')}%"
+            ],
+            affected_assets=1,
+            target=payload.get("name", ""),
+            target_currency=payload.get("currency", "")
+        )
+    
+    @staticmethod
+    def _build_segment_updates(proposal: RateApprovalRequest, current: dict, current_user: CurrentUser):
+        payload = proposal.payload if isinstance(proposal.payload, dict) else {}
+        
+        return ProposalResponse(
+            id=UUID(str(proposal.id)),
+            change_type=proposal.type,
+            target_id=UUID(str(proposal.target_id)),
+            requested_by_id=current_user.user.id,
+            status=proposal.status,
+            created_at=proposal.created_at,
+            updated_at=proposal.updated_at,
+            previous_configuration=[
+                f"Buy: {current.get('buySpread')}%", 
+                f"Sell: {current.get('sellSpread')}%"
+            ],
+            new_configuration=[
+                f"Buy: {payload.get('buySpread')}%", 
+                f"Sell: {payload.get('sellSpread')}%"
+            ],
+            affected_assets=1,
+            target=payload.get("name", ""),
+            target_currency=payload.get("currency", "")
+        )
+    
+    @staticmethod
+    def _build_segment_assignments(proposal: RateApprovalRequest, current: dict, current_user: CurrentUser):
+        payload = proposal.payload if isinstance(proposal.payload, dict) else {}
+        asset_ids = payload.get("assetIds", [])
+
+        assets = current.get("assets", [])
+        current_assets = [asset.get("currency") for asset in assets]
+
+        # Fetch all available assets
+        all_assets = RatesService._fetch_all_assets()
+        available_assets = [asset.get("currency") for asset in all_assets if asset.get("id") in set(asset_ids)]
+
+        added = set(available_assets) - set(current_assets)
+        removed = set(current_assets) - set(available_assets)
+
+        return ProposalResponse(
+            id=UUID(str(proposal.id)),
+            change_type=proposal.type,
+            target_id=UUID(str(proposal.target_id)),
+            requested_by_id=current_user.user.id,
+            status=proposal.status,
+            created_at=proposal.created_at,
+            updated_at=proposal.updated_at,
+            previous_configuration=current_assets,
+            new_configuration=[
+                f"+{asset}" for asset in added] + 
+                [f"-{asset}" for asset in removed
+            ],
+            affected_assets=len(added) + len(removed),
+            target=current.get("name", ""),
+            target_currency=payload.get("currency", "")
+        )
+
+    @staticmethod
+    def _build_response(proposal: RateApprovalRequest, current: dict, current_user: CurrentUser):
+        if proposal.type == RateApprovalRequestTypeEnum.ASSET_UPDATE:
+            # Handle asset update proposals
+            return RatesService._build_asset_updates(proposal, current, current_user)
+        elif proposal.type == RateApprovalRequestTypeEnum.SEGMENT_UPDATE:
+            # Handle segment update proposals
+            return RatesService._build_segment_updates(proposal, current, current_user)
+        elif proposal.type == RateApprovalRequestTypeEnum.SEGMENT_ASSIGNMENT:
+            # Handle segment assignment proposals
+            return RatesService._build_segment_assignments(proposal, current, current_user)
+        else:
+            raise ValueError(f"Unknown proposal type: {proposal.type}")
+
+    @staticmethod
+    def get_proposals(db: Session, current_user: CurrentUser):
+        responses = []
+        proposals = db.query(RateApprovalRequest).all()
+        current = {}
+
+        for proposal in proposals:
+            if not proposal.target_id:
+                continue  # Skip if target_id is not set
+
+            target_id = UUID(str(proposal.target_id))
+
+            current = RatesService._fetch_current_configuration(proposal.type, target_id) if target_id else {}
+
+            # if proposal.type == RateApprovalRequestTypeEnum.ASSET_UPDATE:
+            #     payload = proposal.payload if isinstance(proposal.payload, dict) else {}
+            #     if not payload.get("currency"):
+            #         continue  # Skip if currency is not set
+
+            #     current = RatesService._fetch_current_configuration(payload.get("currency", "")) if payload else {}
+
+            #     print(f"Current configuration for {payload.get('currency', '')}: {current}")
+
+            # elif proposal.type == RateApprovalRequestTypeEnum.SEGMENT_UPDATE:
+            #     # Handle segment update proposals
+            #     pass
+            # elif proposal.type == RateApprovalRequestTypeEnum.SEGMENT_ASSIGNMENT:
+            #     # Handle segment assignment proposals
+            #     pass
+
+            responses.append(
+                RatesService._build_response(
+                    proposal, 
+                    current, 
+                    current_user
+                )
+            )
+
+        return responses
+
+
+    @staticmethod
     def create_proposal(
         db: Session, 
+        target_id: UUID,
         type: RateApprovalRequestTypeEnum, 
         payload: dict,
         current_user: CurrentUser
     ):
         new_request = RateApprovalRequest(
             type=type,
+            target_id=target_id,
             payload=payload,
             requested_by_id=current_user.user.id
         )
         db.add(new_request)
         db.commit()
         db.refresh(new_request)
+
+        return new_request
 
     @staticmethod
     def get_all_exchange_rates():
@@ -40,7 +209,7 @@ class RatesService(Service):
     
     
     @staticmethod
-    def post_crypto_rate(request: AssetsRequest):
+    def post_crypto_rate(db: Session, request: AssetsRequest):
         response = requests.post(
             "https://backend.xbankang.com/internal/wallets/crypto/accepts", json=request.model_dump(mode="json"), 
             headers={"x-internal-key": INTERNAL_KEY}
@@ -50,19 +219,20 @@ class RatesService(Service):
     
     @staticmethod
     def update_crypto_rate(
+        db: Session,
         rate_id: UUID, 
         request: AssetsRequest,
-        current_user: CurrentUser,
-        db: Session = Depends(get_db)
+        current_user: CurrentUser
     ):
         request_dict = request.model_dump(exclude_unset=True, mode="json")
 
         if 1 == 1:
             proposed_change = RatesService.create_proposal(
                 db,
+                rate_id,
                 RateApprovalRequestTypeEnum.ASSET_UPDATE,
                 request_dict,
-                current_user.user
+                current_user
             )
         
             return {
@@ -89,23 +259,33 @@ class RatesService(Service):
     
     @staticmethod
     def bulk_update_segments(
+        db: Session,
         current_user, 
         request: SegmentsBulkUpdateRequest,
-        db: Session = Depends(get_db)
     ):
         request_dict = request.model_dump(mode="json")
 
         if 1 == 1:
-            proposed_change = RatesService.create_proposal(
-                db,
-                RateApprovalRequestTypeEnum.SEGMENT_UPDATE,
-                request_dict,
-                current_user.user
-            )
+            for segment in request.segments:
+                RatesService.create_proposal(
+                    db,
+                    segment.id,
+                    RateApprovalRequestTypeEnum.SEGMENT_UPDATE,
+                    segment.model_dump(mode="json"),
+                    current_user
+                )
+                        
+            # for segment in request_dict.get("segments", []):
+            #     proposed_change = RatesService.create_proposal(
+            #         db,
+            #         segment.get("id"),
+            #         RateApprovalRequestTypeEnum.SEGMENT_UPDATE,
+            #         segment,
+            #         current_user
+            #     )
         
             return {
                 "message": "Segment change proposal submitted successfully.",
-                "proposed_change": proposed_change
             }
 
         response = requests.put(
@@ -117,19 +297,20 @@ class RatesService(Service):
     
     @staticmethod
     def bulk_assign_to_segments(
+        db: Session,
         segment_id: UUID, 
         request: AssignAssetsToSegmentRequest,
-        current_user: CurrentUser,
-        db: Session = Depends(get_db)
+        current_user: CurrentUser
     ):
         request_dict = request.model_dump(mode="json")
 
         if 1 == 1:
             proposed_change = RatesService.create_proposal(
                 db,
-                RateApprovalRequestTypeEnum.SEGMENT_UPDATE,
+                segment_id, # id of segment assets are assigned to
+                RateApprovalRequestTypeEnum.SEGMENT_ASSIGNMENT,
                 request_dict,
-                current_user.user
+                current_user
             )
         
             return {
