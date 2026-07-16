@@ -19,6 +19,11 @@ class RateApprovalRequest(BaseModel):
         JSONB, 
         nullable=False
     )
+    target_id: Mapped[UUID] = mapped_column(
+        UUID(as_uuid=True), 
+        nullable=False, 
+        index=True
+    )
     requested_by_id: Mapped[UUID] = mapped_column(
         ForeignKey("erp_users.id"), 
         nullable=False, index=True
