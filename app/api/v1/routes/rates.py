@@ -146,3 +146,17 @@ def reject_rate_management_proposal(
         "message": "Proposal rejected successfully",
         "proposal": proposal
     }
+
+# get rate change logs
+@rates.get(
+    "/logs", status_code=status.HTTP_200_OK
+)
+def get_rate_change_logs(
+    db: Session = Depends(get_db),
+    current_user: CurrentUser = Depends(require_roles("erp"))
+):
+    logs = RatesService.get_rate_change_logs(db, current_user)
+
+    return {
+        "logs": logs
+    }

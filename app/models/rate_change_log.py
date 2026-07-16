@@ -32,6 +32,12 @@ class RateChangeLog(BaseModel):
         "ERPUser", 
         back_populates="rate_changes"
     )
+
+    status: Mapped[RatesApprovalStatusEnum] = mapped_column(
+        Enum(RatesApprovalStatusEnum), 
+        default=RatesApprovalStatusEnum.APPROVED, 
+        nullable=False, index=True
+    )
     
 
     def __repr__(self):

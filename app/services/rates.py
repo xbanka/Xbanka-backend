@@ -154,22 +154,6 @@ class RatesService(Service):
 
             current = RatesService._fetch_current_configuration(proposal.type, target_id) if target_id else {}
 
-            # if proposal.type == RateApprovalRequestTypeEnum.ASSET_UPDATE:
-            #     payload = proposal.payload if isinstance(proposal.payload, dict) else {}
-            #     if not payload.get("currency"):
-            #         continue  # Skip if currency is not set
-
-            #     current = RatesService._fetch_current_configuration(payload.get("currency", "")) if payload else {}
-
-            #     print(f"Current configuration for {payload.get('currency', '')}: {current}")
-
-            # elif proposal.type == RateApprovalRequestTypeEnum.SEGMENT_UPDATE:
-            #     # Handle segment update proposals
-            #     pass
-            # elif proposal.type == RateApprovalRequestTypeEnum.SEGMENT_ASSIGNMENT:
-            #     # Handle segment assignment proposals
-            #     pass
-
             responses.append(
                 RatesService._build_response(
                     proposal, 
@@ -456,12 +440,12 @@ class RatesService(Service):
     def create_log(
         db: Session, 
         target_id: UUID | None,
-        type: RateApprovalRequestTypeEnum,
+        change_type: RateApprovalRequestTypeEnum,
         payload: dict | list,
         current_user: CurrentUser
     ):
         log_entry = RateChangeLog(
-            type=type,
+            type=change_type,
             target_id=target_id,
             payload=payload,
             performed_by_id=current_user.user.id
@@ -469,6 +453,31 @@ class RatesService(Service):
         db.add(log_entry)
 
         return log_entry
+    
+
+    @staticmethod
+    def get_rate_change_logs(db: Session, current_user: CurrentUser):
+        responses = []
+        logs = db.query(RateChangeLog).all()
+        current = {}
+
+        for log in logs:
+            if not log.target_id:
+                continue  # Skip if target_id is not set
+
+            target_id = UUID(str(log.target_id))
+
+            current = RatesService._fetch_current_configuration(log.type, target_id) if target_id else {}
+
+            responses.append(
+                RatesService._build_response(
+                    log, 
+                    current, 
+                    current_user
+                )
+            )
+
+        return responses
     
 
     @staticmethod
@@ -480,7 +489,7 @@ class RatesService(Service):
         payload: dict | list,
         current_user: CurrentUser
     ):
-        if response.ok:
+        if not response.ok:
             return
 
         RatesService.create_log(
