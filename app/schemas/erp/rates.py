@@ -5,8 +5,24 @@ from pydantic import ConfigDict
 from typing import List, Optional, Generic, TypeVar
 from uuid import UUID
 
+from app.core.enums import RatesApprovalStatusEnum
+
 
 T = TypeVar("T")
+
+class ProposalResponse(BaseModel):
+    id: UUID
+    change_type: str
+    target_id: UUID
+    requested_by_id: UUID
+    status: RatesApprovalStatusEnum
+    target: str
+    target_currency: Optional[str] = None
+    previous_configuration: list[str]
+    new_configuration: list[str]
+    affected_assets: int
+    created_at: datetime
+    updated_at: datetime
 
 
 class ApiResponse(BaseModel, Generic[T]):
@@ -41,6 +57,12 @@ class SegmentRequest(BaseModel):
     buySpread: float = Field(..., description="The value of the buy spread")
     sellFeeType: str = Field(..., description="The type of sell fee (e.g., percentage, fixed)")
     sellSpread: float = Field(..., description="The value of the sell spread")
+
+class SegmentsBulkUpdateRequest(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    segments: List[SegmentRequest]
+    setupNote: str = Field(..., description="Note or reason for assigning these assets to the segment")
 
 class AssignAssetsToSegmentRequest(BaseModel):
     model_config = ConfigDict(from_attributes=True)

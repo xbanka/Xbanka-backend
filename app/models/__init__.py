@@ -9,6 +9,7 @@ from .erp_user import ERPUser
 from .notifications import Notification
 from .payouts import Payout
 from .permission import Permission
+from .rate_approval_request import RateApprovalRequest
 from .role import Role
 from .role_permissions import RolePermissions
 from .service_type import ServiceType
@@ -20,11 +21,14 @@ from .user_permissions import UserPermissions
 __all__ = [
     "Affiliate",
     "AffiliateVisit",
+    "BankDetails",
+    "AffiliateTier",
     "Customer",
     "ERPUser",
     "Notification",
     "Payout",
     "Permission",
+    "RateApprovalRequest",
     "Role",
     "RolePermissions",
     "ServiceType",
@@ -33,7 +37,5 @@ __all__ = [
     "UserPermissions",
     "AffiliateCommission",
     "AffiliateMonthlyVolume",
-    "AffiliateTier",
     "TierVolumeBand",
-    "BankDetails",
 ]

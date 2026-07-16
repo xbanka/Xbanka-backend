@@ -158,3 +158,15 @@ class TxnStatusEnum(str, enum.Enum):
     PENDING = "PENDING"
     COMPLETED = "COMPLETED"
     FAILED = "FAILED"
+
+
+class RateApprovalRequestTypeEnum(str, enum.Enum):
+    ASSET_UPDATE = "ASSET_UPDATE"
+    SEGMENT_UPDATE = "SEGMENT_UPDATE"
+    SEGMENT_ASSIGNMENT = "SEGMENT_ASSIGNMENT"
+
+
+class RatesApprovalStatusEnum(str, enum.Enum):
+    PENDING = "PENDING"
+    APPROVED = "APPROVED"
+    REJECTED = "REJECTED"
