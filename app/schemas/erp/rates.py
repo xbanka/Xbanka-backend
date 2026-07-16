@@ -5,6 +5,8 @@ from pydantic import ConfigDict
 from typing import List, Optional, Generic, TypeVar
 from uuid import UUID
 
+from app.core.enums import RatesApprovalStatusEnum
+
 
 T = TypeVar("T")
 
@@ -13,7 +15,7 @@ class ProposalResponse(BaseModel):
     change_type: str
     target_id: UUID
     requested_by_id: UUID
-    status: str
+    status: RatesApprovalStatusEnum
     target: str
     target_currency: Optional[str] = None
     previous_configuration: list[str]

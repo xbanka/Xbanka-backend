@@ -1,9 +1,10 @@
 import requests
+from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
 from uuid import UUID
 
 from app.core.base.services import Service
-from app.core.enums import RateApprovalRequestTypeEnum
+from app.core.enums import RateApprovalRequestTypeEnum, RatesApprovalStatusEnum
 from app.schemas.erp.rates import AssetsRequest, AssignAssetsToSegmentRequest, ProposalResponse, SegmentsBulkUpdateRequest
 from app.models.rate_approval_request import RateApprovalRequest
 from app.utils.schema import CurrentUser
@@ -69,7 +70,9 @@ class RatesService(Service):
     @staticmethod
     def _build_segment_updates(proposal: RateApprovalRequest, current: dict, current_user: CurrentUser):
         payload = proposal.payload if isinstance(proposal.payload, dict) else {}
-        
+        segments = payload.get("segments", [])
+        segment = segments[0] if segments else {}
+
         return ProposalResponse(
             id=UUID(str(proposal.id)),
             change_type=proposal.type,
@@ -83,12 +86,12 @@ class RatesService(Service):
                 f"Sell: {current.get('sellSpread')}%"
             ],
             new_configuration=[
-                f"Buy: {payload.get('buySpread')}%", 
-                f"Sell: {payload.get('sellSpread')}%"
+                f"Buy: {segment.get('buySpread')}%", 
+                f"Sell: {segment.get('sellSpread')}%"
             ],
-            affected_assets=1,
-            target=payload.get("name", ""),
-            target_currency=payload.get("currency", "")
+            affected_assets=len(segments),
+            target=segment.get("name", ""),
+            target_currency=segment.get("currency", "")
         )
     
     @staticmethod
@@ -104,7 +107,6 @@ class RatesService(Service):
         available_assets = [asset.get("currency") for asset in all_assets if asset.get("id") in set(asset_ids)]
 
         added = set(available_assets) - set(current_assets)
-        removed = set(current_assets) - set(available_assets)
 
         return ProposalResponse(
             id=UUID(str(proposal.id)),
@@ -116,10 +118,9 @@ class RatesService(Service):
             updated_at=proposal.updated_at,
             previous_configuration=current_assets,
             new_configuration=[
-                f"+{asset}" for asset in added] + 
-                [f"-{asset}" for asset in removed
+                f"+{asset}" for asset in added
             ],
-            affected_assets=len(added) + len(removed),
+            affected_assets=len(added),
             target=current.get("name", ""),
             target_currency=payload.get("currency", "")
         )
@@ -177,6 +178,11 @@ class RatesService(Service):
             )
 
         return responses
+    
+    @staticmethod
+    def get_raw_proposals(db: Session):
+        proposals = db.query(RateApprovalRequest).all()
+        return proposals
 
 
     @staticmethod
@@ -226,7 +232,7 @@ class RatesService(Service):
     ):
         request_dict = request.model_dump(exclude_unset=True, mode="json")
 
-        if 1 == 1:
+        if False:  # Change this to True to enable proposal creation
             proposed_change = RatesService.create_proposal(
                 db,
                 rate_id,
@@ -265,24 +271,18 @@ class RatesService(Service):
     ):
         request_dict = request.model_dump(mode="json")
 
-        if 1 == 1:
+        if False: # Change this to True to enable proposal creation
             for segment in request.segments:
                 RatesService.create_proposal(
                     db,
                     segment.id,
                     RateApprovalRequestTypeEnum.SEGMENT_UPDATE,
-                    segment.model_dump(mode="json"),
+                    {
+                        "setupNote": request.setupNote,
+                        "segments": [segment.model_dump(mode="json")]
+                    },
                     current_user
                 )
-                        
-            # for segment in request_dict.get("segments", []):
-            #     proposed_change = RatesService.create_proposal(
-            #         db,
-            #         segment.get("id"),
-            #         RateApprovalRequestTypeEnum.SEGMENT_UPDATE,
-            #         segment,
-            #         current_user
-            #     )
         
             return {
                 "message": "Segment change proposal submitted successfully.",
@@ -304,7 +304,7 @@ class RatesService(Service):
     ):
         request_dict = request.model_dump(mode="json")
 
-        if 1 == 1:
+        if False: # Change this to True to enable proposal creation
             proposed_change = RatesService.create_proposal(
                 db,
                 segment_id, # id of segment assets are assigned to
@@ -337,3 +337,75 @@ class RatesService(Service):
             headers={"x-internal-key": INTERNAL_KEY}
         )
         return response.json()
+
+
+    @staticmethod
+    async def approve_proposal(db: Session, proposal_id: UUID):
+        proposal = db.query(RateApprovalRequest).filter(RateApprovalRequest.id == proposal_id).first()
+        if not proposal:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND, 
+                detail="Proposal not found"
+            )
+
+        if proposal.status != RatesApprovalStatusEnum.PENDING:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST, 
+                detail="Proposal has already been processed"
+            )
+        
+        # call the internal API to apply the changes based on the proposal type
+        if proposal.type == RateApprovalRequestTypeEnum.ASSET_UPDATE:
+            response = requests.put(
+                f"https://backend.xbankang.com/internal/wallets/crypto/accepts/{proposal.target_id}",
+                json=proposal.payload,
+                headers={"x-internal-key": INTERNAL_KEY}
+            )
+        elif proposal.type == RateApprovalRequestTypeEnum.SEGMENT_UPDATE:
+            print(f"Applying segment update for target_id: {proposal.target_id} with payload: {proposal.payload}")
+            response = requests.put(
+                "https://backend.xbankang.com/internal/wallets/crypto/segments/bulk",
+                json=proposal.payload,
+                headers={"x-internal-key": INTERNAL_KEY}
+            )
+            print(f"Response from segment update: {response.status_code}, {response.text}")
+        elif proposal.type == RateApprovalRequestTypeEnum.SEGMENT_ASSIGNMENT:
+            response = requests.put(
+                f"https://backend.xbankang.com/internal/wallets/crypto/segments/{proposal.target_id}/assets/bulk-assign",
+                json=proposal.payload,
+                headers={"x-internal-key": INTERNAL_KEY}
+            )
+        else:
+            raise ValueError(f"Unknown proposal type: {proposal.type}")
+        
+        if response.status_code != 200:
+            raise ValueError(f"Failed to apply proposal changes: {response.text}")
+
+        # Implement logic to approve the proposal
+        proposal.status = RatesApprovalStatusEnum.APPROVED
+        db.commit()
+        db.refresh(proposal)
+
+        return response.json()
+    
+    @staticmethod
+    def reject_proposal(db: Session, proposal_id: UUID):
+        proposal = db.query(RateApprovalRequest).filter(RateApprovalRequest.id == proposal_id).first()
+        if not proposal:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND, 
+                detail="Proposal not found"
+            )
+
+        if proposal.status != RatesApprovalStatusEnum.PENDING:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST, 
+                detail="Proposal has already been processed"
+            )
+
+        # Implement logic to reject the proposal
+        proposal.status = RatesApprovalStatusEnum.REJECTED
+        db.commit()
+        db.refresh(proposal)
+
+        return proposal

@@ -83,6 +83,20 @@ def bulk_assign_segments(
     )
 
 @rates.get(
+    "/proposals/raw", status_code=status.HTTP_200_OK
+)
+def get_raw_proposals(
+    db: Session = Depends(get_db),
+    current_user: CurrentUser = Depends(require_roles("erp"))
+):
+    proposals = RatesService.get_raw_proposals(db)
+
+    return {
+        "proposals": proposals
+    }
+
+
+@rates.get(
     "/proposals", status_code=status.HTTP_200_OK
 )
 def view_rate_management_proposals(
@@ -93,4 +107,38 @@ def view_rate_management_proposals(
 
     return {
         "proposals": proposals
+    }
+
+
+# approve rate management proposal
+@rates.post(
+    "/proposals/{proposal_id}/approve", status_code=status.HTTP_200_OK
+)
+async def approve_rate_management_proposal(
+    proposal_id: UUID,
+    db: Session = Depends(get_db),
+    current_user: CurrentUser = Depends(require_roles("erp"))
+):
+    proposal = await RatesService.approve_proposal(db, proposal_id)
+
+    return {
+        "message": "Proposal approved successfully",
+        "proposal": proposal
+    }
+
+
+# reject rate management proposal
+@rates.post(
+    "/proposals/{proposal_id}/reject", status_code=status.HTTP_200_OK
+)
+def reject_rate_management_proposal(
+    proposal_id: UUID,
+    db: Session = Depends(get_db),
+    current_user: CurrentUser = Depends(require_roles("erp"))
+):
+    proposal = RatesService.reject_proposal(db, proposal_id)
+
+    return {
+        "message": "Proposal rejected successfully",
+        "proposal": proposal
     }
