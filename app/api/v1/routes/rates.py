@@ -119,7 +119,11 @@ async def approve_rate_management_proposal(
     db: Session = Depends(get_db),
     current_user: CurrentUser = Depends(require_roles("erp"))
 ):
-    proposal = await RatesService.approve_proposal(db, proposal_id)
+    proposal = await RatesService.approve_proposal(
+        db, 
+        proposal_id, 
+        current_user
+    )
 
     return {
         "message": "Proposal approved successfully",

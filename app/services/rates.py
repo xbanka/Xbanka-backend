@@ -5,6 +5,7 @@ from uuid import UUID
 
 from app.core.base.services import Service
 from app.core.enums import RateApprovalRequestTypeEnum, RatesApprovalStatusEnum
+from app.models.rate_change_log import RateChangeLog
 from app.schemas.erp.rates import AssetsRequest, AssignAssetsToSegmentRequest, ProposalResponse, SegmentsBulkUpdateRequest
 from app.models.rate_approval_request import RateApprovalRequest
 from app.utils.schema import CurrentUser
@@ -251,6 +252,15 @@ class RatesService(Service):
             json=request_dict, 
             headers={"x-internal-key": INTERNAL_KEY}
         )
+
+        RatesService._log_if_success(
+            response, 
+            db, 
+            rate_id,
+            RateApprovalRequestTypeEnum.ASSET_UPDATE,
+            request_dict,
+            current_user
+        )
         return response.json()
     
 
@@ -293,6 +303,16 @@ class RatesService(Service):
             json=request_dict,
             headers={"x-internal-key": INTERNAL_KEY}
         )
+
+        RatesService._log_if_success(
+            response, 
+            db, 
+            None,  # No specific target_id for bulk updates
+            RateApprovalRequestTypeEnum.SEGMENT_UPDATE,
+            request_dict,
+            current_user
+        )
+
         return response.json()
     
     @staticmethod
@@ -323,6 +343,16 @@ class RatesService(Service):
             json=request_dict,
             headers={"x-internal-key": INTERNAL_KEY}
         )
+
+        RatesService._log_if_success(
+            response, 
+            db, 
+            segment_id,
+            RateApprovalRequestTypeEnum.SEGMENT_ASSIGNMENT,
+            request_dict,
+            current_user
+        )
+
         return response.json()
     
 
@@ -340,7 +370,7 @@ class RatesService(Service):
 
 
     @staticmethod
-    async def approve_proposal(db: Session, proposal_id: UUID):
+    async def approve_proposal(db: Session, proposal_id: UUID, current_user: CurrentUser):
         proposal = db.query(RateApprovalRequest).filter(RateApprovalRequest.id == proposal_id).first()
         if not proposal:
             raise HTTPException(
@@ -355,25 +385,28 @@ class RatesService(Service):
             )
         
         # call the internal API to apply the changes based on the proposal type
+        headers = {"x-internal-key": INTERNAL_KEY}
+        json=proposal.payload
+
         if proposal.type == RateApprovalRequestTypeEnum.ASSET_UPDATE:
             response = requests.put(
                 f"https://backend.xbankang.com/internal/wallets/crypto/accepts/{proposal.target_id}",
-                json=proposal.payload,
-                headers={"x-internal-key": INTERNAL_KEY}
+                json=json,
+                headers=headers
             )
         elif proposal.type == RateApprovalRequestTypeEnum.SEGMENT_UPDATE:
-            print(f"Applying segment update for target_id: {proposal.target_id} with payload: {proposal.payload}")
+            print(f"Applying segment update for target_id: {proposal.target_id} with payload: {json}")
             response = requests.put(
                 "https://backend.xbankang.com/internal/wallets/crypto/segments/bulk",
-                json=proposal.payload,
-                headers={"x-internal-key": INTERNAL_KEY}
+                json=json,
+                headers=headers
             )
             print(f"Response from segment update: {response.status_code}, {response.text}")
         elif proposal.type == RateApprovalRequestTypeEnum.SEGMENT_ASSIGNMENT:
             response = requests.put(
                 f"https://backend.xbankang.com/internal/wallets/crypto/segments/{proposal.target_id}/assets/bulk-assign",
-                json=proposal.payload,
-                headers={"x-internal-key": INTERNAL_KEY}
+                json=json,
+                headers=headers
             )
         else:
             raise ValueError(f"Unknown proposal type: {proposal.type}")
@@ -383,6 +416,15 @@ class RatesService(Service):
 
         # Implement logic to approve the proposal
         proposal.status = RatesApprovalStatusEnum.APPROVED
+
+        RatesService.create_log(
+            db,
+            UUID(str(proposal.target_id)) if proposal.target_id else None,
+            proposal.type,
+            proposal.payload,
+            current_user
+        )
+
         db.commit()
         db.refresh(proposal)
 
@@ -409,3 +451,44 @@ class RatesService(Service):
         db.refresh(proposal)
 
         return proposal
+    
+    @staticmethod
+    def create_log(
+        db: Session, 
+        target_id: UUID | None,
+        type: RateApprovalRequestTypeEnum,
+        payload: dict | list,
+        current_user: CurrentUser
+    ):
+        log_entry = RateChangeLog(
+            type=type,
+            target_id=target_id,
+            payload=payload,
+            performed_by_id=current_user.user.id
+        )
+        db.add(log_entry)
+
+        return log_entry
+    
+
+    @staticmethod
+    def _log_if_success(
+        response,
+        db: Session,
+        target_id: UUID | None,
+        type: RateApprovalRequestTypeEnum,
+        payload: dict | list,
+        current_user: CurrentUser
+    ):
+        if response.ok:
+            return
+
+        RatesService.create_log(
+            db,
+            target_id,
+            type,
+            payload,
+            current_user
+        )
+
+        db.commit()

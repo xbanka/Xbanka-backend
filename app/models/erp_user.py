@@ -43,5 +43,10 @@ class ERPUser(BaseModel):
         back_populates="requested_by",
     )
 
+    rate_changes = relationship(
+        "RateChangeLog",
+        back_populates="performed_by",
+    )
+
     def __repr__(self):
         return f"<ERPUser(first_name='{self.first_name}', last_name='{self.last_name}', email='{self.email}')>"

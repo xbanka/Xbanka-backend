@@ -10,6 +10,7 @@ from .notifications import Notification
 from .payouts import Payout
 from .permission import Permission
 from .rate_approval_request import RateApprovalRequest
+from .rate_change_log import RateChangeLog
 from .role import Role
 from .role_permissions import RolePermissions
 from .service_type import ServiceType
@@ -29,6 +30,7 @@ __all__ = [
     "Payout",
     "Permission",
     "RateApprovalRequest",
+    "RateChangeLog",
     "Role",
     "RolePermissions",
     "ServiceType",
