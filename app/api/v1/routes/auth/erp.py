@@ -41,25 +41,12 @@ def login(create_request: LoginBase, response: Response, db: Session = Depends(g
         db, ERPUser, create_request.email, create_request.password
     )
 
-    if create_request.email in [
-        "superadmin1@xbankang.com",
-        "superadmin2@xbankang.com",
-        "superadmin3@xbankang.com",
-        "superadmin4@xbankang.com",
-    ]:
-        access_token = AuthService.create_access_token(
-            data={"sub": str(user.id), "role": "super"}
-        )
-        refresh_token = AuthService.create_refresh_token(
-            data={"sub": str(user.id), "role": "super"}
-        )
-    else:
-        access_token = AuthService.create_access_token(
-            data={"sub": str(user.id), "role": "erp"}
-        )
-        refresh_token = AuthService.create_refresh_token(
-            data={"sub": str(user.id), "role": "erp"}
-        )
+    access_token = AuthService.create_access_token(
+        data={"sub": str(user.id), "account_type": "erp"}
+    )
+    refresh_token = AuthService.create_refresh_token(
+        data={"sub": str(user.id), "account_type": "erp"}
+    )
 
     # Add refresh token to cookies
     response.set_cookie(
@@ -178,14 +165,14 @@ async def forgot_password(
         )
 
     token = AuthService.create_password_reset_token(data={"sub": str(user.id)})
-    url = f"{ERP_FRONTEND_URL}/reset-password?token={token}"
+    reset_url = f"{ERP_FRONTEND_URL}/reset-password?token={token}"
 
     await send_forgot_password_email(
         recipient=forgot_request.email,
         email_type=EmailTypeEnum.erp,
         first_name=str(user.first_name),
         last_name=str(user.last_name),
-        reset_url=url,
+        reset_url=reset_url,
         background_tasks=background_tasks,
     )
 

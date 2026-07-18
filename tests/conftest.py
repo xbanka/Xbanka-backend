@@ -101,7 +101,7 @@ def verified_affiliate(db_session):
 @pytest.fixture
 def affiliate_token(verified_affiliate):
     return AuthService.create_access_token(
-        data={"sub": str(verified_affiliate.id), "role": "affiliate"}
+        data={"sub": str(verified_affiliate.id), "account_type": "affiliate"}
     )
 
 @pytest.fixture
@@ -136,7 +136,7 @@ def verified_erp(db_session):
 @pytest.fixture
 def erp_token(verified_erp):
     return AuthService.create_access_token(
-        data={"sub": str(verified_erp.id), "role": "erp"}
+        data={"sub": str(verified_erp.id), "account_type": "erp"}
     )
 
 @pytest.fixture
@@ -177,7 +177,7 @@ def verified_superadmin(db_session, superadmin_role):
 @pytest.fixture
 def super_token(verified_superadmin):
     return AuthService.create_access_token(
-        data={"sub": str(verified_superadmin.id), "role": "super"}
+        data={"sub": str(verified_superadmin.id)}
     )
 
 @pytest.fixture

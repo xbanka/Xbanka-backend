@@ -23,7 +23,7 @@ from app.services.affiliate import AffiliateService
 from app.services.affiliate_progress_service import AffiliateProgressService
 from app.services.affiliate_payout import PayoutService
 from app.services.erp_user import ERPService
-from app.utils.auth import require_roles
+from app.utils.auth import require_account_type
 from app.utils.schema import CurrentUser
 
 affiliate = APIRouter(prefix="/affiliates", tags=["Affiliates"])
@@ -34,7 +34,7 @@ affiliate = APIRouter(prefix="/affiliates", tags=["Affiliates"])
 )
 def get_current_affiliate(
     db: Session = Depends(get_db),
-    current_user: CurrentUser = Depends(require_roles("affiliate")),
+    current_user: CurrentUser = Depends(require_account_type("affiliate")),
 ):
     affiliate = current_user.user
 
@@ -62,7 +62,7 @@ def get_current_affiliate(
 def set_codename(
     codename: str,
     db: Session = Depends(get_db),
-    current_user: CurrentUser = Depends(require_roles("affiliate")),
+    current_user: CurrentUser = Depends(require_account_type("affiliate")),
 ):
     AffiliateService.set_codename(db, current_user.user, codename)
 
@@ -72,7 +72,7 @@ def set_codename(
 @affiliate.get("/referral", status_code=status.HTTP_200_OK)
 def get_referral_link(
     db: Session = Depends(get_db),
-    current_user: CurrentUser = Depends(require_roles("affiliate")),
+    current_user: CurrentUser = Depends(require_account_type("affiliate")),
 ):
     return AffiliateService.get_referral_code(db, current_user.user)
 
@@ -80,7 +80,7 @@ def get_referral_link(
 @affiliate.get("/all")
 def get_all_affiliates(
     db: Session = Depends(get_db),
-    current_user: CurrentUser = Depends(require_roles("affiliate")),
+    current_user: CurrentUser = Depends(require_account_type("affiliate")),
 ):
     return AffiliateService.get_all(db)
 
@@ -88,7 +88,7 @@ def get_all_affiliates(
 @affiliate.get("/commissions", status_code=status.HTTP_200_OK)
 def get_commissions(
     db: Session = Depends(get_db),
-    current_user: CurrentUser = Depends(require_roles("affiliate")),
+    current_user: CurrentUser = Depends(require_account_type("affiliate")),
     page: int = Query(1, ge=1, description="Page number"),
     limit: int = Query(10, ge=1, le=100, description="Items per page"),
 ):
@@ -98,7 +98,7 @@ def get_commissions(
 @affiliate.get("/commissions/export", response_class=Response)
 def export_commissions(
     db: Session = Depends(get_db),
-    current_user: CurrentUser = Depends(require_roles("affiliate")),
+    current_user: CurrentUser = Depends(require_account_type("affiliate")),
 ):
     content = AffiliateService.export_commissions(db, current_user.user.id)
 
@@ -115,7 +115,7 @@ def export_commissions(
 def post_payout(
     create_request: PayoutRequest,
     db: Session = Depends(get_db),
-    current_user: CurrentUser = Depends(require_roles("affiliate")),
+    current_user: CurrentUser = Depends(require_account_type("affiliate")),
 ):
     payout = PayoutService.create_new(db, create_request, current_user.user.id)
     # current_user here is the affiliate, not an ERP user — the notification is
@@ -144,7 +144,7 @@ def post_payout(
 )
 def get_payouts(
     db: Session = Depends(get_db),
-    current_user: CurrentUser = Depends(require_roles("affiliate")),
+    current_user: CurrentUser = Depends(require_account_type("affiliate")),
     page: int = Query(1, ge=1, description="Page number"),
     limit: int = Query(10, ge=1, le=100, description="Items per page"),
     status: Optional[PayoutStatusEnum] = Query(None, description="Payout Status"),
@@ -155,7 +155,7 @@ def get_payouts(
 @affiliate.get("/payouts/export", response_class=Response)
 def export_payouts(
     db: Session = Depends(get_db),
-    current_user: CurrentUser = Depends(require_roles("affiliate")),
+    current_user: CurrentUser = Depends(require_account_type("affiliate")),
     status: Optional[PayoutStatusEnum] = Query(None, description="Payout Status"),
 ):
 
@@ -173,7 +173,7 @@ def export_payouts(
 )
 def get_payouts_summary(
     db: Session = Depends(get_db),
-    current_user: CurrentUser = Depends(require_roles("affiliate")),
+    current_user: CurrentUser = Depends(require_account_type("affiliate")),
 ):
     return AffiliateService.get_payouts_summary(db, current_user.user.id)
 
@@ -183,7 +183,7 @@ def record_visitor(
     request: Request,
     response: Response,
     db: Session = Depends(get_db),
-    current_user: CurrentUser = Depends(require_roles("affiliate")),
+    current_user: CurrentUser = Depends(require_account_type("affiliate")),
 ):
     AffiliateService.record_unique_visit(db, current_user.user, request, response)
 
@@ -198,7 +198,7 @@ def record_visitor(
 def add_bank_details(
     bank_details: UpdateBankDetailsRequest,
     db: Session = Depends(get_db),
-    current_user: CurrentUser = Depends(require_roles("affiliate")),
+    current_user: CurrentUser = Depends(require_account_type("affiliate")),
 ):
     AffiliateService.add_bank_details(db, current_user.user, bank_details)
 

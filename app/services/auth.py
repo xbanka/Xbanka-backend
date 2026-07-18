@@ -42,6 +42,7 @@ class AuthService(Service):
     @staticmethod
     def create_access_token(data: dict, expires_delta: timedelta | None = None):
         """Method to create access token"""
+        
         to_encode = data.copy()
 
         if expires_delta is not None:
@@ -198,7 +199,7 @@ class AuthService(Service):
             raise credentials_exception
 
     @staticmethod
-    def refresh_access_token(current_refresh_token: str, role: str):
+    def refresh_access_token(current_refresh_token: str, account_type: str):
         """Method to refresh access token with refresh token"""
 
         credentials_exception = HTTPException(
@@ -216,7 +217,7 @@ class AuthService(Service):
                     detail="Invalid refresh token",
                 )
 
-            payload = {"sub": str(token.id), "role": role}
+            payload = {"sub": str(token.id), "account_type": account_type}
 
             new_access_token = AuthService.create_access_token(data=payload)
             new_refresh_token = AuthService.create_refresh_token(data=payload)
@@ -285,7 +286,7 @@ class AuthService(Service):
         try:
             payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
             user_id = payload.get("sub")
-            role = payload.get("role")
+            account_type = payload.get("account_type")
 
             if user_id is None:
                 raise credentials_exception
@@ -295,7 +296,7 @@ class AuthService(Service):
         except (InvalidTokenError, ExpiredSignatureError, DecodeError):
             raise credentials_exception
 
-        if role == "affiliate":
+        if account_type == "affiliate":
             user = db.query(Affiliate).filter(Affiliate.id == token_data.id).first()
 
             if user and not user.verified:
@@ -305,7 +306,7 @@ class AuthService(Service):
                     headers={"WWW-Authenticate": "Bearer"},
                 )
 
-        elif role == "erp" or role == "super":
+        elif account_type == "erp":
             user = db.query(ERPUser).filter_by(id=token_data.id).first()
         else:
             raise HTTPException(401, "Invalid user type")
@@ -313,7 +314,7 @@ class AuthService(Service):
         if user is None:
             raise credentials_exception
 
-        return CurrentUser(user, role)
+        return CurrentUser(user, account_type)
 
     @staticmethod
     def verify_bank_information(request: AccountVerificationRequest):

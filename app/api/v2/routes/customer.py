@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends, Query, status, HTTPException
 
-from app.utils.auth import require_roles
+from app.utils.auth import require_account_type
 from app.utils.schema import CurrentUser
 from app.services.internal_backend import InternalAPIService
 
@@ -11,7 +11,7 @@ customer_v2 = APIRouter(prefix="/customers", tags=["Customers v2"])
 )
 def search_customers(
     q: str = Query(...), 
-    current_user: CurrentUser = Depends(require_roles("affiliate", "erp", "super"))
+    current_user: CurrentUser = Depends(require_account_type("affiliate", "erp", "super"))
 ):
     try:
         return InternalAPIService.search_users(q)
@@ -23,7 +23,7 @@ def search_customers(
     "/all", status_code=status.HTTP_200_OK
 )
 def fetch_all_customers(
-    current_user: CurrentUser = Depends(require_roles("affiliate", "erp", "super")),
+    current_user: CurrentUser = Depends(require_account_type("affiliate", "erp", "super")),
     page: int = Query(1, ge=1, description="Page number"),
     limit: int = Query(10, ge=1, le=100, description="Items per page"),
     search: str = Query(None, description="Search term for name, email, or phone"),

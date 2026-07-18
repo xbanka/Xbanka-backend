@@ -57,10 +57,10 @@ def login(create_request: LoginBase, response: Response, db: Session = Depends(g
     )
 
     access_token = AuthService.create_access_token(
-        data={"sub": str(user.id), "role": "affiliate"}
+        data={"sub": str(user.id), "account_type": "affiliate"}
     )
     refresh_token = AuthService.create_refresh_token(
-        data={"sub": str(user.id), "role": "affiliate"}
+        data={"sub": str(user.id), "account_type": "affiliate"}
     )
 
     # Add refresh token to cookies
