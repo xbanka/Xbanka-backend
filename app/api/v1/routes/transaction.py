@@ -9,7 +9,7 @@ from app.schemas.transactions import (
 )
 from app.services.internal_backend import InternalAPIService
 from app.services.transaction import TransactionService
-from app.utils.auth import require_roles
+from app.utils.auth import require_account_type
 from app.utils.schema import CurrentUser
 
 transaction = APIRouter(prefix="/transactions", tags=["Transactions"])
@@ -19,7 +19,7 @@ transaction = APIRouter(prefix="/transactions", tags=["Transactions"])
     "/all", status_code=status.HTTP_200_OK
 )
 def fetch_all_transactions(
-    current_user: CurrentUser = Depends(require_roles("affiliate", "erp", "super")),
+    current_user: CurrentUser = Depends(require_account_type("affiliate", "erp", "super")),
     page: int = Query(1, ge=1, description="Page number"),
     limit: int = Query(10, ge=1, le=100, description="Items per page"),
     search: str = Query(None, description="Search term for reference, name, or email"),
@@ -80,7 +80,7 @@ def export_transactions(
 @transaction.get("/{transaction_id:uuid}", status_code=status.HTTP_200_OK)
 def fetch_single_transaction(
     transaction_id: UUID, 
-    current_user: CurrentUser = Depends(require_roles("affiliate", "erp", "super"))
+    current_user: CurrentUser = Depends(require_account_type("affiliate", "erp", "super"))
 ):
     return InternalAPIService.get_transaction_by_id(transaction_id)
 
@@ -90,7 +90,7 @@ def fetch_single_transaction(
 )
 def create_manual_transaction_log(
     payload: dict,
-    current_user: CurrentUser = Depends(require_roles("affiliate", "erp", "super")),
+    current_user: CurrentUser = Depends(require_account_type("affiliate", "erp", "super")),
 ):
     try:
         return InternalAPIService.log_manual_transaction(payload)
@@ -108,7 +108,7 @@ def upload_transaction_attachment(
     transaction_id: UUID,
     attachment: UploadFile = File(...),
     db: Session = Depends(get_db),
-    current_user: CurrentUser = Depends(require_roles("erp")),
+    current_user: CurrentUser = Depends(require_account_type("erp")),
 ):
     transaction = TransactionService.upload_attachment(
         db=db, transaction_id=transaction_id, attachment=attachment

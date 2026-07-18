@@ -13,14 +13,14 @@ from app.schemas.erp.rates import (
     UpdateAssetResponse
 )
 from app.services.rates import RatesService
-from app.utils.auth import require_roles
+from app.utils.auth import require_account_type
 from app.utils.schema import CurrentUser
 
 
 rates = APIRouter(prefix="/rates", tags=["Rates"])
 
 @rates.get("/crypto/all", response_model=BulkAssetsResponse)
-def get_crypto_rates(current_user: CurrentUser = Depends(require_roles("erp"))):
+def get_crypto_rates(current_user: CurrentUser = Depends(require_account_type("erp"))):
     return RatesService.get_all_exchange_rates()
 
 
@@ -28,7 +28,7 @@ def get_crypto_rates(current_user: CurrentUser = Depends(require_roles("erp"))):
 def post_crypto_rate(
     request: AssetsRequest,
     db: Session = Depends(get_db),
-    current_user: CurrentUser = Depends(require_roles("erp",))
+    current_user: CurrentUser = Depends(require_account_type("erp",))
 ):
     return RatesService.post_crypto_rate(db, request)
 
@@ -40,7 +40,7 @@ def update_crypto_rate(
     rate_id: UUID, 
     request: AssetsRequest,
     db: Session = Depends(get_db),
-    current_user: CurrentUser = Depends(require_roles("erp"))
+    current_user: CurrentUser = Depends(require_account_type("erp"))
 ):
     return RatesService.update_crypto_rate(
         db,
@@ -51,7 +51,7 @@ def update_crypto_rate(
 
 
 @rates.get("/segments/all", response_model=BulkSegmentsResponse)
-def get_all_segments(current_user: CurrentUser = Depends(require_roles("erp"))):
+def get_all_segments(current_user: CurrentUser = Depends(require_account_type("erp"))):
     return RatesService.get_all_segments()
 
 
@@ -61,7 +61,7 @@ def get_all_segments(current_user: CurrentUser = Depends(require_roles("erp"))):
 def bulk_update_segments(
     request: SegmentsBulkUpdateRequest,
     db: Session = Depends(get_db),
-    current_user: CurrentUser = Depends(require_roles("erp"))
+    current_user: CurrentUser = Depends(require_account_type("erp"))
 ):
     return RatesService.bulk_update_segments(db, current_user, request)
 
@@ -72,7 +72,7 @@ def bulk_update_segments(
 def bulk_assign_segments(
     segment_id: UUID, 
     request: AssignAssetsToSegmentRequest,
-    current_user: CurrentUser = Depends(require_roles("erp")),
+    current_user: CurrentUser = Depends(require_account_type("erp")),
     db: Session = Depends(get_db)  
 ):
     return RatesService.bulk_assign_to_segments(
@@ -87,7 +87,7 @@ def bulk_assign_segments(
 )
 def get_raw_proposals(
     db: Session = Depends(get_db),
-    current_user: CurrentUser = Depends(require_roles("erp"))
+    current_user: CurrentUser = Depends(require_account_type("erp"))
 ):
     proposals = RatesService.get_raw_proposals(db)
 
@@ -101,7 +101,7 @@ def get_raw_proposals(
 )
 def view_rate_management_proposals(
     db: Session = Depends(get_db),
-    current_user: CurrentUser = Depends(require_roles("erp"))
+    current_user: CurrentUser = Depends(require_account_type("erp"))
 ):
     proposals = RatesService.get_proposals(db, current_user)
 
@@ -117,7 +117,7 @@ def view_rate_management_proposals(
 async def approve_rate_management_proposal(
     proposal_id: UUID,
     db: Session = Depends(get_db),
-    current_user: CurrentUser = Depends(require_roles("erp"))
+    current_user: CurrentUser = Depends(require_account_type("erp"))
 ):
     proposal = await RatesService.approve_proposal(
         db, 
@@ -138,7 +138,7 @@ async def approve_rate_management_proposal(
 def reject_rate_management_proposal(
     proposal_id: UUID,
     db: Session = Depends(get_db),
-    current_user: CurrentUser = Depends(require_roles("erp"))
+    current_user: CurrentUser = Depends(require_account_type("erp"))
 ):
     proposal = RatesService.reject_proposal(db, proposal_id)
 
@@ -153,7 +153,7 @@ def reject_rate_management_proposal(
 )
 def get_rate_change_logs(
     db: Session = Depends(get_db),
-    current_user: CurrentUser = Depends(require_roles("erp"))
+    current_user: CurrentUser = Depends(require_account_type("erp"))
 ):
     logs = RatesService.get_rate_change_logs(db, current_user)
 

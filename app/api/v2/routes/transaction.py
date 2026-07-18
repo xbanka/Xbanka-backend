@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends, Query, Body, status, HTTPException
 
-from app.utils.auth import require_roles
+from app.utils.auth import require_account_type
 from app.utils.schema import CurrentUser
 from app.services.internal_backend import InternalAPIService
 
@@ -10,7 +10,7 @@ transaction_v2 = APIRouter(prefix="/transactions", tags=["Transactions v2"])
     "/all", status_code=status.HTTP_200_OK
 )
 def fetch_all_transactions(
-    current_user: CurrentUser = Depends(require_roles("affiliate", "erp", "super")),
+    current_user: CurrentUser = Depends(require_account_type("affiliate", "erp", "super")),
     page: int = Query(1, ge=1, description="Page number"),
     limit: int = Query(10, ge=1, le=100, description="Items per page"),
     search: str = Query(None, description="Search term for reference, name, or email"),
@@ -42,7 +42,7 @@ def fetch_all_transactions(
 )
 def create_manual_transaction_log(
     payload: dict = Body(...),
-    current_user: CurrentUser = Depends(require_roles("affiliate", "erp", "super")),
+    current_user: CurrentUser = Depends(require_account_type("affiliate", "erp", "super")),
 ):
     try:
         return InternalAPIService.log_manual_transaction(payload)

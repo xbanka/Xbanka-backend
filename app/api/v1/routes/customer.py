@@ -2,7 +2,7 @@ from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Response, status
 from app.services.internal_backend import InternalAPIService
-from app.utils.auth import require_roles
+from app.utils.auth import require_account_type
 from app.utils.schema import CurrentUser
 
 customer = APIRouter(prefix="/customers", tags=["Customers"])
@@ -12,7 +12,7 @@ customer = APIRouter(prefix="/customers", tags=["Customers"])
     "/all", status_code=status.HTTP_200_OK
 )
 def fetch_all_customers(
-    current_user: CurrentUser = Depends(require_roles("affiliate", "erp", "super")),
+    current_user: CurrentUser = Depends(require_account_type("affiliate", "erp", "super")),
     page: int = Query(1, ge=1, description="Page number"),
     limit: int = Query(10, ge=1, le=100, description="Items per page"),
     search: str = Query(None, description="Search term for name, email, or phone"),
@@ -62,7 +62,7 @@ def export_customers(
 )
 def search_customers(
     q: str = Query(...), 
-    current_user: CurrentUser = Depends(require_roles("affiliate", "erp", "super"))
+    current_user: CurrentUser = Depends(require_account_type("affiliate", "erp", "super"))
 ):
     try:
         return InternalAPIService.search_users(q)
@@ -71,7 +71,7 @@ def search_customers(
 
 
 @customer.get("/{customer_id:uuid}", status_code=status.HTTP_200_OK)
-def get_customer(customer_id: UUID, current_user: CurrentUser = Depends(require_roles("affiliate", "erp", "super"))):
+def get_customer(customer_id: UUID, current_user: CurrentUser = Depends(require_account_type("affiliate", "erp", "super"))):
     return InternalAPIService.get_user_by_id(customer_id)
 
 
@@ -80,7 +80,7 @@ def get_customer_transactions(
     customer_id: UUID, 
     page: int = Query(1, ge=1, description="Page number"),
     limit: int = Query(10, ge=1, le=100, description="Items per page"),
-    current_user: CurrentUser = Depends(require_roles("affiliate", "erp", "super")),
+    current_user: CurrentUser = Depends(require_account_type("affiliate", "erp", "super")),
 ):
     try:
         return InternalAPIService.get_user_transactions(
@@ -95,7 +95,7 @@ def get_customer_transactions(
 @customer.get("/{customer_id:uuid}/assets")
 def get_customer_assets(
     customer_id: UUID,
-    current_user: CurrentUser = Depends(require_roles("affiliate", "erp", "super"))
+    current_user: CurrentUser = Depends(require_account_type("affiliate", "erp", "super"))
 ):
     try:
         return InternalAPIService.get_user_assets(user_id=customer_id)
@@ -106,7 +106,7 @@ def get_customer_assets(
 @customer.get("/{customer_id:uuid}/verification")
 def get_customer_verification(
     customer_id: UUID,
-    current_user: CurrentUser = Depends(require_roles("affiliate", "erp", "super"))
+    current_user: CurrentUser = Depends(require_account_type("affiliate", "erp", "super"))
 ):
     try:
         return InternalAPIService.get_user_verification_details(user_id=customer_id)
@@ -117,7 +117,7 @@ def get_customer_verification(
 @customer.put("/{customer_id:uuid}/status")
 def toggle_customer_status(
     customer_id: UUID,
-    current_user: CurrentUser = Depends(require_roles("affiliate", "erp", "super"))
+    current_user: CurrentUser = Depends(require_account_type("affiliate", "erp", "super"))
 ):
     try:
         return InternalAPIService.toggle_user_status(user_id=customer_id)

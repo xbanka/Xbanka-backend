@@ -58,10 +58,10 @@ async def auth_callback(
         affiliate = AffiliateService.create_from_google_user(db, user_info)
 
     access_token = AuthService.create_access_token(
-        data={"sub": str(affiliate.id), "role": "affiliate"}
+        data={"sub": str(affiliate.id), "account_type": "affiliate"}
     )
     refresh_token = AuthService.create_refresh_token(
-        data={"sub": str(affiliate.id), "role": "affiliate"}
+        data={"sub": str(affiliate.id), "account_type": "affiliate"}
     )
 
     # Add refresh token to cookies

@@ -19,21 +19,21 @@ from app.schemas.erp.payout import ERPPaginatedPayoutResponse, ERPPayoutResponse
 from app.schemas.erp.user import ERPMeResponse
 from app.schemas.payout import ProcessPayoutRequest
 from app.services.erp_user import ERPService
-from app.utils.auth import require_roles
+from app.utils.auth import require_account_type
 from app.utils.schema import CurrentUser
 
 erp = APIRouter(prefix="/erp", tags=["ERP"])
 
 
 @erp.get("/me", status_code=status.HTTP_200_OK, response_model=ERPMeResponse)
-def get_current_erp(current_user: CurrentUser = Depends(require_roles("erp"))):
+def get_current_erp(current_user: CurrentUser = Depends(require_account_type("erp"))):
     return current_user.user
 
 
 @erp.get("/notifications", response_model=List[NotificationsResponse])
 def get_notifications(
     db: Session = Depends(get_db),
-    current_user: CurrentUser = Depends(require_roles("erp")),
+    current_user: CurrentUser = Depends(require_account_type("erp")),
 ):
     return ERPService.get_notifications(db, current_user.user.id)
 
@@ -45,7 +45,7 @@ def get_notifications(
 def mark_as_read(
     notification_id: UUID,
     db: Session = Depends(get_db),
-    current_user: CurrentUser = Depends(require_roles("erp")),
+    current_user: CurrentUser = Depends(require_account_type("erp")),
 ):
     notif = ERPService.mark_notification_as_read(
         db, notification_id, current_user.user.id
@@ -60,7 +60,7 @@ def mark_as_read(
 )
 def get_all_payouts(
     db: Session = Depends(get_db),
-    current_user: CurrentUser = Depends(require_roles("erp")),
+    current_user: CurrentUser = Depends(require_account_type("erp")),
     page: int = Query(1, ge=1, description="Page number"),
     limit: int = Query(10, ge=1, le=100, description="Items per page"),
     status: Optional[PayoutStatusEnum] = Query(None, description="Payout Status"),
@@ -76,7 +76,7 @@ def get_all_payouts(
 def get_payout_details(
     payout_id: UUID,
     db: Session = Depends(get_db),
-    current_user: CurrentUser = Depends(require_roles("erp")),
+    current_user: CurrentUser = Depends(require_account_type("erp")),
 ):
     return ERPService.get_payout_details(db, payout_id)
 
@@ -90,7 +90,7 @@ def process_payout(
     payout_id: UUID,
     process_request: ProcessPayoutRequest,
     db: Session = Depends(get_db),
-    current_user: CurrentUser = Depends(require_roles("erp")),
+    current_user: CurrentUser = Depends(require_account_type("erp")),
 ):
     payout = ERPService.process_payout(db, payout_id, process_request)
 
@@ -117,7 +117,7 @@ def process_payout(
 def reject_payout(
     payout_id: UUID,
     db: Session = Depends(get_db),
-    current_user: CurrentUser = Depends(require_roles("erp")),
+    current_user: CurrentUser = Depends(require_account_type("erp")),
 ):
     payout = ERPService.reject_payout(db, payout_id)
 
@@ -145,7 +145,7 @@ def upload_payout_attachment(
     payout_id: UUID,
     attachment: UploadFile = File(...),
     db: Session = Depends(get_db),
-    current_user: CurrentUser = Depends(require_roles("erp")),
+    current_user: CurrentUser = Depends(require_account_type("erp")),
 ):
     payout = ERPService.upload_attachment(
         db=db, payout_id=payout_id, attachment=attachment

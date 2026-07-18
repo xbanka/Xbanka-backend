@@ -1,4 +1,4 @@
 class CurrentUser:
-    def __init__(self, user, role: str):
+    def __init__(self, user, account_type: str):
         self.user = user
-        self.role = role
+        self.account_type = account_type
