@@ -455,8 +455,7 @@ class ERPService(Service):
                 status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid email address."
             )
 
-        stmt = select(ERPUser).where(ERPUser.email == email)
-        staff_user = db.execute(stmt).scalars().first()
+        staff_user = db.scalar(select(ERPUser).where(ERPUser.email == email))
 
         if staff_user:
             raise HTTPException(
@@ -566,16 +565,25 @@ class ERPService(Service):
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND, detail="Staff user not found"
             )
+        # Load role's allowed permissions via the RolePermissions link (uses is_allowed)
+        role_allowed = (
+            db.query(Permission.name)
+            .join(RolePermissions, Permission.id == RolePermissions.permission_id)
+            .filter(RolePermissions.role_id == staff_user.role_id)
+            .filter(RolePermissions.is_allowed)
+            .all()
+        )
 
-        # permissions = staff_user.role.permissions
+        # `role_allowed` is a list of 1-tuples (name,), extract names
+        permissions = {name for (name,) in role_allowed}
 
-        permissions = {p.name for p in staff_user.role.permissions}
-
-        for user_perms in staff_user.permissions:
-            if user_perms.is_active:
-                permissions.add(user_perms.permission.name)
+        # Apply user specific overrides from UserPermissions (`permission_links`)
+        for user_perm in staff_user.permission_links:
+            print(user_perm.permission.name)
+            if user_perm.is_active:
+                permissions.add(user_perm.permission.name)
             else:
-                permissions.discard(user_perms.permission.name)
+                permissions.discard(user_perm.permission.name)
 
         return list(permissions)
 
