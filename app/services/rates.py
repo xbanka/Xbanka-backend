@@ -6,7 +6,7 @@ from uuid import UUID
 from app.core.base.services import Service
 from app.core.enums import RateApprovalRequestTypeEnum, RatesApprovalStatusEnum
 from app.models.rate_change_log import RateChangeLog
-from app.schemas.erp.rates import AssetsRequest, AssignAssetsToSegmentRequest, ProposalResponse, SegmentsBulkUpdateRequest
+from app.schemas.erp.rates import AssetsRequest, AssignAssetsToSegmentRequest, ProposalResponse, RequestUser, SegmentsBulkUpdateRequest
 from app.models.rate_approval_request import RateApprovalRequest
 from app.utils.schema import CurrentUser
 from app.utils.settings import settings
@@ -52,6 +52,11 @@ class RatesService(Service):
             change_type=proposal.type,
             target_id=UUID(str(proposal.target_id)),
             requested_by_id=current_user.user.id,
+            requested_by=RequestUser(
+                first_name=current_user.user.first_name,
+                last_name=current_user.user.last_name,
+                role=current_user.user.role.name
+            ),
             status=proposal.status,
             created_at=proposal.created_at,
             updated_at=proposal.updated_at,
@@ -79,6 +84,11 @@ class RatesService(Service):
             change_type=proposal.type,
             target_id=UUID(str(proposal.target_id)),
             requested_by_id=current_user.user.id,
+            requested_by=RequestUser(
+                first_name=current_user.user.first_name,
+                last_name=current_user.user.last_name,
+                role=current_user.user.role.name
+            ),
             status=proposal.status,
             created_at=proposal.created_at,
             updated_at=proposal.updated_at,
@@ -114,6 +124,11 @@ class RatesService(Service):
             change_type=proposal.type,
             target_id=UUID(str(proposal.target_id)),
             requested_by_id=current_user.user.id,
+            requested_by=RequestUser(
+                first_name=current_user.user.first_name,
+                last_name=current_user.user.last_name,
+                role=current_user.user.role.name
+            ),
             status=proposal.status,
             created_at=proposal.created_at,
             updated_at=proposal.updated_at,

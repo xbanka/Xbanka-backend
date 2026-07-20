@@ -1,5 +1,4 @@
 from fastapi import APIRouter, Depends, Query, status, HTTPException
-from typing import List
 
 from app.utils.auth import require_roles
 from app.utils.schema import CurrentUser

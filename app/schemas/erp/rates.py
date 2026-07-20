@@ -10,11 +10,17 @@ from app.core.enums import RatesApprovalStatusEnum
 
 T = TypeVar("T")
 
+class RequestUser(BaseModel):
+    first_name: str
+    last_name: str
+    role: str
+
 class ProposalResponse(BaseModel):
     id: UUID
     change_type: str
     target_id: UUID
     requested_by_id: UUID
+    requested_by: RequestUser
     status: RatesApprovalStatusEnum
     target: str
     target_currency: Optional[str] = None
