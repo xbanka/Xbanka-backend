@@ -496,6 +496,35 @@ class RatesService(Service):
     
 
     @staticmethod
+    def get_log_by_id(log_id: UUID, db: Session, current_user: CurrentUser):
+        log = db.get(RateChangeLog, log_id)
+
+        if not log or not log.target_id:
+            if not log:
+                detail = f"Rate change log with id '{log_id}' not found."
+            else:
+                detail = (
+                    f"Rate change log '{log_id}' exists but has no target_id set; "
+                    "unable to determine target configuration."
+                )
+
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=detail
+            )
+        
+        target_id = UUID(str(log.target_id))
+
+        current = RatesService._fetch_current_configuration(log.type, target_id) if target_id else {}
+
+        return RatesService._build_response(
+            log, 
+            current, 
+            current_user
+        )
+    
+
+    @staticmethod
     def _log_if_success(
         response,
         db: Session,

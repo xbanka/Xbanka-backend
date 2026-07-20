@@ -160,3 +160,19 @@ def get_rate_change_logs(
     return {
         "logs": logs
     }
+
+
+# get log by id
+@rates.get(
+    "/logs/{log_id}", status_code=status.HTTP_200_OK
+)
+def get_log_by_id(
+    log_id: UUID,
+    db: Session = Depends(get_db),
+    current_user: CurrentUser = Depends(require_roles("erp"))
+):
+    log = RatesService.get_log_by_id(log_id, db, current_user)
+
+    return {
+        "log": log
+    }

@@ -285,7 +285,7 @@ class AuthService(Service):
         try:
             payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
             user_id = payload.get("sub")
-            account_type = payload.get("account_type")
+            role = payload.get("role")
 
             if user_id is None:
                 raise credentials_exception
@@ -294,8 +294,11 @@ class AuthService(Service):
 
         except (InvalidTokenError, ExpiredSignatureError, DecodeError):
             raise credentials_exception
+        
+        print('role')
+        print(role)
 
-        if account_type == "affiliate":
+        if role == "affiliate":
             user = db.query(Affiliate).filter(Affiliate.id == token_data.id).first()
 
             if user and not user.verified:
@@ -305,7 +308,7 @@ class AuthService(Service):
                     headers={"WWW-Authenticate": "Bearer"},
                 )
 
-        elif account_type == "erp":
+        elif role == "erp" or role == "super":
             user = db.query(ERPUser).filter_by(id=user_id).first()
         else:
             raise HTTPException(401, "Invalid user type")
@@ -313,7 +316,7 @@ class AuthService(Service):
         if user is None:
             raise credentials_exception
 
-        return CurrentUser(user, account_type)
+        return CurrentUser(user, role)
 
     @staticmethod
     def verify_bank_information(request: AccountVerificationRequest):
