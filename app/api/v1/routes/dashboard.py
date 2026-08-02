@@ -2,8 +2,9 @@ from fastapi import APIRouter, Depends, status
 from sqlalchemy.orm import Session
 
 from app.db.database import get_db
-from app.schemas.dashboard import AffiliateDashboardDisplay, ERPDashboardDisplay
+from app.schemas.dashboard import AffiliateDashboardDisplay, TransactionMetricsResponse, CustomerMetricsResponse
 from app.services.dashboard import DashboardService
+from app.services.internal_backend import InternalAPIService
 from app.utils.auth import require_roles
 from app.utils.schema import CurrentUser
 
@@ -22,11 +23,23 @@ def summary(
     return summary
 
 
-@dashboard.get("/erp/stats", status_code=status.HTTP_200_OK, response_model=ERPDashboardDisplay)
-def erp_stats(
-    db: Session = Depends(get_db),
-    current_user: CurrentUser = Depends(require_roles("super")),
-):
-    stats = DashboardService.get_erp_stats(db)
+@dashboard.get(
+    "/erp/transactions/metrics", 
+    status_code=status.HTTP_200_OK, 
+    response_model=TransactionMetricsResponse
+)
+def erp_transaction_metrics(current_user: CurrentUser = Depends(require_roles("erp"))):
+    metrics = InternalAPIService.get_transaction_metrics()
 
-    return stats
+    return metrics
+
+
+@dashboard.get(
+    "/erp/customer/metrics", 
+    status_code=status.HTTP_200_OK, 
+    response_model=CustomerMetricsResponse
+)
+def erp_customer_metrics(current_user: CurrentUser = Depends(require_roles("erp"))):
+    metrics = InternalAPIService.get_customer_metrics()
+
+    return metrics
