@@ -15,6 +15,14 @@ class RequestUser(BaseModel):
     last_name: str
     role: str
 
+class AffectedAssetItem(BaseModel):
+    id: UUID
+    name: str
+    currency: str
+    previous_configuration: list[str]
+    new_configuration: list[str]
+    status: str
+
 class ProposalResponse(BaseModel):
     id: UUID
     change_type: str
@@ -27,6 +35,7 @@ class ProposalResponse(BaseModel):
     previous_configuration: list[str]
     new_configuration: list[str]
     affected_assets: int
+    affected_assets_detail: Optional[List[AffectedAssetItem]] = None
     created_at: datetime
     updated_at: datetime
 

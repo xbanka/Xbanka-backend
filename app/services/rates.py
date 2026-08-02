@@ -6,7 +6,7 @@ from uuid import UUID
 from app.core.base.services import Service
 from app.core.enums import RateApprovalRequestTypeEnum, RatesApprovalStatusEnum
 from app.models.rate_change_log import RateChangeLog
-from app.schemas.erp.rates import AssetsRequest, AssignAssetsToSegmentRequest, ProposalResponse, RequestUser, SegmentsBulkUpdateRequest
+from app.schemas.erp.rates import AffectedAssetItem, AssetsRequest, AssignAssetsToSegmentRequest, ProposalResponse, RequestUser, SegmentsBulkUpdateRequest
 from app.models.rate_approval_request import RateApprovalRequest
 from app.utils.schema import CurrentUser
 from app.utils.settings import settings
@@ -54,6 +54,15 @@ class RatesService(Service):
             return result.get("data", [])
 
         return []
+
+    @staticmethod
+    def _fetch_segment_assets(segment_id: UUID) -> list[dict]:
+        """Assets currently assigned to a segment and inheriting its spread (not overridden). Live lookup."""
+        segment_key = str(segment_id)
+        return [
+            asset for asset in RatesService._fetch_all_assets()
+            if str(asset.get("segmentId")) == segment_key and not asset.get("overrideSegment", False)
+        ]
 
     @staticmethod
     def _build_snapshot(type: RateApprovalRequestTypeEnum, target_id: UUID, payload: dict, current_state: dict):
@@ -141,8 +150,30 @@ class RatesService(Service):
         return []
 
     @staticmethod
-    def _to_proposal_response(row, actor) -> ProposalResponse:
-        """Format a stored RateApprovalRequest/RateChangeLog row using its persisted snapshot. No live fetch."""
+    def _to_proposal_response(row, actor, include_asset_breakdown: bool = False) -> ProposalResponse:
+        """Format a stored RateApprovalRequest/RateChangeLog row using its persisted snapshot. No live fetch,
+        except when include_asset_breakdown is set for a SEGMENT_UPDATE row (single-log detail view only)."""
+        previous_strings = RatesService._format_configuration(row.type, row.previous_configuration)
+        new_strings = RatesService._format_configuration(row.type, row.new_configuration)
+
+        affected_assets = row.affected_assets
+        affected_assets_detail = None
+
+        if include_asset_breakdown and row.type == RateApprovalRequestTypeEnum.SEGMENT_UPDATE:
+            segment_assets = RatesService._fetch_segment_assets(row.target_id)
+            affected_assets_detail = [
+                AffectedAssetItem(
+                    id=UUID(str(asset["id"])),
+                    name=asset.get("name", ""),
+                    currency=asset.get("currency", ""),
+                    previous_configuration=previous_strings,
+                    new_configuration=new_strings,
+                    status="Updated"
+                )
+                for asset in segment_assets
+            ]
+            affected_assets = len(affected_assets_detail)
+
         return ProposalResponse(
             id=UUID(str(row.id)),
             change_type=row.type,
@@ -156,9 +187,10 @@ class RatesService(Service):
             status=row.status,
             created_at=row.created_at,
             updated_at=row.updated_at,
-            previous_configuration=RatesService._format_configuration(row.type, row.previous_configuration),
-            new_configuration=RatesService._format_configuration(row.type, row.new_configuration),
-            affected_assets=row.affected_assets,
+            previous_configuration=previous_strings,
+            new_configuration=new_strings,
+            affected_assets=affected_assets,
+            affected_assets_detail=affected_assets_detail,
             target=row.target_label,
             target_currency=row.target_currency,
         )
@@ -462,4 +494,4 @@ class RatesService(Service):
                 detail=detail
             )
 
-        return RatesService._to_proposal_response(log, log.performed_by)
+        return RatesService._to_proposal_response(log, log.performed_by, include_asset_breakdown=True)
