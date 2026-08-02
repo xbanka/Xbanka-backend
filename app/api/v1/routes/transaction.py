@@ -7,7 +7,7 @@ from app.db.database import get_db
 from app.schemas.transactions import (
     TransactionCreateResponse
 )
-from app.services.core_backend import CoreBackendService
+from app.services.internal_backend import InternalAPIService
 from app.services.transaction import TransactionService
 from app.utils.auth import require_roles
 from app.utils.schema import CurrentUser
@@ -31,7 +31,7 @@ def fetch_all_transactions(
     end_date: str = Query(None, alias="endDate", description="End date (ISO)"),
 ):
     try:
-        return CoreBackendService.get_all_transactions(
+        return InternalAPIService.get_all_transactions(
             page=page, 
             limit=limit,
             search=search,
@@ -51,7 +51,7 @@ def fetch_single_transaction(
     transaction_id: UUID, 
     current_user: CurrentUser = Depends(require_roles("affiliate", "erp", "super"))
 ):
-    return CoreBackendService.get_transaction_by_id(transaction_id)
+    return InternalAPIService.get_transaction_by_id(transaction_id)
 
     
 @transaction.post(
@@ -62,7 +62,7 @@ def create_manual_transaction_log(
     current_user: CurrentUser = Depends(require_roles("affiliate", "erp", "super")),
 ):
     try:
-        return CoreBackendService.log_manual_transaction(payload)
+        return InternalAPIService.log_manual_transaction(payload)
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 

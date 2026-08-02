@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, Query, Body, status, HTTPException
 
 from app.utils.auth import require_roles
 from app.utils.schema import CurrentUser
-from app.services.core_backend import CoreBackendService
+from app.services.internal_backend import InternalAPIService
 
 transaction_v2 = APIRouter(prefix="/transactions", tags=["Transactions v2"])
 
@@ -22,7 +22,7 @@ def fetch_all_transactions(
     end_date: str = Query(None, alias="endDate", description="End date (ISO)"),
 ):
     try:
-        return CoreBackendService.get_all_transactions(
+        return InternalAPIService.get_all_transactions(
             page=page, 
             limit=limit,
             search=search,
@@ -45,6 +45,6 @@ def create_manual_transaction_log(
     current_user: CurrentUser = Depends(require_roles("affiliate", "erp", "super")),
 ):
     try:
-        return CoreBackendService.log_manual_transaction(payload)
+        return InternalAPIService.log_manual_transaction(payload)
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))

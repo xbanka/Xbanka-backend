@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, Query, status, HTTPException
 
 from app.utils.auth import require_roles
 from app.utils.schema import CurrentUser
-from app.services.core_backend import CoreBackendService
+from app.services.internal_backend import InternalAPIService
 
 customer_v2 = APIRouter(prefix="/customers", tags=["Customers v2"])
 
@@ -14,7 +14,7 @@ def search_customers(
     current_user: CurrentUser = Depends(require_roles("affiliate", "erp", "super"))
 ):
     try:
-        return CoreBackendService.search_users(q)
+        return InternalAPIService.search_users(q)
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
@@ -32,7 +32,7 @@ def fetch_all_customers(
     end_date: str = Query(None, alias="endDate", description="End date (ISO)"),
 ):
     try:
-        return CoreBackendService.get_all_users(
+        return InternalAPIService.get_all_users(
             page=page, 
             limit=limit,
             search=search,

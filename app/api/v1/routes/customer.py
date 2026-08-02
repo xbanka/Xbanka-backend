@@ -1,7 +1,7 @@
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
-from app.services.core_backend import CoreBackendService
+from app.services.internal_backend import InternalAPIService
 from app.utils.auth import require_roles
 from app.utils.schema import CurrentUser
 
@@ -21,7 +21,7 @@ def fetch_all_customers(
     end_date: str = Query(None, alias="endDate", description="End date (ISO)"),
 ):
     try:
-        return CoreBackendService.get_all_users(
+        return InternalAPIService.get_all_users(
             page=page, 
             limit=limit,
             search=search,
@@ -40,14 +40,14 @@ def search_customers(
     current_user: CurrentUser = Depends(require_roles("affiliate", "erp", "super"))
 ):
     try:
-        return CoreBackendService.search_users(q)
+        return InternalAPIService.search_users(q)
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
 
 @customer.get("/{customer_id:uuid}", status_code=status.HTTP_200_OK)
 def get_customer(customer_id: UUID, current_user: CurrentUser = Depends(require_roles("affiliate", "erp", "super"))):
-    return CoreBackendService.get_user_by_id(customer_id)
+    return InternalAPIService.get_user_by_id(customer_id)
 
 
 @customer.get("/{customer_id:uuid}/transactions", status_code=status.HTTP_200_OK)
@@ -58,7 +58,7 @@ def get_customer_transactions(
     current_user: CurrentUser = Depends(require_roles("affiliate", "erp", "super")),
 ):
     try:
-        return CoreBackendService.get_user_transactions(
+        return InternalAPIService.get_user_transactions(
             user_id=customer_id,
             page=page,
             limit=limit
@@ -73,7 +73,7 @@ def get_customer_assets(
     current_user: CurrentUser = Depends(require_roles("affiliate", "erp", "super"))
 ):
     try:
-        return CoreBackendService.get_user_assets(user_id=customer_id)
+        return InternalAPIService.get_user_assets(user_id=customer_id)
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
     
@@ -84,7 +84,7 @@ def get_customer_verification(
     current_user: CurrentUser = Depends(require_roles("affiliate", "erp", "super"))
 ):
     try:
-        return CoreBackendService.get_user_verification_details(user_id=customer_id)
+        return InternalAPIService.get_user_verification_details(user_id=customer_id)
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
     
@@ -95,6 +95,6 @@ def toggle_customer_status(
     current_user: CurrentUser = Depends(require_roles("affiliate", "erp", "super"))
 ):
     try:
-        return CoreBackendService.toggle_user_status(user_id=customer_id)
+        return InternalAPIService.toggle_user_status(user_id=customer_id)
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
