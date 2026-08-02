@@ -294,9 +294,6 @@ class AuthService(Service):
 
         except (InvalidTokenError, ExpiredSignatureError, DecodeError):
             raise credentials_exception
-        
-        print('role')
-        print(role)
 
         if role == "affiliate":
             user = db.query(Affiliate).filter(Affiliate.id == token_data.id).first()

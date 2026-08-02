@@ -1,14 +1,13 @@
-from datetime import datetime
+from app.schemas.shared import ApiResponse
 
+from datetime import datetime
 from pydantic import BaseModel, Field
 from pydantic import ConfigDict
-from typing import List, Optional, Generic, TypeVar
+from typing import List, Optional
 from uuid import UUID
 
 from app.core.enums import RatesApprovalStatusEnum
 
-
-T = TypeVar("T")
 
 class RequestUser(BaseModel):
     first_name: str
@@ -39,12 +38,6 @@ class ProposalResponse(BaseModel):
     created_at: datetime
     updated_at: datetime
 
-
-class ApiResponse(BaseModel, Generic[T]):
-    message: str
-    details: str
-    errorGroup: str
-    data: T | None = None
 
 # =========================
 # Request Models
