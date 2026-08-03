@@ -120,6 +120,7 @@ def post_payout(
         amount=create_request.amount,
         method=PayoutMethodEnum.bank_transfer,
         affiliate_id=payout.affiliate_id,
+        reference_id=payout.id
     )
 
     return {

@@ -94,6 +94,7 @@ def process_payout(
         amount=payout.amount,
         method=PayoutMethodEnum.bank_transfer,
         affiliate_id=payout.affiliate_id,
+        reference_id=payout.id
     )
 
     return payout
@@ -118,6 +119,7 @@ def reject_payout(
         amount=payout.amount,
         method=PayoutMethodEnum.bank_transfer,
         affiliate_id=payout.affiliate_id,
+        reference_id=payout.id
     )
 
     return payout
