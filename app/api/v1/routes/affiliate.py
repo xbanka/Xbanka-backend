@@ -3,7 +3,11 @@ from typing import Optional
 from fastapi import APIRouter, Depends, Query, Request, Response, status
 from sqlalchemy.orm import Session
 
-from app.core.enums import PayoutMethodEnum, PayoutStatusEnum
+from app.core.enums import (
+    NotificationReferenceTypeEnum,
+    PayoutMethodEnum,
+    PayoutStatusEnum,
+)
 from app.db.database import get_db
 from app.schemas.affiliate import (
     AffiliateCodename,
@@ -117,6 +121,7 @@ def post_payout(
         db,
         user=current_user.user,
         message="Affiliate Payout Request",
+        reference_type=NotificationReferenceTypeEnum.PAYOUT,
         amount=create_request.amount,
         method=PayoutMethodEnum.bank_transfer,
         affiliate_id=payout.affiliate_id,
