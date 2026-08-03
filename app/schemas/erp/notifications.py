@@ -19,7 +19,7 @@ class NotificationsResponse(BaseModel):
     amount: float
     method: str
     reference_id: Optional[UUID]
-    affiliate: AffiliateSummaryResponse
+    affiliate: Optional[AffiliateSummaryResponse] = None
 
 
 class NotificationReadResponse(BaseModel):
