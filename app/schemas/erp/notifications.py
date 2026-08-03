@@ -18,6 +18,7 @@ class NotificationsResponse(BaseModel):
     read_at: Optional[datetime]
     amount: float
     method: str
+    reference_id: Optional[UUID]
     affiliate: AffiliateSummaryResponse
 
 

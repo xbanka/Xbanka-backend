@@ -135,7 +135,8 @@ class ERPService(Service):
         message: str,
         amount: Decimal | str,
         method: PayoutMethodEnum,
-        affiliate_id: SA_UUID,
+        affiliate_id: SA_UUID | None = None,
+        reference_id: SA_UUID | None = None
     ) -> Notification:
 
         notification = Notification(
@@ -145,6 +146,7 @@ class ERPService(Service):
             amount=amount,
             method=method,
             affiliate_id=affiliate_id,
+            reference_id=reference_id,
         )
         db.add(notification)
         db.commit()

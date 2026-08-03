@@ -30,6 +30,9 @@ class Notification(BaseModel):
         Enum(PayoutMethodEnum), nullable=False, index=True
     )
 
+    reference_id: Mapped[Optional[UUID]] = mapped_column(
+        UUID(as_uuid=True), nullable=True
+    )
     affiliate_id: Mapped[Optional[UUID]] = mapped_column(
         ForeignKey("affiliates.id"), nullable=True, index=True
     )
