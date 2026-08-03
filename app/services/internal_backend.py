@@ -102,3 +102,10 @@ class InternalAPIService(Service):
             return InternalAPIService._request("GET", "/internal/metrics/customers")
         except Exception as e:
             raise HTTPException(status_code=500, detail=str(e))
+
+    @staticmethod
+    def get_user_kyc_details(user_id: UUID):
+        try:
+            return InternalAPIService._request("GET", f"/internal/users/{user_id}/kyc")
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=str(e))

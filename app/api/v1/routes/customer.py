@@ -98,3 +98,14 @@ def toggle_customer_status(
         return InternalAPIService.toggle_user_status(user_id=customer_id)
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+
+@customer.get("/{customer_id:uuid}/kyc")
+def get_customer_kyc(
+    customer_id: UUID,
+    current_user: CurrentUser = Depends(require_roles("affiliate", "erp", "super"))
+):
+    try:
+        return InternalAPIService.get_user_kyc_details(user_id=customer_id)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
