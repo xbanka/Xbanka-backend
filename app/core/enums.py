@@ -170,3 +170,8 @@ class RatesApprovalStatusEnum(str, enum.Enum):
     PENDING = "PENDING"
     APPROVED = "APPROVED"
     REJECTED = "REJECTED"
+
+
+class NotificationReferenceTypeEnum(str, enum.Enum):
+    PAYOUT = "PAYOUT"
+    RATE_PROPOSAL = "RATE_PROPOSAL"

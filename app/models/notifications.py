@@ -5,7 +5,11 @@ from sqlalchemy import DECIMAL, Boolean, DateTime, Enum, ForeignKey, String
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from app.core.enums import NotificationTypeEnum, PayoutMethodEnum
+from app.core.enums import (
+    NotificationReferenceTypeEnum,
+    NotificationTypeEnum,
+    PayoutMethodEnum,
+)
 from app.models.base_model import BaseModel
 
 
@@ -25,9 +29,12 @@ class Notification(BaseModel):
     read_at: Mapped[Optional[datetime]] = mapped_column(
         DateTime(timezone=True), nullable=True
     )
-    amount: Mapped[float] = mapped_column(DECIMAL(12, 2), nullable=False)
+    amount: Mapped[Optional[float]] = mapped_column(DECIMAL(12, 2), nullable=True)
     method: Mapped[Optional[PayoutMethodEnum]] = mapped_column(
-        Enum(PayoutMethodEnum), nullable=False, index=True
+        Enum(PayoutMethodEnum), nullable=True, index=True
+    )
+    reference_type: Mapped[NotificationReferenceTypeEnum] = mapped_column(
+        Enum(NotificationReferenceTypeEnum), nullable=False, index=True
     )
 
     reference_id: Mapped[Optional[UUID]] = mapped_column(

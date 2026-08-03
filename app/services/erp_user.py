@@ -13,7 +13,12 @@ from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
 from app.core.base.services import Service
-from app.core.enums import PayoutMethodEnum, PayoutStatusEnum, UploadStatusEnum
+from app.core.enums import (
+    NotificationReferenceTypeEnum,
+    PayoutMethodEnum,
+    PayoutStatusEnum,
+    UploadStatusEnum,
+)
 from app.core.hash import Hasher
 from app.models.affiliate import Affiliate
 from app.models.erp_user import ERPUser
@@ -133,8 +138,9 @@ class ERPService(Service):
         db: Session,
         user: ERPUser,
         message: str,
-        amount: Decimal | str,
-        method: PayoutMethodEnum,
+        reference_type: NotificationReferenceTypeEnum,
+        amount: Decimal | str | None = None,
+        method: PayoutMethodEnum | None = None,
         affiliate_id: SA_UUID | None = None,
         reference_id: SA_UUID | None = None
     ) -> Notification:
@@ -145,6 +151,7 @@ class ERPService(Service):
             is_read=False,
             amount=amount,
             method=method,
+            reference_type=reference_type,
             affiliate_id=affiliate_id,
             reference_id=reference_id,
         )

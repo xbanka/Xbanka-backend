@@ -4,7 +4,11 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, File, Query, UploadFile, status
 from sqlalchemy.orm import Session
 
-from app.core.enums import PayoutMethodEnum, PayoutStatusEnum
+from app.core.enums import (
+    NotificationReferenceTypeEnum,
+    PayoutMethodEnum,
+    PayoutStatusEnum,
+)
 from app.db.database import get_db
 from app.schemas.erp.notifications import (
     NotificationReadResponse,
@@ -91,6 +95,7 @@ def process_payout(
         db,
         user=current_user.user,
         message="Payout has been processed successfully",
+        reference_type=NotificationReferenceTypeEnum.PAYOUT,
         amount=payout.amount,
         method=PayoutMethodEnum.bank_transfer,
         affiliate_id=payout.affiliate_id,
@@ -116,6 +121,7 @@ def reject_payout(
         db,
         user=current_user.user,
         message="Payout has been rejected",
+        reference_type=NotificationReferenceTypeEnum.PAYOUT,
         amount=payout.amount,
         method=PayoutMethodEnum.bank_transfer,
         affiliate_id=payout.affiliate_id,

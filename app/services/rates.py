@@ -4,10 +4,15 @@ from sqlalchemy.orm import Session
 from uuid import UUID
 
 from app.core.base.services import Service
-from app.core.enums import RateApprovalRequestTypeEnum, RatesApprovalStatusEnum
+from app.core.enums import (
+    NotificationReferenceTypeEnum,
+    RateApprovalRequestTypeEnum,
+    RatesApprovalStatusEnum,
+)
 from app.models.rate_change_log import RateChangeLog
 from app.schemas.erp.rates import AffectedAssetItem, AssetsRequest, AssignAssetsToSegmentRequest, ProposalResponse, RequestUser, SegmentsBulkUpdateRequest
 from app.models.rate_approval_request import RateApprovalRequest
+from app.services.erp_user import ERPService
 from app.utils.schema import CurrentUser
 from app.utils.settings import settings
 
@@ -271,6 +276,14 @@ class RatesService(Service):
             current_user
         )
 
+        ERPService.new_notification(
+            db,
+            user=current_user.user,
+            message="Rate change proposal submitted for review",
+            reference_type=NotificationReferenceTypeEnum.RATE_PROPOSAL,
+            reference_id=proposed_change.id,
+        )
+
         return {
             "message": "Rate change proposal submitted successfully.",
             "proposed_change": proposed_change
@@ -306,6 +319,13 @@ class RatesService(Service):
                 current_state
             )
 
+        ERPService.new_notification(
+            db,
+            user=current_user.user,
+            message=f"Segment update proposal submitted for {len(request.segments)} segment(s)",
+            reference_type=NotificationReferenceTypeEnum.RATE_PROPOSAL,
+        )
+
         return {
             "message": "Segment change proposal submitted successfully.",
         }
@@ -334,6 +354,14 @@ class RatesService(Service):
                 current_user,
                 current_state
             )
+
+        ERPService.new_notification(
+            db,
+            user=current_user.user,
+            message=f"Segment assignment proposal submitted for {len(request.assetIds)} asset(s)",
+            reference_type=NotificationReferenceTypeEnum.RATE_PROPOSAL,
+            reference_id=segment_id,
+        )
 
         return {
             "message": "Rate change proposal submitted successfully.",
