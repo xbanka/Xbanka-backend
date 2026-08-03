@@ -3,23 +3,27 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, File, HTTPException, Query, Response, UploadFile, status
 from sqlalchemy.orm import Session
 
+from app.core.enums import Permission
 from app.db.database import get_db
 from app.schemas.transactions import (
     TransactionCreateResponse
 )
 from app.services.internal_backend import InternalAPIService
 from app.services.transaction import TransactionService
-from app.utils.auth import require_account_type
+from app.utils.auth import require_account_type, require_permissions
 from app.utils.schema import CurrentUser
 
 transaction = APIRouter(prefix="/transactions", tags=["Transactions"])
 
 
+CREATE_TRANSACTIONS = Permission.CREATE_TRANSACTIONS
+VIEW_TRANSACTIONS = Permission.VIEW_TRANSACTIONS
+
 @transaction.get(
     "/all", status_code=status.HTTP_200_OK
 )
 def fetch_all_transactions(
-    current_user: CurrentUser = Depends(require_account_type("affiliate", "erp", "super")),
+    current_user: CurrentUser = Depends(require_permissions(VIEW_TRANSACTIONS)),
     page: int = Query(1, ge=1, description="Page number"),
     limit: int = Query(10, ge=1, le=100, description="Items per page"),
     search: str = Query(None, description="Search term for reference, name, or email"),
@@ -79,8 +83,8 @@ def export_transactions(
 
 @transaction.get("/{transaction_id:uuid}", status_code=status.HTTP_200_OK)
 def fetch_single_transaction(
-    transaction_id: UUID, 
-    current_user: CurrentUser = Depends(require_account_type("affiliate", "erp", "super"))
+    transaction_id: UUID,
+    current_user: CurrentUser = Depends(require_permissions(VIEW_TRANSACTIONS)),
 ):
     return InternalAPIService.get_transaction_by_id(transaction_id)
 
@@ -90,7 +94,7 @@ def fetch_single_transaction(
 )
 def create_manual_transaction_log(
     payload: dict,
-    current_user: CurrentUser = Depends(require_account_type("affiliate", "erp", "super")),
+    current_user: CurrentUser = Depends(require_permissions(CREATE_TRANSACTIONS)),
 ):
     try:
         return InternalAPIService.log_manual_transaction(payload)

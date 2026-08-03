@@ -15,9 +15,17 @@ def require_account_type(*allowed_types: str):
 
     return decorator
 
-def require_permission(permission: str):
+def require_permissions(*permissions: str):
     def decorator(current_user: CurrentUser = Depends(AuthService.get_current_user)):
-        if permission not in current_user.user.permissions and current_user.user.role.name != "Super Admin":
+        if current_user.account_type != "erp":
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="You are not allowed to access this resource",
+            )
+        if (
+            current_user.user.role.name != "Super Admin"
+            and not any(p in current_user.user.permissions for p in permissions)
+        ):
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="You are not allowed to access this resource",
