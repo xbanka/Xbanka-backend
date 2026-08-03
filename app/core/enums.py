@@ -78,18 +78,41 @@ class Permission(str, enum.Enum):
     VERIFY_TRANSACTIONS = "transactions:verify"
     SETTLE_TRANSACTIONS = "transactions:settle"
     REFUND_TRANSACTIONS = "transactions:refund"
+    FLAG_TRANSACTIONS = "transactions:flag"
+    FREEZE_TRANSACTIONS = "transactions:freeze"
+    UPDATE_TRANSACTION_STATUS = "transactions:update_status"
+    MARK_TRANSACTION_COMPLETED = "transactions:mark_completed"
+    VIEW_ASSIGNED_TRANSACTIONS = "transactions:view_assigned"
+    VIEW_LIMITED_TRANSACTIONS = "transactions:view_limited"
+    EXECUTE_TRANSACTIONS = "transactions:execute"
+    EDIT_TRANSACTIONS = "transactions:edit"
+    MERGE_TRANSACTIONS = "transactions:merge"
+    RECOMMEND_TRANSACTION_REVERSAL = "transactions:recommend_reversal"
 
     # Customers
     VIEW_CUSTOMERS = "customers:view"
     MANAGE_CUSTOMERS = "customers:manage"
     MANAGE_KYC = "customers:manage_kyc"
     FLAG_CUSTOMERS = "customers:flag"
+    VIEW_ASSIGNED_CUSTOMERS = "customers:view_assigned"
+    UPDATE_CUSTOMERS = "customers:update"
+    EDIT_CUSTOMERS = "customers:edit"
+    ADD_CUSTOMERS = "customers:add"
 
     # Finance
     VIEW_PAYMENTS = "finance:view_payments"
     APPROVE_PAYMENTS = "finance:approve_payments"
     REJECT_PAYMENTS = "finance:reject_payments"
     FLAG_PAYMENTS = "finance:flag_payments"
+    HOLD_PAYMENTS = "finance:hold_payments"
+    RELEASE_PAYMENTS = "finance:release_payments"
+    ADJUST_BALANCE = "finance:adjust_balance"
+    BYPASS_APPROVALS = "finance:bypass_approvals"
+    VIEW_PROFIT = "finance:view_profit"
+    REVERSE_SETTLEMENTS = "finance:reverse_settlements"
+    RETRY_PAYMENTS = "finance:retry_payments"
+    EXPORT_FINANCE_REPORTS = "finance:export_reports"
+    VIEW_FINANCE_SUMMARIES = "finance:view_summaries"
 
     # Staff & Access Management
     VIEW_STAFF_LIST = "staff:view_list"
@@ -104,13 +127,58 @@ class Permission(str, enum.Enum):
     VIEW_SYSTEM_SETTINGS = "system:view_settings"
     EDIT_SYSTEM_SETTINGS = "system:edit_settings"
 
+    # Tasks
+    VIEW_TASKS = "tasks:view"
+    CREATE_TASKS = "tasks:create"
+    ASSIGN_TASKS = "tasks:assign"
+    UPDATE_TASK_STATUS = "tasks:update_status"
+    VIEW_TASK_PROGRESS = "tasks:view_progress"
+    VIEW_TASK_ANALYTICS = "tasks:view_analytics"
+    COMMENT_ON_TASKS = "tasks:comment"
+    ATTACH_TASK_DOCUMENTS = "tasks:attach_documents"
+    CREATE_COMPLIANCE_TASKS = "tasks:create_compliance"
+    DELETE_TASKS = "tasks:delete"
+    EDIT_TASKS = "tasks:edit"
+    VIEW_ASSIGNED_TASKS = "tasks:view_assigned"
+    VIEW_TASK_BOARD = "tasks:view_board"
+
+    # Audit
+    VIEW_AUDIT_LOGS = "audit:view_logs"
+    EXPORT_AUDIT_LOGS = "audit:export_logs"
+    BYPASS_AUDIT_LOGGING = "audit:bypass_logging"
+
+    # KYC
+    APPROVE_KYC = "kyc:approve"
+    REJECT_KYC = "kyc:reject"
+    FLAG_KYC = "kyc:flag"
+    UPLOAD_KYC_DOCUMENTS = "kyc:upload_documents"
+    VIEW_KYC_DATA = "kyc:view_data"
+    VIEW_KYC_STATUS = "kyc:view_status"
+    UPDATE_KYC_STATUS = "kyc:update_status"
+    TOUCH_KYC = "kyc:touch"
+    FLAG_KYC_REVIEW = "kyc:flag_review"
+
+    # Affiliate
+    VIEW_AFFILIATE_PAYOUTS = "affiliate:view_payouts"
+    APPROVE_AFFILIATE_PAYOUTS = "affiliate:approve_payouts"
+    HOLD_AFFILIATE_PAYOUTS = "affiliate:hold_payouts"
+
+    # Reconciliation
+    VIEW_RECONCILIATION = "reconciliation:view"
+
+    # Dashboard
+    VIEW_DASHBOARD = "dashboard:view"
+
+    # Reports
+    VIEW_REPORTS = "reports:view"
+    EXPORT_OPERATIONAL_REPORTS = "reports:export_operational"
+    EXPORT_READONLY_REPORTS = "reports:export_readonly"
+
+    # Records
+    DELETE_RECORDS = "records:delete"
     # Rates
     PROPOSE_RATE_CHANGES = "rates:propose_changes"
     APPROVE_RATE_CHANGES = "rates:approve_changes"
-
-    # Affiliate Payments (already present in the permissions table)
-    VIEW_AFFILIATE_PAYOUTS = "affiliate:view_payouts"
-    APPROVE_AFFILIATE_PAYOUTS = "affiliate:approve_payouts"
 
 
 # Define job roles with their default permissions

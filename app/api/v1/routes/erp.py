@@ -19,10 +19,13 @@ from app.schemas.erp.payout import ERPPaginatedPayoutResponse, ERPPayoutResponse
 from app.schemas.erp.user import ERPMeResponse
 from app.schemas.payout import ProcessPayoutRequest
 from app.services.erp_user import ERPService
-from app.utils.auth import require_account_type
+from app.utils.auth import require_account_type, require_permissions
 from app.utils.schema import CurrentUser
 
 erp = APIRouter(prefix="/erp", tags=["ERP"])
+
+VIEW_AFFILIATE_PAYOUTS = PermissionEnum.VIEW_AFFILIATE_PAYOUTS
+APPROVE_AFFILIATE_PAYOUTS = PermissionEnum.APPROVE_AFFILIATE_PAYOUTS
 
 
 @erp.get("/me", status_code=status.HTTP_200_OK, response_model=ERPMeResponse)
@@ -60,7 +63,7 @@ def mark_as_read(
 )
 def get_all_payouts(
     db: Session = Depends(get_db),
-    current_user: CurrentUser = Depends(require_account_type("erp")),
+    current_user: CurrentUser = Depends(require_permissions(VIEW_AFFILIATE_PAYOUTS)),
     page: int = Query(1, ge=1, description="Page number"),
     limit: int = Query(10, ge=1, le=100, description="Items per page"),
     status: Optional[PayoutStatusEnum] = Query(None, description="Payout Status"),
@@ -76,7 +79,7 @@ def get_all_payouts(
 def get_payout_details(
     payout_id: UUID,
     db: Session = Depends(get_db),
-    current_user: CurrentUser = Depends(require_account_type("erp")),
+    current_user: CurrentUser = Depends(require_permissions(VIEW_AFFILIATE_PAYOUTS)),
 ):
     return ERPService.get_payout_details(db, payout_id)
 
@@ -90,7 +93,7 @@ def process_payout(
     payout_id: UUID,
     process_request: ProcessPayoutRequest,
     db: Session = Depends(get_db),
-    current_user: CurrentUser = Depends(require_account_type("erp")),
+    current_user: CurrentUser = Depends(require_permissions(APPROVE_AFFILIATE_PAYOUTS)),
 ):
     payout = ERPService.process_payout(db, payout_id, process_request)
 

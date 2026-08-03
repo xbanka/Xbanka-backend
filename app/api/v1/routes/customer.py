@@ -1,18 +1,23 @@
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, Query, Response, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
+from app.core.enums import Permission
 from app.services.internal_backend import InternalAPIService
-from app.utils.auth import require_account_type
+from app.utils.auth import require_account_type, require_permissions
 from app.utils.schema import CurrentUser
 
 customer = APIRouter(prefix="/customers", tags=["Customers"])
+
+
+VIEW_CUSTOMERS = Permission.VIEW_CUSTOMERS
+MANAGE_CUSTOMERS = Permission.MANAGE_CUSTOMERS
 
 
 @customer.get(
     "/all", status_code=status.HTTP_200_OK
 )
 def fetch_all_customers(
-    current_user: CurrentUser = Depends(require_account_type("affiliate", "erp", "super")),
+    current_user: CurrentUser = Depends(require_permissions(VIEW_CUSTOMERS)),
     page: int = Query(1, ge=1, description="Page number"),
     limit: int = Query(10, ge=1, le=100, description="Items per page"),
     search: str = Query(None, description="Search term for name, email, or phone"),
@@ -61,8 +66,8 @@ def export_customers(
     "/search", status_code=status.HTTP_200_OK
 )
 def search_customers(
-    q: str = Query(...), 
-    current_user: CurrentUser = Depends(require_account_type("affiliate", "erp", "super"))
+    q: str = Query(...),
+    current_user: CurrentUser = Depends(require_permissions(VIEW_CUSTOMERS)),
 ):
     try:
         return InternalAPIService.search_users(q)
@@ -71,7 +76,10 @@ def search_customers(
 
 
 @customer.get("/{customer_id:uuid}", status_code=status.HTTP_200_OK)
-def get_customer(customer_id: UUID, current_user: CurrentUser = Depends(require_account_type("affiliate", "erp", "super"))):
+def get_customer(
+    customer_id: UUID,
+    current_user: CurrentUser = Depends(require_permissions(VIEW_CUSTOMERS)),
+):
     return InternalAPIService.get_user_by_id(customer_id)
 
 
@@ -80,7 +88,7 @@ def get_customer_transactions(
     customer_id: UUID, 
     page: int = Query(1, ge=1, description="Page number"),
     limit: int = Query(10, ge=1, le=100, description="Items per page"),
-    current_user: CurrentUser = Depends(require_account_type("affiliate", "erp", "super")),
+    current_user: CurrentUser = Depends(require_permissions(VIEW_CUSTOMERS)),
 ):
     try:
         return InternalAPIService.get_user_transactions(
@@ -95,7 +103,7 @@ def get_customer_transactions(
 @customer.get("/{customer_id:uuid}/assets")
 def get_customer_assets(
     customer_id: UUID,
-    current_user: CurrentUser = Depends(require_account_type("affiliate", "erp", "super"))
+    current_user: CurrentUser = Depends(require_account_type("erp"))
 ):
     try:
         return InternalAPIService.get_user_assets(user_id=customer_id)
@@ -106,7 +114,7 @@ def get_customer_assets(
 @customer.get("/{customer_id:uuid}/verification")
 def get_customer_verification(
     customer_id: UUID,
-    current_user: CurrentUser = Depends(require_account_type("affiliate", "erp", "super"))
+    current_user: CurrentUser = Depends(require_account_type("erp"))
 ):
     try:
         return InternalAPIService.get_user_verification_details(user_id=customer_id)
@@ -117,7 +125,7 @@ def get_customer_verification(
 @customer.put("/{customer_id:uuid}/status")
 def toggle_customer_status(
     customer_id: UUID,
-    current_user: CurrentUser = Depends(require_account_type("affiliate", "erp", "super"))
+    current_user: CurrentUser = Depends(require_permissions(MANAGE_CUSTOMERS)),
 ):
     try:
         return InternalAPIService.toggle_user_status(user_id=customer_id)
