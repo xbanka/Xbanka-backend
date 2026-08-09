@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import List
+from typing import List, Optional
 from uuid import UUID
 
 from fastapi import HTTPException
@@ -10,6 +10,7 @@ from pydantic import (
     Field,
     ValidationInfo,
     field_validator,
+    model_validator,
 )
 
 
@@ -156,5 +157,16 @@ class UpdateStaffRequest(BaseModel):
 
 
 class UpdatePermissionsRequest(BaseModel):
-    role: str
-    permissions: List[str]
+    role: Optional[str] = None
+    permissions: Optional[List[str]] = None
+
+    @model_validator(mode="after")
+    def _require_role_or_permissions(self):
+        if self.role is None and self.permissions is None:
+            raise ValueError("At least one of 'role' or 'permissions' must be provided.")
+        return self
+
+
+class UpdatePermissionsResponse(BaseModel):
+    message: str
+    staff: ERPMeResponse

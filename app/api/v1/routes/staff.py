@@ -9,6 +9,7 @@ from app.schemas.erp.user import (
     AllStaffResponse,
     InviteStaffRequest,
     UpdatePermissionsRequest,
+    UpdatePermissionsResponse,
     UpdateStaffRequest,
 )
 from app.services.erp_user import ERPService
@@ -100,7 +101,11 @@ def update_staff_details(
     return {"message": "Staff member details updated successfully.", "staff": staff}
 
 
-@staff.patch("/{staff_id}/roles-permissions", status_code=status.HTTP_200_OK)
+@staff.patch(
+    "/{staff_id}/roles-permissions",
+    response_model=UpdatePermissionsResponse,
+    status_code=status.HTTP_200_OK,
+)
 def update_staff_roles_permissions(
     staff_id: UUID,
     request: UpdatePermissionsRequest,
