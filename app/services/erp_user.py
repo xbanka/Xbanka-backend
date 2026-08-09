@@ -471,23 +471,8 @@ class ERPService(Service):
                 status_code=status.HTTP_404_NOT_FOUND, detail="Role not found"
             )
 
-        # Get allowed and forbidden permissions for the role
-        role_permissions_data = ERPService.get_role_permissions(db, role_name)
-        allowed_permissions, forbidden_permissions = role_permissions_data
-
-        # Check if any selected permissions are forbidden for the role
-        for perm in selected_permissions:
-            if perm in forbidden_permissions:
-                raise HTTPException(
-                    status_code=status.HTTP_400_BAD_REQUEST,
-                    detail=f"Permission '{perm}' is forbidden for role '{role_name}' and cannot be assigned.",
-                )
-
-        role_permissions = allowed_permissions
-
-        # Calculate what needs to be added/removed
-        added, removed = calculate_permission_overrides(
-            role_permissions, selected_permissions
+        added, removed, permissions_by_name = ERPService._resolve_permission_changes(
+            db, role_name, selected_permissions
         )
 
         try:
@@ -505,25 +490,23 @@ class ERPService(Service):
 
             # Add custom permissions
             for perm_name in added:
-                perm = db.query(Permission).filter(Permission.name == perm_name).first()
-                if perm:
-                    db.add(
-                        UserPermissions(
-                            user_id=staff_user.id, permission_id=perm.id, is_active=True
-                        )
+                db.add(
+                    UserPermissions(
+                        user_id=staff_user.id,
+                        permission_id=permissions_by_name[perm_name].id,
+                        is_active=True,
                     )
+                )
 
-                # Remove permissions
+            # Remove permissions
             for perm_name in removed:
-                perm = db.query(Permission).filter(Permission.name == perm_name).first()
-                if perm:
-                    db.add(
-                        UserPermissions(
-                            user_id=staff_user.id,
-                            permission_id=perm.id,
-                            is_active=False,
-                        )
+                db.add(
+                    UserPermissions(
+                        user_id=staff_user.id,
+                        permission_id=permissions_by_name[perm_name].id,
+                        is_active=False,
                     )
+                )
 
             db.commit()
 
@@ -663,7 +646,10 @@ class ERPService(Service):
 
     @staticmethod
     def update_staff_roles_permissions(
-        db: Session, staff_id: UUID, role_name: str, selected_permissions: List[str]
+        db: Session,
+        staff_id: UUID,
+        role_name: Optional[str],
+        selected_permissions: Optional[List[str]],
     ) -> ERPUser:
         staff_user = db.query(ERPUser).get(staff_id)
         if not staff_user:
@@ -671,57 +657,51 @@ class ERPService(Service):
                 status_code=status.HTTP_404_NOT_FOUND, detail="Staff user not found"
             )
 
-        role = db.query(Role).filter(Role.name == role_name).first()
-        if not role:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND, detail="Role not found"
-            )
-
-        # clear all user_permission records
-        db.query(UserPermissions).filter(
-            UserPermissions.user_id == staff_user.id
-        ).delete(synchronize_session=False)
-
-        # Get allowed and forbidden permissions for the role
-        role_permissions_data = ERPService.get_role_permissions(db, role_name)
-        allowed_permissions, forbidden_permissions = role_permissions_data
-
-        # Check if any selected permissions are forbidden for the role
-        for perm in selected_permissions:
-            if perm in forbidden_permissions:
+        role = None
+        if role_name is not None:
+            role = db.query(Role).filter(Role.name == role_name).first()
+            if not role:
                 raise HTTPException(
-                    status_code=status.HTTP_400_BAD_REQUEST,
-                    detail=f"Permission '{perm}' is forbidden for role '{role_name}' and cannot be assigned.",
+                    status_code=status.HTTP_404_NOT_FOUND, detail="Role not found"
                 )
 
-        role_permissions = allowed_permissions
-
-        # Calculate what needs to be added/removed
-        added, removed = calculate_permission_overrides(
-            role_permissions, selected_permissions
-        )
+        added: List[str] = []
+        removed: List[str] = []
+        permissions_by_name: dict = {}
+        if selected_permissions is not None:
+            # Validate the new permission selection against whichever role the
+            # staff member will end up with (the new one if changing, else current).
+            effective_role_name = role_name if role_name is not None else staff_user.role.name
+            added, removed, permissions_by_name = ERPService._resolve_permission_changes(
+                db, effective_role_name, selected_permissions
+            )
 
         try:
-            staff_user.role = role
+            if role is not None:
+                staff_user.role = role
 
-            # Add custom permissions
-            for perm_name in added:
-                perm = db.query(Permission).filter(Permission.name == perm_name).first()
-                if perm:
+            if selected_permissions is not None:
+                # clear all user_permission records
+                db.query(UserPermissions).filter(
+                    UserPermissions.user_id == staff_user.id
+                ).delete(synchronize_session=False)
+
+                # Add custom permissions
+                for perm_name in added:
                     db.add(
                         UserPermissions(
-                            user_id=staff_user.id, permission_id=perm.id, is_active=True
+                            user_id=staff_user.id,
+                            permission_id=permissions_by_name[perm_name].id,
+                            is_active=True,
                         )
                     )
 
                 # Remove permissions
-            for perm_name in removed:
-                perm = db.query(Permission).filter(Permission.name == perm_name).first()
-                if perm:
+                for perm_name in removed:
                     db.add(
                         UserPermissions(
                             user_id=staff_user.id,
-                            permission_id=perm.id,
+                            permission_id=permissions_by_name[perm_name].id,
                             is_active=False,
                         )
                     )
