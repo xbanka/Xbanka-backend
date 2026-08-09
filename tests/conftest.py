@@ -1,11 +1,21 @@
 from fastapi.testclient import TestClient
 from unittest.mock import MagicMock
 from sqlalchemy import create_engine
+from sqlalchemy.dialects.postgresql import JSONB
+from sqlalchemy.ext.compiler import compiles
 from sqlalchemy.orm import sessionmaker
 import pytest
-from app.main import app 
-from app.db.database import get_db 
+from app.main import app
+from app.db.database import get_db
 from app.services.auth import AuthService
+
+
+@compiles(JSONB, "sqlite")
+def _compile_jsonb_sqlite(element, compiler, **kw):
+    """Postgres-only JSONB columns (rate_approval_requests, rate_change_logs) have no
+    SQLite equivalent; render them as JSON so Base.metadata.create_all works against
+    the SQLite test database."""
+    return "JSON"
 
 
 def get_db_engine():

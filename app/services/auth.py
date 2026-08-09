@@ -306,7 +306,7 @@ class AuthService(Service):
                 )
 
         elif role == "erp" or role == "super":
-            user = db.query(ERPUser).filter_by(id=user_id).first()
+            user = db.query(ERPUser).filter_by(id=token_data.id).first()
         else:
             raise HTTPException(401, "Invalid user type")
 
