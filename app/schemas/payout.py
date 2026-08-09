@@ -5,7 +5,7 @@ from pydantic import BaseModel, ConfigDict, field_validator
 
 
 class PayoutRequest(BaseModel):
-    amount: Decimal | str
+    amount: Decimal
     bank: str
 
     @field_validator("amount", mode="before")
