@@ -7,10 +7,10 @@ from uuid import UUID
 from botocore.exceptions import ClientError
 from fastapi import HTTPException, UploadFile, status
 from psycopg2 import IntegrityError
-from sqlalchemy import and_, func, select
+from sqlalchemy import and_, func, or_, select
 from sqlalchemy.dialects.postgresql import UUID as SA_UUID
 from sqlalchemy.exc import SQLAlchemyError
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 
 from app.core.base.services import Service
 from app.core.enums import (
@@ -110,18 +110,26 @@ class ERPService(Service):
         pass
 
     @staticmethod
-    def get_notifications(db: Session):
+    def get_notifications(db: Session, user_id: UUID):
         stmt = (
             select(Notification)
+            .where(Notification.user_id == user_id)
+            .options(joinedload(Notification.affiliate))
             .order_by(Notification.created_at.desc())
-            .join(Affiliate)
         )
         notifications = db.execute(stmt).scalars().all()
         return notifications
 
     @staticmethod
-    def mark_notification_as_read(db: Session, id: UUID):
-        notif = db.get(Notification, id)
+    def mark_notification_as_read(db: Session, id: UUID, user_id: UUID):
+        # scoping on user_id doubles as authorization: a notification belonging
+        # to another user is indistinguishable from one that doesn't exist
+        notif = db.scalar(
+            select(Notification).where(
+                Notification.id == id,
+                Notification.user_id == user_id,
+            )
+        )
         if not notif:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND, detail="Notification not found"
@@ -134,31 +142,101 @@ class ERPService(Service):
         return notif
 
     @staticmethod
+    def get_users_with_permission(db: Session, permission_name: str) -> List[ERPUser]:
+        """ERP users holding `permission_name`, honouring per-user overrides.
+
+        Mirrors the resolution in get_staff_permissions: a role's defaults apply
+        unless the user has an explicit user_permissions row, which wins either way.
+        """
+        perm = db.scalar(select(Permission).where(Permission.name == permission_name))
+        if not perm:
+            logger.warning("Unknown permission %s, notifying nobody", permission_name)
+            return []
+
+        granting_roles = select(RolePermissions.role_id).where(
+            RolePermissions.permission_id == perm.id,
+            RolePermissions.is_allowed.is_(True),
+        )
+
+        # at most one row per (user, permission) thanks to the composite PK
+        override = (
+            select(UserPermissions.is_active)
+            .where(
+                UserPermissions.user_id == ERPUser.id,
+                UserPermissions.permission_id == perm.id,
+            )
+            .scalar_subquery()
+        )
+
+        stmt = (
+            select(ERPUser)
+            .join(Role, Role.id == ERPUser.role_id)
+            .where(
+                or_(
+                    override.is_(True),
+                    and_(
+                        override.is_(None),
+                        or_(
+                            Role.name == "Super Admin",
+                            ERPUser.role_id.in_(granting_roles),
+                        ),
+                    ),
+                )
+            )
+        )
+        return list(db.scalars(stmt).all())
+
+    @staticmethod
+    def notify_permission_holders(
+        db: Session,
+        permission_name: str,
+        *,
+        exclude_user_id: UUID | None = None,
+        **kwargs,
+    ) -> List[Notification]:
+        """Fan a notification out to everyone holding `permission_name`."""
+        users = ERPService.get_users_with_permission(db, permission_name)
+        return ERPService.new_notification(
+            db,
+            recipients=[u for u in users if u.id != exclude_user_id],
+            **kwargs,
+        )
+
+    @staticmethod
     def new_notification(
         db: Session,
-        user: ERPUser,
+        *,
+        recipients: Sequence[ERPUser | UUID],
         message: str,
         reference_type: NotificationReferenceTypeEnum,
         amount: Decimal | str | None = None,
         method: PayoutMethodEnum | None = None,
         affiliate_id: SA_UUID | None = None,
         reference_id: SA_UUID | None = None
-    ) -> Notification:
+    ) -> List[Notification]:
+        """Create one notification row per recipient, so read state is per-user."""
+        user_ids = {r.id if isinstance(r, ERPUser) else r for r in recipients}
+        if not user_ids:
+            logger.warning("No recipients for notification %r, skipping", message)
+            return []
 
-        notification = Notification(
-            message=message,
-            type="system",
-            is_read=False,
-            amount=amount,
-            method=method,
-            reference_type=reference_type,
-            affiliate_id=affiliate_id,
-            reference_id=reference_id,
-        )
-        db.add(notification)
+        notifications = [
+            Notification(
+                user_id=user_id,
+                message=message,
+                type="system",
+                is_read=False,
+                amount=amount,
+                method=method,
+                reference_type=reference_type,
+                affiliate_id=affiliate_id,
+                reference_id=reference_id,
+            )
+            for user_id in user_ids
+        ]
+        db.add_all(notifications)
         db.commit()
-        db.refresh(notification)
-        return notification
+        return notifications
 
     @staticmethod
     def get_all_payouts(
@@ -330,6 +408,43 @@ class ERPService(Service):
         )
         staff_users = db.execute(stmt).scalars().all()
         return staff_users
+
+    @staticmethod
+    def _resolve_permission_changes(
+        db: Session, role_name: str, selected_permissions: List[str]
+    ) -> tuple[List[str], List[str], dict]:
+        """Validate selected_permissions against a role's allowed/forbidden sets and
+        return (added, removed, permissions_by_name) to apply as UserPermissions overrides."""
+        allowed_permissions, forbidden_permissions = ERPService.get_role_permissions(
+            db, role_name
+        )
+
+        for perm in selected_permissions:
+            if perm in forbidden_permissions:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail=f"Permission '{perm}' is forbidden for role '{role_name}' and cannot be assigned.",
+                )
+
+        permissions_by_name = {
+            perm.name: perm
+            for perm in db.query(Permission)
+            .filter(
+                Permission.name.in_(set(selected_permissions) | set(allowed_permissions))
+            )
+            .all()
+        }
+        unknown_permissions = set(selected_permissions) - permissions_by_name.keys()
+        if unknown_permissions:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Unknown permission(s): {', '.join(sorted(unknown_permissions))}",
+            )
+
+        added, removed = calculate_permission_overrides(
+            allowed_permissions, selected_permissions
+        )
+        return added, removed, permissions_by_name
 
     @staticmethod
     def invite_staff(

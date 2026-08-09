@@ -8,6 +8,7 @@ from app.core.enums import (
     NotificationReferenceTypeEnum,
     PayoutMethodEnum,
     PayoutStatusEnum,
+    Permission as PermissionEnum,
 )
 from app.db.database import get_db
 from app.schemas.erp.notifications import (
@@ -34,7 +35,7 @@ def get_notifications(
     db: Session = Depends(get_db),
     current_user: CurrentUser = Depends(require_roles("erp")),
 ):
-    return ERPService.get_notifications(db)
+    return ERPService.get_notifications(db, current_user.user.id)
 
 
 @erp.patch(
@@ -46,7 +47,9 @@ def mark_as_read(
     db: Session = Depends(get_db),
     current_user: CurrentUser = Depends(require_roles("erp")),
 ):
-    notif = ERPService.mark_notification_as_read(db, notification_id)
+    notif = ERPService.mark_notification_as_read(
+        db, notification_id, current_user.user.id
+    )
     return notif
 
 
@@ -91,9 +94,10 @@ def process_payout(
 ):
     payout = ERPService.process_payout(db, payout_id, process_request)
 
-    ERPService.new_notification(
+    ERPService.notify_permission_holders(
         db,
-        user=current_user.user,
+        PermissionEnum.VIEW_AFFILIATE_PAYOUTS,
+        exclude_user_id=current_user.user.id,
         message="Payout has been processed successfully",
         reference_type=NotificationReferenceTypeEnum.PAYOUT,
         amount=payout.amount,
@@ -117,9 +121,10 @@ def reject_payout(
 ):
     payout = ERPService.reject_payout(db, payout_id)
 
-    ERPService.new_notification(
+    ERPService.notify_permission_holders(
         db,
-        user=current_user.user,
+        PermissionEnum.VIEW_AFFILIATE_PAYOUTS,
+        exclude_user_id=current_user.user.id,
         message="Payout has been rejected",
         reference_type=NotificationReferenceTypeEnum.PAYOUT,
         amount=payout.amount,

@@ -38,6 +38,13 @@ class ERPUser(BaseModel):
         viewonly=True,
     )
 
+    notifications = relationship(
+        "Notification",
+        back_populates="user",
+        cascade="all, delete-orphan",
+        passive_deletes=True,
+    )
+
     rate_requests = relationship(
         "RateApprovalRequest",
         back_populates="requested_by",
