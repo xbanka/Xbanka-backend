@@ -1,18 +1,16 @@
 import secrets
 from datetime import datetime
-from uuid import UUID
 
-from fastapi import HTTPException, UploadFile
+from fastapi import HTTPException
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.core.base.services import Service
-from app.core.enums import PayoutStatusEnum, UploadStatusEnum
+from app.core.enums import PayoutStatusEnum
 from app.models.customer import Customer
 from app.models.payouts import Payout
 from app.models.transactions import Transaction
 from app.schemas.payout import PayoutRequest
-from app.utils.s3_utils import upload_file, validate_file
 
 
 # With timestamp for extra uniqueness (and sortability)
@@ -47,11 +45,6 @@ class PayoutService(Service):
 
         amount_withdrawn = total_payouts
         available_balance = total_earnings - amount_withdrawn
-
-        try:
-            obj_in.amount = obj_in.amount
-        except ValueError:
-            raise HTTPException(status_code=400, detail="Invalid amount format.")
 
         if obj_in.amount <= 0:
             raise HTTPException(
