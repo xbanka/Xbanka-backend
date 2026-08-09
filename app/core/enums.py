@@ -104,6 +104,14 @@ class Permission(str, enum.Enum):
     VIEW_SYSTEM_SETTINGS = "system:view_settings"
     EDIT_SYSTEM_SETTINGS = "system:edit_settings"
 
+    # Rates
+    PROPOSE_RATE_CHANGES = "rates:propose_changes"
+    APPROVE_RATE_CHANGES = "rates:approve_changes"
+
+    # Affiliate Payments (already present in the permissions table)
+    VIEW_AFFILIATE_PAYOUTS = "affiliate:view_payouts"
+    APPROVE_AFFILIATE_PAYOUTS = "affiliate:approve_payouts"
+
 
 # Define job roles with their default permissions
 JOB_ROLE_PERMISSIONS = {
@@ -131,6 +139,7 @@ JOB_ROLE_PERMISSIONS = {
         Permission.VIEW_CUSTOMERS,
         Permission.MANAGE_KYC,
         Permission.VIEW_PAYMENTS,
+        Permission.PROPOSE_RATE_CHANGES,
     },
     "Customer Rep": {
         Permission.VIEW_TRANSACTIONS,

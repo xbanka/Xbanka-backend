@@ -6,6 +6,7 @@ from uuid import UUID
 from app.core.base.services import Service
 from app.core.enums import (
     NotificationReferenceTypeEnum,
+    Permission as PermissionEnum,
     RateApprovalRequestTypeEnum,
     RatesApprovalStatusEnum,
 )
@@ -79,6 +80,7 @@ class RatesService(Service):
             previous = {
                 "buyFeeValue": asset.get("buyFeeValue"),
                 "sellFeeValue": asset.get("sellFeeValue"),
+                "isActive": asset.get("isActive"),
             }
             new = {**previous, **{k: v for k, v in payload.items() if k in previous}}
             return {
@@ -97,6 +99,7 @@ class RatesService(Service):
                 "name": segment.get("name"),
                 "buySpread": segment.get("buySpread"),
                 "sellSpread": segment.get("sellSpread"),
+                "isActive": segment.get("isActive"),
             }
             new = {**previous, **{k: v for k, v in proposed.items() if k in previous}}
             return {
@@ -115,11 +118,13 @@ class RatesService(Service):
                 "name": current_segment.get("name"),
                 "buySpread": current_segment.get("buySpread"),
                 "sellSpread": current_segment.get("sellSpread"),
+                "isActive": current_segment.get("isActive"),
             }
             new = {
                 "name": destination_segment.get("name"),
                 "buySpread": destination_segment.get("buySpread"),
                 "sellSpread": destination_segment.get("sellSpread"),
+                "isActive": destination_segment.get("isActive"),
             }
             return {
                 "previous_configuration": previous,
@@ -132,34 +137,53 @@ class RatesService(Service):
         raise ValueError(f"Unknown proposal type: {type}")
 
     @staticmethod
-    def _format_configuration(change_type: RateApprovalRequestTypeEnum, config: dict) -> list[str]:
-        """Format a stored configuration snapshot into the display string list."""
-        config = config or {}
+    def _format_configuration(
+        change_type: RateApprovalRequestTypeEnum, previous_config: dict, new_config: dict
+    ) -> tuple[list[str], list[str]]:
+        """Format previous/new configuration snapshots into aligned display string lists.
+        Buy/sell always show; active status only shows when it actually changed."""
+        previous_config = previous_config or {}
+        new_config = new_config or {}
 
         if change_type == RateApprovalRequestTypeEnum.ASSET_UPDATE:
-            return [
-                f"Buy: {config.get('buyFeeValue')}%",
-                f"Sell: {config.get('sellFeeValue')}%",
+            previous_lines = [
+                f"Buy: {previous_config.get('buyFeeValue')}%",
+                f"Sell: {previous_config.get('sellFeeValue')}%",
             ]
-
-        if change_type in (
+            new_lines = [
+                f"Buy: {new_config.get('buyFeeValue')}%",
+                f"Sell: {new_config.get('sellFeeValue')}%",
+            ]
+        elif change_type in (
             RateApprovalRequestTypeEnum.SEGMENT_UPDATE,
             RateApprovalRequestTypeEnum.SEGMENT_ASSIGNMENT,
         ):
-            return [
-                f"Segment: {config.get('name')}",
-                f"Buy: {config.get('buySpread')}%",
-                f"Sell: {config.get('sellSpread')}%",
+            previous_lines = [
+                f"Segment: {previous_config.get('name')}",
+                f"Buy: {previous_config.get('buySpread')}%",
+                f"Sell: {previous_config.get('sellSpread')}%",
             ]
+            new_lines = [
+                f"Segment: {new_config.get('name')}",
+                f"Buy: {new_config.get('buySpread')}%",
+                f"Sell: {new_config.get('sellSpread')}%",
+            ]
+        else:
+            return [], []
 
-        return []
+        if previous_config.get("isActive") != new_config.get("isActive"):
+            previous_lines.append(f"Status: {'Active' if previous_config.get('isActive') else 'Inactive'}")
+            new_lines.append(f"Status: {'Active' if new_config.get('isActive') else 'Inactive'}")
+
+        return previous_lines, new_lines
 
     @staticmethod
     def _to_proposal_response(row, actor, include_asset_breakdown: bool = False) -> ProposalResponse:
         """Format a stored RateApprovalRequest/RateChangeLog row using its persisted snapshot. No live fetch,
         except when include_asset_breakdown is set for a SEGMENT_UPDATE row (single-log detail view only)."""
-        previous_strings = RatesService._format_configuration(row.type, row.previous_configuration)
-        new_strings = RatesService._format_configuration(row.type, row.new_configuration)
+        previous_strings, new_strings = RatesService._format_configuration(
+            row.type, row.previous_configuration, row.new_configuration
+        )
 
         affected_assets = row.affected_assets
         affected_assets_detail = None
@@ -276,9 +300,10 @@ class RatesService(Service):
             current_user
         )
 
-        ERPService.new_notification(
+        ERPService.notify_permission_holders(
             db,
-            user=current_user.user,
+            PermissionEnum.APPROVE_RATE_CHANGES,
+            exclude_user_id=current_user.user.id,
             message="Rate change proposal submitted for review",
             reference_type=NotificationReferenceTypeEnum.RATE_PROPOSAL,
             reference_id=proposed_change.id,
@@ -319,9 +344,10 @@ class RatesService(Service):
                 current_state
             )
 
-        ERPService.new_notification(
+        ERPService.notify_permission_holders(
             db,
-            user=current_user.user,
+            PermissionEnum.APPROVE_RATE_CHANGES,
+            exclude_user_id=current_user.user.id,
             message=f"Segment update proposal submitted for {len(request.segments)} segment(s)",
             reference_type=NotificationReferenceTypeEnum.RATE_PROPOSAL,
         )
@@ -355,9 +381,10 @@ class RatesService(Service):
                 current_state
             )
 
-        ERPService.new_notification(
+        ERPService.notify_permission_holders(
             db,
-            user=current_user.user,
+            PermissionEnum.APPROVE_RATE_CHANGES,
+            exclude_user_id=current_user.user.id,
             message=f"Segment assignment proposal submitted for {len(request.assetIds)} asset(s)",
             reference_type=NotificationReferenceTypeEnum.RATE_PROPOSAL,
             reference_id=segment_id,
