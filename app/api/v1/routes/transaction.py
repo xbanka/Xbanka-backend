@@ -1,6 +1,6 @@
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile, status
+from fastapi import APIRouter, Depends, File, HTTPException, Query, Response, UploadFile, status
 from sqlalchemy.orm import Session
 
 from app.db.database import get_db
@@ -44,7 +44,38 @@ def fetch_all_transactions(
         )
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
-    
+
+
+@transaction.get("/export", status_code=status.HTTP_200_OK, response_class=Response)
+def export_transactions(
+    current_user: CurrentUser = Depends(require_roles("affiliate", "erp", "super")),
+    search: str = Query(None, description="Search term for reference, name, or email"),
+    status_filter: str = Query(None, alias="status", description="Filter by transaction status"),
+    type: str = Query(None, description="Filter by transaction type"),
+    currency: str = Query(None, description="Filter by currency"),
+    category: str = Query(None, description="Filter by category (FIAT or CRYPTO)"),
+    start_date: str = Query(None, alias="startDate", description="Start date (ISO)"),
+    end_date: str = Query(None, alias="endDate", description="End date (ISO)"),
+):
+    try:
+        content = InternalAPIService.export_transactions(
+            search=search,
+            status=status_filter,
+            type=type,
+            currency=currency,
+            category=category,
+            startDate=start_date,
+            endDate=end_date,
+        )
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+    return Response(
+        content=content,
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={"Content-Disposition": "attachment; filename=transactions.xlsx"},
+    )
+
 
 @transaction.get("/{transaction_id:uuid}", status_code=status.HTTP_200_OK)
 def fetch_single_transaction(
