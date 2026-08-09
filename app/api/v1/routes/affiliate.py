@@ -7,6 +7,7 @@ from app.core.enums import (
     NotificationReferenceTypeEnum,
     PayoutMethodEnum,
     PayoutStatusEnum,
+    Permission as PermissionEnum,
 )
 from app.db.database import get_db
 from app.schemas.affiliate import (
@@ -117,9 +118,11 @@ def post_payout(
     current_user: CurrentUser = Depends(require_roles("affiliate")),
 ):
     payout = PayoutService.create_new(db, create_request, current_user.user.id)
-    ERPService.new_notification(
+    # current_user here is the affiliate, not an ERP user — the notification is
+    # for the staff who can act on the request
+    ERPService.notify_permission_holders(
         db,
-        user=current_user.user,
+        PermissionEnum.APPROVE_AFFILIATE_PAYOUTS,
         message="Affiliate Payout Request",
         reference_type=NotificationReferenceTypeEnum.PAYOUT,
         amount=create_request.amount,

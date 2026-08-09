@@ -1,7 +1,7 @@
 from datetime import datetime
 from typing import Optional
 
-from sqlalchemy import DECIMAL, Boolean, DateTime, Enum, ForeignKey, String
+from sqlalchemy import DECIMAL, Boolean, DateTime, Enum, ForeignKey, Index, String
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -15,7 +15,11 @@ from app.models.base_model import BaseModel
 
 class Notification(BaseModel):
     __tablename__ = "notifications"
+    __table_args__ = (Index("ix_notifications_user_read", "user_id", "is_read"),)
 
+    user_id: Mapped[UUID] = mapped_column(
+        ForeignKey("erp_users.id", ondelete="CASCADE"), nullable=False, index=True
+    )
     message: Mapped[str] = mapped_column(String(200), nullable=False)
     type: Mapped[NotificationTypeEnum] = mapped_column(
         Enum(NotificationTypeEnum),
@@ -44,6 +48,7 @@ class Notification(BaseModel):
         ForeignKey("affiliates.id"), nullable=True, index=True
     )
 
+    user = relationship("ERPUser", back_populates="notifications")
     affiliate = relationship("Affiliate", back_populates="notifications")
 
     def __repr__(self):
