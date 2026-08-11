@@ -579,7 +579,6 @@ class ERPService(Service):
 
         # Apply user specific overrides from UserPermissions (`permission_links`)
         for user_perm in staff_user.permission_links:
-            print(user_perm.permission.name)
             if user_perm.is_active:
                 permissions.add(user_perm.permission.name)
             else:
