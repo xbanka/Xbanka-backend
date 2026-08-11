@@ -169,7 +169,7 @@ def get_rate_change_logs(
 def get_log_by_id(
     log_id: UUID,
     db: Session = Depends(get_db),
-    current_user: CurrentUser = Depends(require_roles("erp"))
+    current_user: CurrentUser = Depends(require_account_type("erp"))
 ):
     log = RatesService.get_log_by_id(log_id, db, current_user)
 
