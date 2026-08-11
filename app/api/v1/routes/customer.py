@@ -1,6 +1,6 @@
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Query, Response, status
 from app.core.enums import Permission
 from app.services.internal_backend import InternalAPIService
 from app.utils.auth import require_account_type, require_permissions
@@ -39,7 +39,7 @@ def fetch_all_customers(
 
 @customer.get("/export", status_code=status.HTTP_200_OK, response_class=Response)
 def export_customers(
-    current_user: CurrentUser = Depends(require_roles("affiliate", "erp", "super")),
+    current_user: CurrentUser = Depends(require_account_type("erp")),
     search: str = Query(None, description="Search term for name, email, or phone"),
     status_filter: str = Query(None, alias="status", description="Filter by user status/step"),
     start_date: str = Query(None, alias="startDate", description="Start date (ISO)"),
@@ -136,7 +136,7 @@ def toggle_customer_status(
 @customer.get("/{customer_id:uuid}/kyc")
 def get_customer_kyc(
     customer_id: UUID,
-    current_user: CurrentUser = Depends(require_roles("affiliate", "erp", "super"))
+    current_user: CurrentUser = Depends(require_account_type("erp"))
 ):
     try:
         return InternalAPIService.get_user_kyc_details(user_id=customer_id)
