@@ -102,7 +102,7 @@ def update_staff_details(
     staff_id: UUID,
     update_request: UpdateStaffRequest,
     db: Session = Depends(get_db),
-    current_user: CurrentUser = Depends(require_account_type("erp")) # # add permision for this route
+    current_user: CurrentUser = Depends(require_permissions(EDIT_STAFF_ROLES)),
 ):
     staff = ERPService.update_staff_details(db, staff_id, update_request)
     return {"message": "Staff member details updated successfully.", "staff": staff}
@@ -120,7 +120,7 @@ def update_staff_roles_permissions(
     current_user: CurrentUser = Depends(require_permissions(EDIT_STAFF_PERMISSIONS, EDIT_STAFF_ROLES)),
 ):
     staff = ERPService.update_staff_roles_permissions(
-        db, staff_id, request.role, request.permissions
+        db, staff_id, request.role, request.permissions, current_user.user
     )
     return {
         "message": "Staff member's role and permissions updated successfully.",

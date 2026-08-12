@@ -657,6 +657,7 @@ class ERPService(Service):
         staff_id: UUID,
         role_name: Optional[str],
         selected_permissions: Optional[List[str]],
+        acting_user: ERPUser,
     ) -> ERPUser:
         staff_user = db.query(ERPUser).get(staff_id)
         if not staff_user:
@@ -664,8 +665,27 @@ class ERPService(Service):
                 status_code=status.HTTP_404_NOT_FOUND, detail="Staff user not found"
             )
 
+        is_acting_super_admin = acting_user.role.name == "Super Admin"
+
+        if staff_user.id == acting_user.id:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="You cannot change your own role or permissions.",
+            )
+
+        if staff_user.role.name == "Super Admin" and not is_acting_super_admin:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Only a Super Admin can modify another Super Admin's role or permissions.",
+            )
+
         role = None
         if role_name is not None:
+            if role_name == "Super Admin" and not is_acting_super_admin:
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    detail="Only a Super Admin can grant the Super Admin role.",
+                )
             role = db.query(Role).filter(Role.name == role_name).first()
             if not role:
                 raise HTTPException(
