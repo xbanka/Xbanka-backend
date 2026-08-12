@@ -177,7 +177,7 @@ def verified_superadmin(db_session, superadmin_role):
 @pytest.fixture
 def super_token(verified_superadmin):
     return AuthService.create_access_token(
-        data={"sub": str(verified_superadmin.id)}
+        data={"sub": str(verified_superadmin.id), "account_type": "erp"}
     )
 
 @pytest.fixture
