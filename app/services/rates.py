@@ -226,7 +226,7 @@ class RatesService(Service):
 
     @staticmethod
     def get_proposals(db: Session, current_user: CurrentUser):
-        proposals = db.query(RateApprovalRequest).all()
+        proposals = db.query(RateApprovalRequest).order_by(RateApprovalRequest.created_at.desc()).all()
 
         return [
             RatesService._to_proposal_response(proposal, proposal.requested_by)
@@ -236,7 +236,7 @@ class RatesService(Service):
 
     @staticmethod
     def get_raw_proposals(db: Session):
-        proposals = db.query(RateApprovalRequest).all()
+        proposals = db.query(RateApprovalRequest).order_by(RateApprovalRequest.created_at.desc()).all()
         return proposals
 
 
@@ -522,7 +522,7 @@ class RatesService(Service):
 
     @staticmethod
     def get_rate_change_logs(db: Session, current_user: CurrentUser):
-        logs = db.query(RateChangeLog).all()
+        logs = db.query(RateChangeLog).order_by(RateChangeLog.created_at.desc()).all()
 
         return [
             RatesService._to_proposal_response(log, log.performed_by)
