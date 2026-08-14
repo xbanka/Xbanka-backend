@@ -179,6 +179,7 @@ class Permission(str, enum.Enum):
     # Rates
     PROPOSE_RATE_CHANGES = "rates:propose_changes"
     APPROVE_RATE_CHANGES = "rates:approve_changes"
+    RATE_CHANGE_OVERRIDE = "rates:change_override"  # apply rate changes directly, bypassing the proposal/approval flow
 
 
 # Define job roles with their default permissions
@@ -230,6 +231,69 @@ JOB_ROLE_PERMISSIONS = {
         Permission.VIEW_STAFF_LIST,
     },
 }
+
+
+# Endpoint-mapped permissions (v1 API only).
+#
+# Unlike `Permission` above, every member here corresponds 1:1 to a real,
+# currently-existing ERP (staff-facing) endpoint under app/api/v1/routes/.
+# Endpoints that are gated purely by identity/account-type — "/me" routes,
+# login/register/refresh/verify/forgot-password/reset-password, webhooks,
+# and a staff member's own notifications — are intentionally excluded, since
+# they aren't role/permission-gated resources. v2 routes are out of scope.
+#
+# This enum does not replace `Permission` and is not yet wired into any
+# route or into JOB_ROLE_PERMISSIONS.
+class EndpointPermission(str, enum.Enum):
+    # Staff & Access Management — app/api/v1/routes/staff.py
+    STAFF_VIEW_LIST = "staff:view_list"  # GET /staff/all
+    STAFF_INVITE = "staff:invite"  # POST /staff/invite
+    STAFF_VIEW_PERMISSIONS = "staff:view_permissions"  # GET /staff/permissions, GET /staff/{staff_id}/permissions
+    STAFF_EDIT_DETAILS = "staff:edit_details"  # PATCH /staff/{staff_id}
+    STAFF_EDIT_ROLE = "staff:edit_role"  # PATCH /staff/{staff_id}/roles-permissions (role field)
+    STAFF_EDIT_PERMISSIONS = "staff:edit_permissions"  # PATCH /staff/{staff_id}/roles-permissions (permissions field)
+    STAFF_REMOVE = "staff:remove"  # DELETE /staff/{staff_id}
+
+    # Customers — app/api/v1/routes/customer.py
+    CUSTOMERS_VIEW_LIST = "customers:view_list"  # GET /customers/all
+    CUSTOMERS_EXPORT = "customers:export"  # GET /customers/export
+    CUSTOMERS_SEARCH = "customers:search"  # GET /customers/search
+    CUSTOMERS_VIEW_DETAIL = "customers:view_detail"  # GET /customers/{customer_id}
+    CUSTOMERS_VIEW_TRANSACTIONS = "customers:view_transactions"  # GET /customers/{customer_id}/transactions
+    CUSTOMERS_VIEW_ASSETS = "customers:view_assets"  # GET /customers/{customer_id}/assets
+    CUSTOMERS_VIEW_VERIFICATION = "customers:view_verification"  # GET /customers/{customer_id}/verification
+    CUSTOMERS_MANAGE_STATUS = "customers:manage_status"  # PUT /customers/{customer_id}/status
+    CUSTOMERS_VIEW_KYC = "customers:view_kyc"  # GET /customers/{customer_id}/kyc
+
+    # Transactions — app/api/v1/routes/transaction.py
+    TRANSACTIONS_VIEW_LIST = "transactions:view_list"  # GET /transactions/all
+    TRANSACTIONS_EXPORT = "transactions:export"  # GET /transactions/export
+    TRANSACTIONS_VIEW_DETAIL = "transactions:view_detail"  # GET /transactions/{transaction_id}
+    TRANSACTIONS_CREATE_MANUAL_LOG = "transactions:create_manual_log"  # POST /transactions/manual-log
+    TRANSACTIONS_MANAGE_ATTACHMENT = "transactions:manage_attachment"  # POST /transactions/{transaction_id}/attachment
+
+    # Dashboard — app/api/v1/routes/dashboard.py
+    DASHBOARD_VIEW_TRANSACTION_METRICS = "dashboard:view_transaction_metrics"  # GET /dashboard/erp/transactions/metrics
+    DASHBOARD_VIEW_CUSTOMER_METRICS = "dashboard:view_customer_metrics"  # GET /dashboard/erp/customer/metrics
+
+    # Rates — app/api/v1/routes/rates.py
+    RATES_VIEW = "rates:view"  # GET /rates/crypto/all, GET /rates/segments/all
+    RATES_CREATE_ASSET = "rates:create_asset"  # POST /rates/crypto (direct create, no approval step)
+    RATES_PROPOSE_CHANGES = "rates:propose_changes"  # PUT /rates/crypto/{rate_id}, PUT /rates/segments/bulk, PUT /rates/segments/{segment_id}/bulk-assign
+    RATES_VIEW_PROPOSALS = "rates:view_proposals"  # GET /rates/proposals/raw, GET /rates/proposals
+    RATES_APPROVE_PROPOSAL = "rates:approve_proposal"  # POST /rates/proposals/{proposal_id}/approve
+    RATES_REJECT_PROPOSAL = "rates:reject_proposal"  # POST /rates/proposals/{proposal_id}/reject
+    RATES_VIEW_LOGS = "rates:view_logs"  # GET /rates/logs, GET /rates/logs/{log_id}
+
+    # Affiliate Payouts (ERP-side management) — app/api/v1/routes/erp.py
+    AFFILIATE_PAYOUTS_VIEW = "affiliate_payouts:view"  # GET /erp/payouts, GET /erp/payouts/{payout_id}
+    AFFILIATE_PAYOUTS_PROCESS = "affiliate_payouts:process"  # POST /erp/payouts/{payout_id}/process
+    AFFILIATE_PAYOUTS_REJECT = "affiliate_payouts:reject"  # POST /erp/payouts/{payout_id}/reject
+    AFFILIATE_PAYOUTS_MANAGE_ATTACHMENT = "affiliate_payouts:manage_attachment"  # POST /erp/payouts/{payout_id}/attachment
+
+    # Notifications — app/api/v1/routes/erp.py
+    NOTIFICATIONS_VIEW = "notifications:view"  # GET /erp/notifications
+
 
 class TxnStatusEnum(str, enum.Enum):
     PENDING = "PENDING"
