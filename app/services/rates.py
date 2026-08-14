@@ -266,6 +266,90 @@ class RatesService(Service):
         return new_request
 
     @staticmethod
+    def _can_override_proposal_flow(db: Session, current_user: CurrentUser) -> bool:
+        """Super Admin always bypasses the proposal flow, same as every other
+        permission check in the app. Anyone else needs RATE_CHANGE_OVERRIDE
+        explicitly granted (role default or a per-user override)."""
+        if current_user.user.role.name == "Super Admin":
+            return True
+
+        return PermissionEnum.RATE_CHANGE_OVERRIDE in ERPService.get_staff_permissions(
+            db, current_user.user.id
+        )
+
+    @staticmethod
+    def _apply_change(proposal_type: RateApprovalRequestTypeEnum, target_id, payload):
+        """Push a change to the internal rates API. Shared by proposal approval and
+        by the RATE_CHANGE_OVERRIDE direct-apply path."""
+        headers = {"x-internal-key": INTERNAL_KEY}
+
+        if proposal_type == RateApprovalRequestTypeEnum.ASSET_UPDATE:
+            response = requests.put(
+                f"https://backend.xbankang.com/internal/wallets/crypto/accepts/{target_id}",
+                json=payload,
+                headers=headers
+            )
+        elif proposal_type == RateApprovalRequestTypeEnum.SEGMENT_UPDATE:
+            response = requests.put(
+                "https://backend.xbankang.com/internal/wallets/crypto/segments/bulk",
+                json=payload,
+                headers=headers
+            )
+        elif proposal_type == RateApprovalRequestTypeEnum.SEGMENT_ASSIGNMENT:
+            if not isinstance(payload, dict):
+                raise HTTPException(
+                    status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                    detail="Expected payload to be of dictionary type"
+                )
+            response = requests.put(
+                f"https://backend.xbankang.com/internal/wallets/crypto/segments/{payload['segmentId']}/assets/bulk-assign",
+                json={
+                    "assetIds": [str(target_id)],
+                    "setupNote": payload["setupNote"]
+                },
+                headers=headers
+            )
+        else:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Unknown proposal type: {proposal_type}"
+            )
+
+        if response.status_code != 200:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=f"Failed to apply proposal changes: {response.text}"
+            )
+
+        return response.json()
+
+    @staticmethod
+    def _submit_change(
+        db: Session,
+        target_id: UUID,
+        proposal_type: RateApprovalRequestTypeEnum,
+        payload: dict,
+        current_user: CurrentUser,
+        override: bool,
+        current_state: dict | None = None,
+    ) -> RateApprovalRequest:
+        """Record the change as a proposal. If the acting user holds
+        RATE_CHANGE_OVERRIDE, apply it immediately and mark it approved;
+        otherwise it's left PENDING for someone with APPROVE_RATE_CHANGES."""
+        proposal = RatesService.create_proposal(
+            db, target_id, proposal_type, payload, current_user, current_state
+        )
+
+        if override:
+            RatesService._apply_change(proposal_type, target_id, payload)
+            proposal.status = RatesApprovalStatusEnum.APPROVED
+            RatesService.create_log(db, proposal, current_user)
+            db.commit()
+            db.refresh(proposal)
+
+        return proposal
+
+    @staticmethod
     def get_all_exchange_rates():
         headers = {"x-internal-key": INTERNAL_KEY}
         response = requests.get(
@@ -292,13 +376,21 @@ class RatesService(Service):
     ):
         request_dict = request.model_dump(exclude_unset=True, mode="json")
 
-        proposed_change = RatesService.create_proposal(
+        override = RatesService._can_override_proposal_flow(db, current_user)
+        proposed_change = RatesService._submit_change(
             db,
             rate_id,
             RateApprovalRequestTypeEnum.ASSET_UPDATE,
             request_dict,
-            current_user
+            current_user,
+            override,
         )
+
+        if override:
+            return {
+                "message": "Rate change applied successfully.",
+                "proposed_change": proposed_change
+            }
 
         ERPService.notify_permission_holders(
             db,
@@ -330,9 +422,10 @@ class RatesService(Service):
         request: SegmentsBulkUpdateRequest,
     ):
         current_state = RatesService._fetch_current_state()
+        override = RatesService._can_override_proposal_flow(db, current_user)
 
         for segment in request.segments:
-            RatesService.create_proposal(
+            RatesService._submit_change(
                 db,
                 segment.id,
                 RateApprovalRequestTypeEnum.SEGMENT_UPDATE,
@@ -341,8 +434,14 @@ class RatesService(Service):
                     "segments": [segment.model_dump(mode="json")]
                 },
                 current_user,
+                override,
                 current_state
             )
+
+        if override:
+            return {
+                "message": "Segment changes applied successfully.",
+            }
 
         ERPService.notify_permission_holders(
             db,
@@ -370,16 +469,23 @@ class RatesService(Service):
         }
 
         current_state = RatesService._fetch_current_state()
+        override = RatesService._can_override_proposal_flow(db, current_user)
 
         for assetId in request.assetIds:
-            RatesService.create_proposal(
+            RatesService._submit_change(
                 db,
                 UUID(assetId),  # id of asset being reassigned
                 RateApprovalRequestTypeEnum.SEGMENT_ASSIGNMENT,
                 request_dict,
                 current_user,
+                override,
                 current_state
             )
+
+        if override:
+            return {
+                "message": "Rate change applied successfully.",
+            }
 
         ERPService.notify_permission_holders(
             db,
@@ -423,47 +529,7 @@ class RatesService(Service):
                 detail="Proposal has already been processed"
             )
 
-        # call the internal API to apply the changes based on the proposal type
-        headers = {"x-internal-key": INTERNAL_KEY}
-        payload = proposal.payload
-
-        if proposal.type == RateApprovalRequestTypeEnum.ASSET_UPDATE:
-            response = requests.put(
-                f"https://backend.xbankang.com/internal/wallets/crypto/accepts/{proposal.target_id}",
-                json=payload,
-                headers=headers
-            )
-        elif proposal.type == RateApprovalRequestTypeEnum.SEGMENT_UPDATE:
-            response = requests.put(
-                "https://backend.xbankang.com/internal/wallets/crypto/segments/bulk",
-                json=payload,
-                headers=headers
-            )
-        elif proposal.type == RateApprovalRequestTypeEnum.SEGMENT_ASSIGNMENT:
-            if not isinstance(payload, dict):
-                raise HTTPException(
-                    status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                    detail="Expected payload to be of dictionary type"
-                )
-            response = requests.put(
-                f"https://backend.xbankang.com/internal/wallets/crypto/segments/{payload['segmentId']}/assets/bulk-assign",
-                json={
-                    "assetIds": [str(proposal.target_id)],
-                    "setupNote": payload["setupNote"]
-                },
-                headers=headers
-            )
-        else:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f"Unknown proposal type: {proposal.type}"
-            )
-
-        if response.status_code != 200:
-            raise HTTPException(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail=f"Failed to apply proposal changes: {response.text}"
-            )
+        result = RatesService._apply_change(proposal.type, proposal.target_id, proposal.payload)
 
         # Implement logic to approve the proposal
         proposal.status = RatesApprovalStatusEnum.APPROVED
@@ -473,7 +539,7 @@ class RatesService(Service):
         db.commit()
         db.refresh(proposal)
 
-        return response.json()
+        return result
 
     @staticmethod
     def reject_proposal(db: Session, proposal_id: UUID):
