@@ -110,6 +110,21 @@ def view_rate_management_proposals(
     }
 
 
+@rates.get(
+    "/proposals/{proposal_id}", status_code=status.HTTP_200_OK
+)
+def get_proposal_by_id(
+    proposal_id: UUID,
+    db: Session = Depends(get_db),
+    current_user: CurrentUser = Depends(require_account_type("erp"))
+):
+    proposal = RatesService.get_proposal_by_id(proposal_id, db, current_user)
+
+    return {
+        "proposal": proposal
+    }
+
+
 # approve rate management proposal
 @rates.post(
     "/proposals/{proposal_id}/approve", status_code=status.HTTP_200_OK
