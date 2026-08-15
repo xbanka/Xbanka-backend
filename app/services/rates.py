@@ -239,6 +239,28 @@ class RatesService(Service):
         proposals = db.query(RateApprovalRequest).order_by(RateApprovalRequest.created_at.desc()).all()
         return proposals
 
+    @staticmethod
+    def get_proposal_by_id(proposal_id: UUID, db: Session, current_user: CurrentUser):
+        proposal = db.get(RateApprovalRequest, proposal_id)
+
+        if not proposal or not proposal.target_id:
+            if not proposal:
+                detail = f"Proposal with id '{proposal_id}' not found."
+            else:
+                detail = (
+                    f"Proposal '{proposal_id}' exists but has no target_id set; "
+                    "unable to determine target configuration."
+                )
+
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=detail
+            )
+
+        return RatesService._to_proposal_response(
+            proposal, proposal.requested_by, include_asset_breakdown=True
+        )
+
 
     @staticmethod
     def create_proposal(
@@ -331,11 +353,17 @@ class RatesService(Service):
         payload: dict,
         current_user: CurrentUser,
         override: bool,
+        notify_message: str,
         current_state: dict | None = None,
     ) -> RateApprovalRequest:
         """Record the change as a proposal. If the acting user holds
         RATE_CHANGE_OVERRIDE, apply it immediately and mark it approved;
-        otherwise it's left PENDING for someone with APPROVE_RATE_CHANGES."""
+        otherwise it's left PENDING and a notification is sent for it.
+
+        One notification per proposal, each pointing at its own id — a batch
+        of N changes yields N separately-reviewable notifications rather than
+        one notification that can only ever link to a single proposal out of
+        the batch."""
         proposal = RatesService.create_proposal(
             db, target_id, proposal_type, payload, current_user, current_state
         )
@@ -346,6 +374,16 @@ class RatesService(Service):
             RatesService.create_log(db, proposal, current_user)
             db.commit()
             db.refresh(proposal)
+            return proposal
+
+        ERPService.notify_permission_holders(
+            db,
+            PermissionEnum.APPROVE_RATE_CHANGES,
+            exclude_user_id=current_user.user.id,
+            message=notify_message,
+            reference_type=NotificationReferenceTypeEnum.RATE_PROPOSAL,
+            reference_id=proposal.id,
+        )
 
         return proposal
 
@@ -384,6 +422,7 @@ class RatesService(Service):
             request_dict,
             current_user,
             override,
+            "Rate change proposal submitted for review",
         )
 
         if override:
@@ -391,15 +430,6 @@ class RatesService(Service):
                 "message": "Rate change applied successfully.",
                 "proposed_change": proposed_change
             }
-
-        ERPService.notify_permission_holders(
-            db,
-            PermissionEnum.APPROVE_RATE_CHANGES,
-            exclude_user_id=current_user.user.id,
-            message="Rate change proposal submitted for review",
-            reference_type=NotificationReferenceTypeEnum.RATE_PROPOSAL,
-            reference_id=proposed_change.id,
-        )
 
         return {
             "message": "Rate change proposal submitted successfully.",
@@ -435,6 +465,7 @@ class RatesService(Service):
                 },
                 current_user,
                 override,
+                f"Segment update proposal submitted for review: {segment.name}",
                 current_state
             )
 
@@ -442,14 +473,6 @@ class RatesService(Service):
             return {
                 "message": "Segment changes applied successfully.",
             }
-
-        ERPService.notify_permission_holders(
-            db,
-            PermissionEnum.APPROVE_RATE_CHANGES,
-            exclude_user_id=current_user.user.id,
-            message=f"Segment update proposal submitted for {len(request.segments)} segment(s)",
-            reference_type=NotificationReferenceTypeEnum.RATE_PROPOSAL,
-        )
 
         return {
             "message": "Segment change proposal submitted successfully.",
@@ -479,6 +502,7 @@ class RatesService(Service):
                 request_dict,
                 current_user,
                 override,
+                "Segment assignment proposal submitted for review",
                 current_state
             )
 
@@ -486,15 +510,6 @@ class RatesService(Service):
             return {
                 "message": "Rate change applied successfully.",
             }
-
-        ERPService.notify_permission_holders(
-            db,
-            PermissionEnum.APPROVE_RATE_CHANGES,
-            exclude_user_id=current_user.user.id,
-            message=f"Segment assignment proposal submitted for {len(request.assetIds)} asset(s)",
-            reference_type=NotificationReferenceTypeEnum.RATE_PROPOSAL,
-            reference_id=segment_id,
-        )
 
         return {
             "message": "Rate change proposal submitted successfully.",

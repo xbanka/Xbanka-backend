@@ -330,3 +330,139 @@ def test_reject_proposal(
     assert response.status_code == 200
     proposal = db_session.get(RateApprovalRequest, UUID(proposal_id))
     assert proposal.status == "REJECTED"
+
+
+# ---------------------------------------------------------------------------
+# get_proposal_by_id (GET /rates/proposals/{proposal_id})
+# ---------------------------------------------------------------------------
+
+
+def test_get_proposal_by_id_returns_proposal(
+    mocker, test_client, manager_without_override
+):
+    mocker.patch("app.services.rates.requests.put")
+    create_response = test_client.put(
+        f"/api/rates/crypto/{uuid4()}",
+        json={"buyFeeValue": 3.0},
+        headers=_headers(manager_without_override),
+    )
+    proposal_id = create_response.json()["proposed_change"]["id"]
+
+    response = test_client.get(
+        f"/api/rates/proposals/{proposal_id}",
+        headers=_headers(manager_without_override),
+    )
+
+    assert response.status_code == 200
+    proposal = response.json()["proposal"]
+    assert proposal["id"] == proposal_id
+    assert proposal["status"] == "PENDING"
+
+
+def test_get_proposal_by_id_not_found(test_client, manager_without_override):
+    response = test_client.get(
+        f"/api/rates/proposals/{uuid4()}",
+        headers=_headers(manager_without_override),
+    )
+
+    assert response.status_code == 404
+
+
+# ---------------------------------------------------------------------------
+# notification reference_id must point at the generated proposal, not the
+# asset/segment being changed
+# ---------------------------------------------------------------------------
+
+
+def _segments_payload(*segment_ids):
+    return {
+        "segments": [
+            {
+                "id": str(segment_id),
+                "name": f"Tier {i}",
+                "isActive": True,
+                "buyFeeType": "percentage",
+                "buySpread": 1.0,
+                "sellFeeType": "percentage",
+                "sellSpread": 1.0,
+            }
+            for i, segment_id in enumerate(segment_ids, start=1)
+        ],
+        "setupNote": "test",
+    }
+
+
+def test_bulk_update_segments_sends_one_notification_per_proposal(
+    mocker, test_client, db_session, manager_without_override
+):
+    mock_notify = mocker.patch("app.services.rates.ERPService.notify_permission_holders")
+
+    response = test_client.put(
+        "/api/rates/segments/bulk",
+        json=_segments_payload(uuid4(), uuid4(), uuid4()),
+        headers=_headers(manager_without_override),
+    )
+
+    assert response.status_code == 200
+    proposals = db_session.query(RateApprovalRequest).order_by(
+        RateApprovalRequest.created_at
+    ).all()
+    assert len(proposals) == 3
+
+    # one notification per proposal, not one summary notification for the batch
+    assert mock_notify.call_count == 3
+    notified_reference_ids = {
+        call.kwargs["reference_id"] for call in mock_notify.call_args_list
+    }
+    assert notified_reference_ids == {p.id for p in proposals}
+
+
+def test_bulk_assign_to_segments_sends_one_notification_per_proposal(
+    mocker, test_client, db_session, manager_without_override
+):
+    mock_notify = mocker.patch("app.services.rates.ERPService.notify_permission_holders")
+
+    segment_id = uuid4()
+    response = test_client.put(
+        f"/api/rates/segments/{segment_id}/bulk-assign",
+        json={
+            "assetIds": [str(uuid4()), str(uuid4())],
+            "setupNote": "reassign",
+        },
+        headers=_headers(manager_without_override),
+    )
+
+    assert response.status_code == 200
+    proposals = db_session.query(RateApprovalRequest).order_by(
+        RateApprovalRequest.created_at
+    ).all()
+    assert len(proposals) == 2
+
+    assert mock_notify.call_count == 2
+    notified_reference_ids = {
+        call.kwargs["reference_id"] for call in mock_notify.call_args_list
+    }
+    assert notified_reference_ids == {p.id for p in proposals}
+    assert segment_id not in notified_reference_ids
+
+
+def test_update_crypto_rate_notification_references_created_proposal(
+    mocker, test_client, db_session, manager_without_override
+):
+    mocker.patch("app.services.rates.requests.put")
+    mock_notify = mocker.patch("app.services.rates.ERPService.notify_permission_holders")
+
+    rate_id = uuid4()
+    response = test_client.put(
+        f"/api/rates/crypto/{rate_id}",
+        json={"buyFeeValue": 3.0},
+        headers=_headers(manager_without_override),
+    )
+
+    assert response.status_code == 200
+    proposal = db_session.query(RateApprovalRequest).one()
+
+    mock_notify.assert_called_once()
+    reference_id = mock_notify.call_args.kwargs["reference_id"]
+    assert reference_id == proposal.id
+    assert reference_id != rate_id
