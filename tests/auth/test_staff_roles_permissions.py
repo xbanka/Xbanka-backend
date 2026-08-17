@@ -209,3 +209,48 @@ def test_role_not_found(super_client, target_staff):
         _url(target_staff.id), json={"role": "Nonexistent Role"}
     )
     assert response.status_code == 404
+
+
+# ---------------------------------------------------------------------------
+# RoleResponse.allowed_permissions (regression: Super Admin used to serialise
+# only its own role_permissions rows. In prod those 59 rows all carried
+# is_allowed = NULL — RolePermissions.is_allowed defaults Python-side, so rows
+# inserted by raw SQL got NULL — and 18 permissions had no row at all, so the
+# response silently under-reported. Super Admin must return every permission.)
+# ---------------------------------------------------------------------------
+
+
+def test_super_admin_sees_every_permission_despite_null_and_missing_rows(
+    db_session, permissions
+):
+    from app.schemas.erp.user import RoleResponse
+
+    role = Role(name="Super Admin")
+    db_session.add(role)
+    db_session.commit()
+    db_session.refresh(role)
+
+    # exactly the prod shape: a partial set of rows, every one is_allowed = NULL
+    db_session.add(
+        RolePermissions(
+            role_id=role.id,
+            permission_id=permissions["transactions:view"].id,
+            is_allowed=None,
+        )
+    )
+    db_session.commit()
+    db_session.refresh(role)
+
+    allowed = RoleResponse.model_validate(role).allowed_permissions
+
+    assert sorted(allowed) == sorted(permissions)
+    assert "finance:approve_payments" in allowed  # never had a row
+
+
+def test_non_super_admin_still_honours_is_allowed(db_session, manager_role):
+    from app.schemas.erp.user import RoleResponse
+
+    allowed = RoleResponse.model_validate(manager_role).allowed_permissions
+
+    assert "transactions:view" in allowed
+    assert "finance:approve_payments" not in allowed

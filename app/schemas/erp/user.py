@@ -7,7 +7,6 @@ from pydantic import (
     BaseModel,
     ConfigDict,
     EmailStr,
-    Field,
     ValidationInfo,
     field_validator,
     model_validator,
@@ -25,25 +24,9 @@ class RoleResponse(BaseModel):
 
     id: UUID
     name: str
-    permission_links: List[str] = Field(..., alias="allowed_permissions")
-
-    @field_validator("permission_links", mode="before")
-    def _filter_out_forbidden(cls, v, info: ValidationInfo):
-        # Return all permissions for superadmin, else filter out forbidden
-        role_name = info.data.get("name")
-
-        if role_name == "Super Admin":
-            # Return all permissions for superadmin
-            return [
-                getattr(getattr(link, "permission", None), "name", None) for link in v
-            ]
-
-        # Filter out forbidden permissions for other roles
-        allowed_links = list(filter(lambda x: x.is_allowed, v))
-        return [
-            getattr(getattr(link, "permission", None), "name", None)
-            for link in allowed_links
-        ]
+    # Resolved by Role.allowed_permissions, which special-cases Super Admin to
+    # the full permissions table rather than its own role_permissions rows.
+    allowed_permissions: List[str]
 
 
 class ERPMeResponse(BaseModel):
