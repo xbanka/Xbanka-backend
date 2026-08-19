@@ -11,6 +11,7 @@ from app.core.enums import (
     RatesApprovalStatusEnum,
 )
 from app.models.rate_change_log import RateChangeLog
+from app.models.role import SUPER_ADMIN
 from app.schemas.erp.rates import AffectedAssetItem, AssetsRequest, AssignAssetsToSegmentRequest, ProposalResponse, RequestUser, SegmentsBulkUpdateRequest
 from app.models.rate_approval_request import RateApprovalRequest
 from app.services.erp_user import ERPService
@@ -292,7 +293,7 @@ class RatesService(Service):
         """Super Admin always bypasses the proposal flow, same as every other
         permission check in the app. Anyone else needs RATE_CHANGE_OVERRIDE
         explicitly granted (role default or a per-user override)."""
-        if current_user.user.role.name == "Super Admin":
+        if current_user.user.role.name == SUPER_ADMIN:
             return True
 
         return PermissionEnum.RATE_CHANGE_OVERRIDE in ERPService.get_staff_permissions(
