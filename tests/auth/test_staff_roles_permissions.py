@@ -254,3 +254,109 @@ def test_non_super_admin_still_honours_is_allowed(db_session, manager_role):
 
     assert "transactions:view" in allowed
     assert "finance:approve_payments" not in allowed
+
+
+# ---------------------------------------------------------------------------
+# get_staff_permissions (regression: it filtered on RolePermissions.is_allowed,
+# so a Super Admin — whose rows all carry NULL — resolved to nothing. Both
+# callers happened to short-circuit on the role name first, so the bug was
+# latent; any new caller would have been silently denied.)
+# ---------------------------------------------------------------------------
+
+
+def _super_admin_staff(db_session, permissions, *, null_row_for=None):
+    role = Role(name="Super Admin")
+    db_session.add(role)
+    db_session.commit()
+    db_session.refresh(role)
+
+    if null_row_for:
+        db_session.add(
+            RolePermissions(
+                role_id=role.id,
+                permission_id=permissions[null_row_for].id,
+                is_allowed=None,
+            )
+        )
+
+    staff = ERPUser(
+        first_name="Super",
+        last_name="Admin",
+        email=f"sa-{uuid4()}@example.com",
+        hashed_password=Hasher.get_password_hash("@Password123"),
+        verified=True,
+        role_id=role.id,
+    )
+    db_session.add(staff)
+    db_session.commit()
+    db_session.refresh(staff)
+    return staff
+
+
+def test_get_staff_permissions_super_admin_resolves_to_every_permission(
+    db_session, permissions
+):
+    from app.services.erp_user import ERPService
+
+    staff = _super_admin_staff(
+        db_session, permissions, null_row_for="transactions:view"
+    )
+
+    resolved = ERPService.get_staff_permissions(db_session, staff.id)
+
+    assert sorted(resolved) == sorted(permissions)
+
+
+def test_get_staff_permissions_super_admin_ignores_deny_overrides(
+    db_session, permissions
+):
+    from app.services.erp_user import ERPService
+
+    staff = _super_admin_staff(db_session, permissions)
+    # a per-user deny must not be able to strip a Super Admin
+    db_session.add(
+        UserPermissions(
+            user_id=staff.id,
+            permission_id=permissions["finance:approve_payments"].id,
+            is_active=False,
+        )
+    )
+    db_session.commit()
+
+    resolved = ERPService.get_staff_permissions(db_session, staff.id)
+
+    assert "finance:approve_payments" in resolved
+    assert sorted(resolved) == sorted(permissions)
+
+
+def test_get_staff_permissions_non_super_admin_still_applies_overrides(
+    db_session, permissions, manager_role
+):
+    from app.services.erp_user import ERPService
+
+    staff = ERPUser(
+        first_name="Reg",
+        last_name="Ular",
+        email=f"mgr-{uuid4()}@example.com",
+        hashed_password=Hasher.get_password_hash("@Password123"),
+        verified=True,
+        role_id=manager_role.id,
+    )
+    db_session.add(staff)
+    db_session.commit()
+    db_session.refresh(staff)
+
+    db_session.add(
+        UserPermissions(
+            user_id=staff.id,
+            permission_id=permissions["transactions:create"].id,
+            is_active=False,
+        )
+    )
+    db_session.commit()
+
+    resolved = ERPService.get_staff_permissions(db_session, staff.id)
+
+    assert "transactions:view" in resolved          # role default
+    assert "transactions:create" not in resolved    # stripped by override
+    assert "finance:approve_payments" not in resolved  # is_allowed = False
