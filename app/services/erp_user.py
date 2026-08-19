@@ -25,7 +25,7 @@ from app.models.erp_user import ERPUser
 from app.models.notifications import Notification
 from app.models.payouts import Payout
 from app.models.permission import Permission
-from app.models.role import Role
+from app.models.role import SUPER_ADMIN, Role
 from app.models.role_permissions import RolePermissions
 from app.models.user_permissions import UserPermissions
 from app.schemas.payout import ProcessPayoutRequest
@@ -177,7 +177,7 @@ class ERPService(Service):
                     and_(
                         override.is_(None),
                         or_(
-                            Role.name == "Super Admin",
+                            Role.name == SUPER_ADMIN,
                             ERPUser.role_id.in_(granting_roles),
                         ),
                     ),
@@ -363,9 +363,9 @@ class ERPService(Service):
                 detail="Super Admin with this email already exists",
             )
 
-        role_obj = db.query(Role).filter_by(name="Super Admin").first()
+        role_obj = db.query(Role).filter_by(name=SUPER_ADMIN).first()
         if not role_obj:
-            raise ValueError("Role 'Super Admin' not found")
+            raise ValueError(f"Role '{SUPER_ADMIN}' not found")
 
         try:
             superadmin_user = ERPUser(
@@ -402,7 +402,7 @@ class ERPService(Service):
             select(ERPUser)
             .join(Role)
             .where(
-                and_(Role.name != "Super Admin", ERPUser.hashed_password.isnot(None))
+                and_(Role.name != SUPER_ADMIN, ERPUser.hashed_password.isnot(None))
             )
             .order_by(ERPUser.created_at.desc())
         )
@@ -535,7 +535,7 @@ class ERPService(Service):
                 status_code=status.HTTP_404_NOT_FOUND, detail="Role not found"
             )
 
-        if role_name == "Super Admin":
+        if role_name == SUPER_ADMIN:
             all_permissions = db.query(Permission).all()
             perm_names = [perm.name for perm in all_permissions]
             return (perm_names, [])
@@ -565,6 +565,16 @@ class ERPService(Service):
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND, detail="Staff user not found"
             )
+
+        # Super Admin holds every permission with no exceptions, so it resolves
+        # against the whole permissions table and ignores both its own
+        # role_permissions rows and any per-user override. Same rule as
+        # Role.allowed_permissions and get_role_permissions above; without it a
+        # Super Admin resolves to nothing, since its rows carry is_allowed NULL
+        # and don't cover permissions added after the role was seeded.
+        if staff_user.role.name == SUPER_ADMIN:
+            return [name for (name,) in db.query(Permission.name).all()]
+
         # Load role's allowed permissions via the RolePermissions link (uses is_allowed)
         role_allowed = (
             db.query(Permission.name)
@@ -665,7 +675,7 @@ class ERPService(Service):
                 status_code=status.HTTP_404_NOT_FOUND, detail="Staff user not found"
             )
 
-        is_acting_super_admin = acting_user.role.name == "Super Admin"
+        is_acting_super_admin = acting_user.role.name == SUPER_ADMIN
 
         if staff_user.id == acting_user.id:
             raise HTTPException(
@@ -673,7 +683,7 @@ class ERPService(Service):
                 detail="You cannot change your own role or permissions.",
             )
 
-        if staff_user.role.name == "Super Admin" and not is_acting_super_admin:
+        if staff_user.role.name == SUPER_ADMIN and not is_acting_super_admin:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="Only a Super Admin can modify another Super Admin's role or permissions.",
@@ -681,7 +691,7 @@ class ERPService(Service):
 
         role = None
         if role_name is not None:
-            if role_name == "Super Admin" and not is_acting_super_admin:
+            if role_name == SUPER_ADMIN and not is_acting_super_admin:
                 raise HTTPException(
                     status_code=status.HTTP_403_FORBIDDEN,
                     detail="Only a Super Admin can grant the Super Admin role.",

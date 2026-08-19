@@ -2,6 +2,7 @@ from fastapi import Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
 from app.db.database import get_db
+from app.models.role import SUPER_ADMIN
 from app.services.auth import AuthService
 from app.services.erp_user import ERPService
 from app.utils.schema import CurrentUser
@@ -28,7 +29,7 @@ def require_permissions(*permissions: str):
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="You are not allowed to access this resource",
             )
-        if current_user.user.role.name != "Super Admin":
+        if current_user.user.role.name != SUPER_ADMIN:
             staff_permissions = ERPService.get_staff_permissions(
                 db, current_user.user.id
             )
@@ -42,7 +43,7 @@ def require_permissions(*permissions: str):
     return decorator
 
 def require_super_admin(current_user: CurrentUser = Depends(AuthService.get_current_user)):
-    if current_user.account_type != "erp" or current_user.user.role.name != "Super Admin":
+    if current_user.account_type != "erp" or current_user.user.role.name != SUPER_ADMIN:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="You are not allowed to access this resource",
