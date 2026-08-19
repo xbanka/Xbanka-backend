@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, status
+from fastapi import APIRouter, Depends, HTTPException, Response, status
 from sqlalchemy.orm import Session
 
 from app.db.database import get_db
@@ -43,3 +43,28 @@ def erp_customer_metrics(current_user: CurrentUser = Depends(require_account_typ
     metrics = InternalAPIService.get_customer_metrics()
 
     return metrics
+
+
+@dashboard.get(
+    "/erp/metrics/export",
+    status_code=status.HTTP_200_OK,
+    response_class=Response,
+)
+def export_erp_metrics(
+    current_user: CurrentUser = Depends(require_account_type("erp")),
+):
+    """Single report covering every dashboard card, one section per card."""
+    try:
+        content = InternalAPIService.export_dashboard_metrics()
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+    return Response(
+        content=content,
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={
+            "Content-Disposition": "attachment; filename=dashboard-metrics.xlsx"
+        },
+    )
