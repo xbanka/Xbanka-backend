@@ -18,6 +18,7 @@ transaction = APIRouter(prefix="/transactions", tags=["Transactions"])
 
 CREATE_TRANSACTIONS = Permission.CREATE_TRANSACTIONS
 VIEW_TRANSACTIONS = Permission.VIEW_TRANSACTIONS
+EXPORT_TRANSACTIONS = Permission.EXPORT_TRANSACTIONS
 
 @transaction.get(
     "/all", status_code=status.HTTP_200_OK
@@ -52,7 +53,7 @@ def fetch_all_transactions(
 
 @transaction.get("/export", status_code=status.HTTP_200_OK, response_class=Response)
 def export_transactions(
-    current_user: CurrentUser = Depends(require_account_type("erp")),
+    current_user: CurrentUser = Depends(require_permissions(EXPORT_TRANSACTIONS)),
     search: str = Query(None, description="Search term for reference, name, or email"),
     status_filter: str = Query(None, alias="status", description="Filter by transaction status"),
     type: str = Query(None, description="Filter by transaction type"),

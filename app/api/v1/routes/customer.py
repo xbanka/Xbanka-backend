@@ -11,6 +11,7 @@ customer = APIRouter(prefix="/customers", tags=["Customers"])
 
 VIEW_CUSTOMERS = Permission.VIEW_CUSTOMERS
 MANAGE_CUSTOMERS = Permission.MANAGE_CUSTOMERS
+EXPORT_CUSTOMERS = Permission.EXPORT_CUSTOMERS
 
 
 @customer.get(
@@ -39,7 +40,7 @@ def fetch_all_customers(
 
 @customer.get("/export", status_code=status.HTTP_200_OK, response_class=Response)
 def export_customers(
-    current_user: CurrentUser = Depends(require_account_type("erp")),
+    current_user: CurrentUser = Depends(require_permissions(EXPORT_CUSTOMERS)),
     search: str = Query(None, description="Search term for name, email, or phone"),
     status_filter: str = Query(None, alias="status", description="Filter by user status/step"),
     start_date: str = Query(None, alias="startDate", description="Start date (ISO)"),
