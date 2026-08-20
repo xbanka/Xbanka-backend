@@ -332,17 +332,6 @@ class ERPService(Service):
                 detail="Super Admin creation is disabled.",
             )
 
-        if obj_in.email not in [
-            "superadmin1@xbankang.com",
-            "superadmin2@xbankang.com",
-            "superadmin3@xbankang.com",
-            "superadmin4@xbankang.com",
-        ]:
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="You are not authorized to create a Super Admin account.",
-            )
-
         if not is_valid_email(obj_in.email):
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid email address."
