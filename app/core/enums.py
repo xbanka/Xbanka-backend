@@ -88,6 +88,7 @@ class Permission(str, enum.Enum):
     EDIT_TRANSACTIONS = "transactions:edit"
     MERGE_TRANSACTIONS = "transactions:merge"
     RECOMMEND_TRANSACTION_REVERSAL = "transactions:recommend_reversal"
+    EXPORT_TRANSACTIONS = "transactions:export"
 
     # Customers
     VIEW_CUSTOMERS = "customers:view"
@@ -98,6 +99,7 @@ class Permission(str, enum.Enum):
     UPDATE_CUSTOMERS = "customers:update"
     EDIT_CUSTOMERS = "customers:edit"
     ADD_CUSTOMERS = "customers:add"
+    EXPORT_CUSTOMERS = "customers:export"
 
     # Finance
     VIEW_PAYMENTS = "finance:view_payments"
