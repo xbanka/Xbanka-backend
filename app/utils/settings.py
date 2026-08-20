@@ -1,6 +1,5 @@
 import os
 from pathlib import Path
-from pydantic import SecretStr
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 # Use this to build paths inside the project
@@ -37,14 +36,13 @@ class Settings(BaseSettings):
 
     ALEMBIC_DATABASE_URL: str
 
-    # Mail configurations
-    MAIL_USERNAME: str
-    MAIL_PASSWORD: SecretStr
-    MAIL_FROM: str
-    MAIL_PORT: int
-    MAIL_SERVER: str
-
+    # Mail configurations. The SMTP settings the old fastapi-mail path needed
+    # (MAIL_USERNAME/PASSWORD/FROM/PORT/SERVER) are gone with it; any left over
+    # in a .env file are ignored via extra="ignore" below.
     RESEND_API_KEY: str
+    # Sender for every Resend-delivered email. Defaults to the address the
+    # invite flow already sends from, since that domain is verified in Resend.
+    RESEND_FROM: str = "Xbanka <notifications@xbankang.com>"
 
     S3_BUCKET_TRANSACTIONS: str
     S3_BUCKET_PAYOUTS: str

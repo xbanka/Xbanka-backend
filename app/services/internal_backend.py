@@ -1,5 +1,4 @@
 from datetime import datetime, timezone
-from decimal import Decimal, InvalidOperation
 from io import BytesIO
 from uuid import UUID
 from fastapi import HTTPException
@@ -16,21 +15,6 @@ INTERNAL_KEY = settings.INTERNAL_KEY
 BASE_URL = settings.INTERNAL_BASE_URL
 
 
-def _to_number(value):
-    """Coerce a numeric-looking value to a real number so Excel treats it as one.
-
-    The internal API returns money amounts as strings (stuckValue is
-    "11000705000"), which would otherwise land in the sheet as text and refuse
-    to sum or format. Anything genuinely non-numeric is passed through as-is.
-    """
-    if value is None:
-        return 0
-    if isinstance(value, (int, float, Decimal)):
-        return value
-    try:
-        return Decimal(str(value))
-    except (InvalidOperation, ValueError):
-        return value
 
 class InternalAPIService(Service):
     
