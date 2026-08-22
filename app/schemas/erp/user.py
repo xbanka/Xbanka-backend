@@ -38,6 +38,7 @@ class ERPMeResponse(BaseModel):
     email: EmailStr
     role: RoleResponse
     created_at: datetime
+    verified: bool
 
 
 class AllStaffResponse(BaseModel):

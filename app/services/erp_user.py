@@ -71,6 +71,7 @@ class ERPService(Service):
             erp_user.first_name = obj_in.first_name
             erp_user.last_name = obj_in.last_name
             erp_user.hashed_password = Hasher.get_password_hash(obj_in.password)
+            erp_user.verified = True
             db.commit()
 
         except IntegrityError as e:
@@ -446,7 +447,7 @@ class ERPService(Service):
 
         staff_user = db.scalar(select(ERPUser).where(ERPUser.email == email))
 
-        if staff_user:
+        if staff_user and staff_user.verified:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="Staff user with this email already exists",
@@ -464,15 +465,24 @@ class ERPService(Service):
         )
 
         try:
-            staff_user = ERPUser(
-                first_name="",
-                last_name="",
-                email=email,
-                role_id=role.id,
-                verified=True,
-            )
+            if staff_user:
+                # Unverified invite already exists for this email: update its
+                # role/permissions to match this invite and resend, rather
+                # than reject it as a duplicate.
+                staff_user.role_id = role.id
+                db.query(UserPermissions).filter(
+                    UserPermissions.user_id == staff_user.id
+                ).delete(synchronize_session=False)
+            else:
+                staff_user = ERPUser(
+                    first_name="",
+                    last_name="",
+                    email=email,
+                    role_id=role.id,
+                    verified=False,
+                )
+                db.add(staff_user)
 
-            db.add(staff_user)
             db.commit()
             db.refresh(staff_user)
 
