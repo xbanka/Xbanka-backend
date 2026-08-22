@@ -333,6 +333,112 @@ def test_reject_proposal(
 
 
 # ---------------------------------------------------------------------------
+# approve / reject proposal notifies the requester only
+# ---------------------------------------------------------------------------
+
+
+def test_approve_proposal_notifies_requester_only(
+    mocker, test_client, db_session, manager_without_override, verified_superadmin
+):
+    mocker.patch("app.services.rates.requests.put")
+    create_response = test_client.put(
+        f"/api/rates/crypto/{uuid4()}",
+        json={"buyFeeValue": 3.0},
+        headers=_headers(manager_without_override),
+    )
+    proposal_id = create_response.json()["proposed_change"]["id"]
+
+    mock_notify = mocker.patch("app.services.rates.ERPService.new_notification")
+    mocker.patch(
+        "app.services.rates.requests.put", return_value=_mock_response(200, {"applied": True})
+    )
+
+    response = test_client.post(
+        f"/api/rates/proposals/{proposal_id}/approve",
+        headers=_headers(verified_superadmin),
+    )
+
+    assert response.status_code == 200
+    mock_notify.assert_called_once()
+    assert [r.id for r in mock_notify.call_args.kwargs["recipients"]] == [manager_without_override.id]
+    assert mock_notify.call_args.kwargs["reference_id"] == UUID(proposal_id)
+
+
+def test_reject_proposal_notifies_requester_only(
+    mocker, test_client, db_session, manager_without_override, verified_superadmin
+):
+    mocker.patch("app.services.rates.requests.put")
+    create_response = test_client.put(
+        f"/api/rates/crypto/{uuid4()}",
+        json={"buyFeeValue": 3.0},
+        headers=_headers(manager_without_override),
+    )
+    proposal_id = create_response.json()["proposed_change"]["id"]
+
+    mock_notify = mocker.patch("app.services.rates.ERPService.new_notification")
+
+    response = test_client.post(
+        f"/api/rates/proposals/{proposal_id}/reject",
+        headers=_headers(verified_superadmin),
+    )
+
+    assert response.status_code == 200
+    mock_notify.assert_called_once()
+    assert [r.id for r in mock_notify.call_args.kwargs["recipients"]] == [manager_without_override.id]
+    assert mock_notify.call_args.kwargs["reference_id"] == UUID(proposal_id)
+
+
+def test_approve_own_proposal_sends_no_self_notification(
+    mocker, test_client, manager_without_override
+):
+    """The approve route only gates on account type, so a requester who is
+    also an approver can process their own proposal. They shouldn't get a
+    notification about their own action."""
+    mocker.patch("app.services.rates.requests.put")
+    create_response = test_client.put(
+        f"/api/rates/crypto/{uuid4()}",
+        json={"buyFeeValue": 3.0},
+        headers=_headers(manager_without_override),
+    )
+    proposal_id = create_response.json()["proposed_change"]["id"]
+
+    mock_notify = mocker.patch("app.services.rates.ERPService.new_notification")
+    mocker.patch(
+        "app.services.rates.requests.put", return_value=_mock_response(200, {"applied": True})
+    )
+
+    response = test_client.post(
+        f"/api/rates/proposals/{proposal_id}/approve",
+        headers=_headers(manager_without_override),
+    )
+
+    assert response.status_code == 200
+    mock_notify.assert_not_called()
+
+
+def test_reject_own_proposal_sends_no_self_notification(
+    mocker, test_client, manager_without_override
+):
+    mocker.patch("app.services.rates.requests.put")
+    create_response = test_client.put(
+        f"/api/rates/crypto/{uuid4()}",
+        json={"buyFeeValue": 3.0},
+        headers=_headers(manager_without_override),
+    )
+    proposal_id = create_response.json()["proposed_change"]["id"]
+
+    mock_notify = mocker.patch("app.services.rates.ERPService.new_notification")
+
+    response = test_client.post(
+        f"/api/rates/proposals/{proposal_id}/reject",
+        headers=_headers(manager_without_override),
+    )
+
+    assert response.status_code == 200
+    mock_notify.assert_not_called()
+
+
+# ---------------------------------------------------------------------------
 # get_proposal_by_id (GET /rates/proposals/{proposal_id})
 # ---------------------------------------------------------------------------
 

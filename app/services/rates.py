@@ -555,10 +555,19 @@ class RatesService(Service):
         db.commit()
         db.refresh(proposal)
 
+        if proposal.requested_by_id != current_user.user.id:
+            ERPService.new_notification(
+                db,
+                recipients=[proposal.requested_by],
+                message=f"Your proposal for {proposal.target_label or 'a rate change'} was approved.",
+                reference_type=NotificationReferenceTypeEnum.RATE_PROPOSAL,
+                reference_id=proposal.id,
+            )
+
         return result
 
     @staticmethod
-    def reject_proposal(db: Session, proposal_id: UUID):
+    def reject_proposal(db: Session, proposal_id: UUID, current_user: CurrentUser):
         proposal = db.query(RateApprovalRequest).filter(RateApprovalRequest.id == proposal_id).first()
         if not proposal:
             raise HTTPException(
@@ -576,6 +585,15 @@ class RatesService(Service):
         proposal.status = RatesApprovalStatusEnum.REJECTED
         db.commit()
         db.refresh(proposal)
+
+        if proposal.requested_by_id != current_user.user.id:
+            ERPService.new_notification(
+                db,
+                recipients=[proposal.requested_by],
+                message=f"Your proposal for {proposal.target_label or 'a rate change'} was rejected.",
+                reference_type=NotificationReferenceTypeEnum.RATE_PROPOSAL,
+                reference_id=proposal.id,
+            )
 
         return proposal
 

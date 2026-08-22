@@ -155,7 +155,7 @@ def reject_rate_management_proposal(
     db: Session = Depends(get_db),
     current_user: CurrentUser = Depends(require_account_type("erp"))
 ):
-    proposal = RatesService.reject_proposal(db, proposal_id)
+    proposal = RatesService.reject_proposal(db, proposal_id, current_user)
 
     return {
         "message": "Proposal rejected successfully",
