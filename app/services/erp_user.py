@@ -679,6 +679,15 @@ class ERPService(Service):
             db.rollback()
             raise HTTPException(status_code=500, detail="An unknown error occurred")
 
+        ERPService.new_notification(
+            db,
+            recipients=[staff_user],
+            message="Your account details have been updated by an administrator.",
+            reference_type=NotificationReferenceTypeEnum.STAFF_ACCOUNT,
+            reference_id=staff_user.id,
+        )
+        db.refresh(staff_user)
+
         return staff_user
 
     @staticmethod
@@ -779,6 +788,21 @@ class ERPService(Service):
             print(e)
             db.rollback()
             raise HTTPException(status_code=500, detail="An unknown error occurred")
+
+        change_messages = []
+        if role is not None:
+            change_messages.append(f"Your role has been changed to {role.name}.")
+        if selected_permissions is not None:
+            change_messages.append("Your permissions have been updated.")
+
+        ERPService.new_notification(
+            db,
+            recipients=[staff_user],
+            message=" ".join(change_messages),
+            reference_type=NotificationReferenceTypeEnum.STAFF_ACCOUNT,
+            reference_id=staff_user.id,
+        )
+        db.refresh(staff_user)
 
         return staff_user
 
