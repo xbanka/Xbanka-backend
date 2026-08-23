@@ -50,8 +50,15 @@ class ERPUser(BaseModel):
         back_populates="requested_by",
     )
 
-    rate_changes = relationship(
+    rate_changes_requested = relationship(
         "RateChangeLog",
+        foreign_keys="RateChangeLog.requested_by_id",
+        back_populates="requested_by",
+    )
+
+    rate_changes_performed = relationship(
+        "RateChangeLog",
+        foreign_keys="RateChangeLog.performed_by_id",
         back_populates="performed_by",
     )
 

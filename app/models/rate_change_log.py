@@ -24,13 +24,25 @@ class RateChangeLog(BaseModel):
         nullable=True,
         index=True
     )
+
+    requested_by_id: Mapped[UUID] = mapped_column(
+        ForeignKey("erp_users.id"),
+        nullable=False, index=True
+    )
+    requested_by = relationship(
+        "ERPUser",
+        foreign_keys=[requested_by_id],
+        back_populates="rate_changes_requested"
+    )
+
     performed_by_id: Mapped[UUID] = mapped_column(
         ForeignKey("erp_users.id"),
         nullable=False, index=True
     )
     performed_by = relationship(
         "ERPUser",
-        back_populates="rate_changes"
+        foreign_keys=[performed_by_id],
+        back_populates="rate_changes_performed"
     )
 
     status: Mapped[RatesApprovalStatusEnum] = mapped_column(
