@@ -318,6 +318,7 @@ class RatesApprovalStatusEnum(str, enum.Enum):
 class NotificationReferenceTypeEnum(str, enum.Enum):
     PAYOUT = "PAYOUT"
     RATE_PROPOSAL = "RATE_PROPOSAL"
+    STAFF_ACCOUNT = "STAFF_ACCOUNT"
 
 
 class NotificationStatusEnum(str, enum.Enum):
