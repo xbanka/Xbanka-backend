@@ -28,6 +28,8 @@ class ProposalResponse(BaseModel):
     target_id: UUID
     requested_by_id: UUID
     requested_by: RequestUser
+    performed_by_id: Optional[UUID] = None
+    performed_by: Optional[RequestUser] = None
     status: RatesApprovalStatusEnum
     target: str
     target_currency: Optional[str] = None

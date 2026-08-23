@@ -180,9 +180,11 @@ class RatesService(Service):
         return previous_lines, new_lines
 
     @staticmethod
-    def _to_proposal_response(row, actor, include_asset_breakdown: bool = False) -> ProposalResponse:
+    def _to_proposal_response(row, request_actor, perform_actor=None, include_asset_breakdown: bool = False) -> ProposalResponse:
         """Format a stored RateApprovalRequest/RateChangeLog row using its persisted snapshot. No live fetch,
-        except when include_asset_breakdown is set for a SEGMENT_UPDATE row (single-log detail view only)."""
+        except when include_asset_breakdown is set for a SEGMENT_UPDATE row (single-log detail view only).
+
+        perform_actor is None for a still-PENDING RateApprovalRequest, which has no performer yet."""
         previous_strings, new_strings = RatesService._format_configuration(
             row.type, row.previous_configuration, row.new_configuration
         )
@@ -209,12 +211,18 @@ class RatesService(Service):
             id=UUID(str(row.id)),
             change_type=row.type,
             target_id=UUID(str(row.target_id)),
-            requested_by_id=actor.id,
+            requested_by_id=request_actor.id,
             requested_by=RequestUser(
-                first_name=actor.first_name,
-                last_name=actor.last_name,
-                role=actor.role.name
+                first_name=request_actor.first_name,
+                last_name=request_actor.last_name,
+                role=request_actor.role.name
             ),
+            performed_by_id=perform_actor.id if perform_actor else None,
+            performed_by=RequestUser(
+                first_name=perform_actor.first_name,
+                last_name=perform_actor.last_name,
+                role=perform_actor.role.name
+            ) if perform_actor else None,
             status=row.status,
             created_at=row.created_at,
             updated_at=row.updated_at,
@@ -577,7 +585,7 @@ class RatesService(Service):
         # vars()-based fallback encoder. Reading fields through
         # _to_proposal_response goes through normal attribute access, which
         # transparently reloads expired columns instead of returning nothing.
-        return RatesService._to_proposal_response(proposal, proposal.requested_by)
+        return RatesService._to_proposal_response(proposal, proposal.requested_by, current_user.user)
 
     @staticmethod
     def reject_proposal(db: Session, proposal_id: UUID, current_user: CurrentUser):
@@ -612,7 +620,7 @@ class RatesService(Service):
                 status=NotificationStatusEnum.RESOLVED,
             )
 
-        return RatesService._to_proposal_response(proposal, proposal.requested_by)
+        return RatesService._to_proposal_response(proposal, proposal.requested_by, current_user.user)
 
     @staticmethod
     def create_log(
@@ -630,6 +638,7 @@ class RatesService(Service):
             target_label=proposal.target_label,
             target_currency=proposal.target_currency,
             affected_assets=proposal.affected_assets,
+            requested_by_id=proposal.requested_by_id,
             performed_by_id=current_user.user.id
         )
         db.add(log_entry)
@@ -642,7 +651,7 @@ class RatesService(Service):
         logs = db.query(RateChangeLog).order_by(RateChangeLog.created_at.desc()).all()
 
         return [
-            RatesService._to_proposal_response(log, log.performed_by)
+            RatesService._to_proposal_response(log, log.requested_by, log.performed_by)
             for log in logs
             if log.target_id
         ]
@@ -666,4 +675,6 @@ class RatesService(Service):
                 detail=detail
             )
 
-        return RatesService._to_proposal_response(log, log.performed_by, include_asset_breakdown=True)
+        return RatesService._to_proposal_response(
+            log, log.requested_by, log.performed_by, include_asset_breakdown=True
+        )
