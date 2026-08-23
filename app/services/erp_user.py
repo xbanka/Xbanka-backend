@@ -413,7 +413,7 @@ class ERPService(Service):
             select(ERPUser)
             .join(Role)
             .where(
-                and_(Role.name != SUPER_ADMIN, ERPUser.hashed_password.isnot(None))
+                and_(Role.name != SUPER_ADMIN)
             )
             .order_by(ERPUser.created_at.desc())
         )
