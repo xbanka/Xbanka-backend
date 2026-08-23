@@ -138,6 +138,11 @@ class ERPService(Service):
             )
 
         notif.is_read = True
+        # RATE_PROPOSAL notifications are only resolved by resolve_notifications_for_reference,
+        # once the proposal is actually approved/rejected - reading one shouldn't
+        # prematurely hide the still-pending approve/reject action.
+        if notif.reference_type != NotificationReferenceTypeEnum.RATE_PROPOSAL:
+            notif.status = NotificationStatusEnum.RESOLVED
         notif.read_at = datetime.now()
         db.commit()
         db.refresh(notif)
