@@ -4,7 +4,11 @@ from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict
 
-from app.core.enums import NotificationReferenceTypeEnum, NotificationTypeEnum
+from app.core.enums import (
+    NotificationReferenceTypeEnum,
+    NotificationStatusEnum,
+    NotificationTypeEnum,
+)
 from app.schemas.affiliate import AffiliateSummaryResponse
 
 
@@ -20,6 +24,7 @@ class NotificationsResponse(BaseModel):
     method: Optional[str]
     reference_type: NotificationReferenceTypeEnum
     reference_id: Optional[UUID]
+    status: NotificationStatusEnum
     affiliate: Optional[AffiliateSummaryResponse] = None
 
 

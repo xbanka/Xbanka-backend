@@ -318,3 +318,13 @@ class RatesApprovalStatusEnum(str, enum.Enum):
 class NotificationReferenceTypeEnum(str, enum.Enum):
     PAYOUT = "PAYOUT"
     RATE_PROPOSAL = "RATE_PROPOSAL"
+
+
+class NotificationStatusEnum(str, enum.Enum):
+    """Whether a notification's underlying reference (e.g. a proposal) is
+    still open. ACTIVE notifications may still prompt an action (approve/
+    reject) in the frontend; RESOLVED ones no longer should, because the
+    reference was already actioned elsewhere."""
+
+    ACTIVE = "ACTIVE"
+    RESOLVED = "RESOLVED"

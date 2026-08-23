@@ -15,6 +15,7 @@ from sqlalchemy.orm import Session, joinedload
 from app.core.base.services import Service
 from app.core.enums import (
     NotificationReferenceTypeEnum,
+    NotificationStatusEnum,
     PayoutMethodEnum,
     PayoutStatusEnum,
     UploadStatusEnum,
@@ -213,7 +214,8 @@ class ERPService(Service):
         amount: Decimal | str | None = None,
         method: PayoutMethodEnum | None = None,
         affiliate_id: SA_UUID | None = None,
-        reference_id: SA_UUID | None = None
+        reference_id: SA_UUID | None = None,
+        status: NotificationStatusEnum = NotificationStatusEnum.ACTIVE,
     ) -> List[Notification]:
         """Create one notification row per recipient, so read state is per-user."""
         user_ids = {r.id if isinstance(r, ERPUser) else r for r in recipients}
@@ -232,12 +234,31 @@ class ERPService(Service):
                 reference_type=reference_type,
                 affiliate_id=affiliate_id,
                 reference_id=reference_id,
+                status=status,
             )
             for user_id in user_ids
         ]
         db.add_all(notifications)
         db.commit()
         return notifications
+
+    @staticmethod
+    def resolve_notifications_for_reference(
+        db: Session,
+        reference_type: NotificationReferenceTypeEnum,
+        reference_id: SA_UUID,
+    ) -> None:
+        """Mark every notification pointing at `reference_id` as RESOLVED, so
+        the frontend stops offering an action (e.g. approve/reject) on it once
+        it's been actioned anywhere else."""
+        db.query(Notification).filter(
+            Notification.reference_type == reference_type,
+            Notification.reference_id == reference_id,
+        ).update(
+            {Notification.status: NotificationStatusEnum.RESOLVED},
+            synchronize_session=False,
+        )
+        db.commit()
 
     @staticmethod
     def get_all_payouts(

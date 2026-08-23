@@ -7,6 +7,7 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.core.enums import (
     NotificationReferenceTypeEnum,
+    NotificationStatusEnum,
     NotificationTypeEnum,
     PayoutMethodEnum,
 )
@@ -43,6 +44,13 @@ class Notification(BaseModel):
 
     reference_id: Mapped[Optional[UUID]] = mapped_column(
         UUID(as_uuid=True), nullable=True
+    )
+    status: Mapped[NotificationStatusEnum] = mapped_column(
+        Enum(NotificationStatusEnum),
+        nullable=False,
+        default=NotificationStatusEnum.ACTIVE,
+        server_default=NotificationStatusEnum.ACTIVE.value,
+        index=True,
     )
     affiliate_id: Mapped[Optional[UUID]] = mapped_column(
         ForeignKey("affiliates.id"), nullable=True, index=True
