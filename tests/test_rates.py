@@ -6,6 +6,7 @@ import pytest
 from app.core.enums import Permission
 from app.core.hash import Hasher
 from app.models.erp_user import ERPUser
+from app.models.notifications import Notification
 from app.models.permission import Permission as PermissionModel
 from app.models.rate_approval_request import RateApprovalRequest
 from app.models.rate_change_log import RateChangeLog
@@ -269,7 +270,7 @@ def test_approve_proposal_applies_change_and_logs(
         json={"buyFeeValue": 3.0},
         headers=_headers(manager_without_override),
     )
-    proposal_id = create_response.json()["proposed_change"]["id"]
+    proposal_id = str(db_session.query(RateApprovalRequest).one().id)
 
     mock_put = mocker.patch(
         "app.services.rates.requests.put", return_value=_mock_response(200, {"applied": True})
@@ -296,7 +297,7 @@ def test_approve_already_processed_proposal_rejected(
         json={"buyFeeValue": 3.0},
         headers=_headers(manager_without_override),
     )
-    proposal_id = create_response.json()["proposed_change"]["id"]
+    proposal_id = str(db_session.query(RateApprovalRequest).one().id)
 
     test_client.post(
         f"/api/rates/proposals/{proposal_id}/reject",
@@ -320,7 +321,7 @@ def test_reject_proposal(
         json={"buyFeeValue": 3.0},
         headers=_headers(manager_without_override),
     )
-    proposal_id = create_response.json()["proposed_change"]["id"]
+    proposal_id = str(db_session.query(RateApprovalRequest).one().id)
 
     response = test_client.post(
         f"/api/rates/proposals/{proposal_id}/reject",
@@ -346,7 +347,7 @@ def test_approve_proposal_notifies_requester_only(
         json={"buyFeeValue": 3.0},
         headers=_headers(manager_without_override),
     )
-    proposal_id = create_response.json()["proposed_change"]["id"]
+    proposal_id = str(db_session.query(RateApprovalRequest).one().id)
 
     mock_notify = mocker.patch("app.services.rates.ERPService.new_notification")
     mocker.patch(
@@ -373,7 +374,7 @@ def test_reject_proposal_notifies_requester_only(
         json={"buyFeeValue": 3.0},
         headers=_headers(manager_without_override),
     )
-    proposal_id = create_response.json()["proposed_change"]["id"]
+    proposal_id = str(db_session.query(RateApprovalRequest).one().id)
 
     mock_notify = mocker.patch("app.services.rates.ERPService.new_notification")
 
@@ -389,7 +390,7 @@ def test_reject_proposal_notifies_requester_only(
 
 
 def test_approve_own_proposal_sends_no_self_notification(
-    mocker, test_client, manager_without_override
+    mocker, test_client, db_session, manager_without_override
 ):
     """The approve route only gates on account type, so a requester who is
     also an approver can process their own proposal. They shouldn't get a
@@ -400,7 +401,7 @@ def test_approve_own_proposal_sends_no_self_notification(
         json={"buyFeeValue": 3.0},
         headers=_headers(manager_without_override),
     )
-    proposal_id = create_response.json()["proposed_change"]["id"]
+    proposal_id = str(db_session.query(RateApprovalRequest).one().id)
 
     mock_notify = mocker.patch("app.services.rates.ERPService.new_notification")
     mocker.patch(
@@ -417,7 +418,7 @@ def test_approve_own_proposal_sends_no_self_notification(
 
 
 def test_reject_own_proposal_sends_no_self_notification(
-    mocker, test_client, manager_without_override
+    mocker, test_client, db_session, manager_without_override
 ):
     mocker.patch("app.services.rates.requests.put")
     create_response = test_client.put(
@@ -425,7 +426,7 @@ def test_reject_own_proposal_sends_no_self_notification(
         json={"buyFeeValue": 3.0},
         headers=_headers(manager_without_override),
     )
-    proposal_id = create_response.json()["proposed_change"]["id"]
+    proposal_id = str(db_session.query(RateApprovalRequest).one().id)
 
     mock_notify = mocker.patch("app.services.rates.ERPService.new_notification")
 
@@ -439,12 +440,28 @@ def test_reject_own_proposal_sends_no_self_notification(
 
 
 # ---------------------------------------------------------------------------
-# get_proposal_by_id (GET /rates/proposals/{proposal_id})
+# approve / reject proposal resolves every notification tied to it, so a
+# reviewer who wasn't the one who acted doesn't keep seeing a stale prompt
 # ---------------------------------------------------------------------------
 
 
-def test_get_proposal_by_id_returns_proposal(
-    mocker, test_client, manager_without_override
+@pytest.fixture
+def approve_permission(db_session) -> PermissionModel:
+    row = PermissionModel(name=Permission.APPROVE_RATE_CHANGES.value, category="rates")
+    db_session.add(row)
+    db_session.commit()
+    db_session.refresh(row)
+    return row
+
+
+@pytest.fixture
+def reviewer(db_session, approve_permission) -> ERPUser:
+    role = _make_role(db_session, "Rates Reviewer", allowed=[approve_permission])
+    return _make_staff(db_session, role, "reviewer@example.com")
+
+
+def test_approve_proposal_resolves_other_reviewers_notifications(
+    mocker, test_client, db_session, manager_without_override, reviewer, verified_superadmin
 ):
     mocker.patch("app.services.rates.requests.put")
     create_response = test_client.put(
@@ -452,7 +469,132 @@ def test_get_proposal_by_id_returns_proposal(
         json={"buyFeeValue": 3.0},
         headers=_headers(manager_without_override),
     )
-    proposal_id = create_response.json()["proposed_change"]["id"]
+    assert create_response.status_code == 200
+    proposal_id = db_session.query(RateApprovalRequest).one().id
+
+    # the fan-out notification created for `reviewer` on submission starts ACTIVE
+    reviewer_notif = db_session.query(Notification).filter_by(
+        user_id=reviewer.id, reference_id=proposal_id
+    ).one()
+    assert reviewer_notif.status == "ACTIVE"
+
+    mocker.patch(
+        "app.services.rates.requests.put", return_value=_mock_response(200, {"applied": True})
+    )
+    approve_response = test_client.post(
+        f"/api/rates/proposals/{proposal_id}/approve",
+        headers=_headers(verified_superadmin),
+    )
+    assert approve_response.status_code == 200
+
+    db_session.expire_all()
+
+    reviewer_notif = db_session.query(Notification).filter_by(
+        user_id=reviewer.id, reference_id=proposal_id
+    ).one()
+    assert reviewer_notif.status == "RESOLVED"
+
+    requester_notif = db_session.query(Notification).filter_by(
+        user_id=manager_without_override.id, reference_id=proposal_id
+    ).one()
+    assert requester_notif.status == "RESOLVED"
+
+
+def test_reject_proposal_resolves_other_reviewers_notifications(
+    mocker, test_client, db_session, manager_without_override, reviewer, verified_superadmin
+):
+    mocker.patch("app.services.rates.requests.put")
+    create_response = test_client.put(
+        f"/api/rates/crypto/{uuid4()}",
+        json={"buyFeeValue": 3.0},
+        headers=_headers(manager_without_override),
+    )
+    assert create_response.status_code == 200
+    proposal_id = db_session.query(RateApprovalRequest).one().id
+
+    reviewer_notif = db_session.query(Notification).filter_by(
+        user_id=reviewer.id, reference_id=proposal_id
+    ).one()
+    assert reviewer_notif.status == "ACTIVE"
+
+    reject_response = test_client.post(
+        f"/api/rates/proposals/{proposal_id}/reject",
+        headers=_headers(verified_superadmin),
+    )
+    assert reject_response.status_code == 200
+
+    db_session.expire_all()
+
+    reviewer_notif = db_session.query(Notification).filter_by(
+        user_id=reviewer.id, reference_id=proposal_id
+    ).one()
+    assert reviewer_notif.status == "RESOLVED"
+
+    requester_notif = db_session.query(Notification).filter_by(
+        user_id=manager_without_override.id, reference_id=proposal_id
+    ).one()
+    assert requester_notif.status == "RESOLVED"
+
+
+def test_approve_proposal_does_not_resolve_notifications_for_other_proposals(
+    mocker, test_client, db_session, manager_without_override, reviewer, verified_superadmin
+):
+    mocker.patch("app.services.rates.requests.put")
+    first_response = test_client.put(
+        f"/api/rates/crypto/{uuid4()}",
+        json={"buyFeeValue": 3.0},
+        headers=_headers(manager_without_override),
+    )
+    second_response = test_client.put(
+        f"/api/rates/crypto/{uuid4()}",
+        json={"buyFeeValue": 4.0},
+        headers=_headers(manager_without_override),
+    )
+    assert first_response.status_code == 200
+    assert second_response.status_code == 200
+
+    proposals = db_session.query(RateApprovalRequest).order_by(
+        RateApprovalRequest.created_at
+    ).all()
+    assert len(proposals) == 2
+    first_id, second_id = proposals[0].id, proposals[1].id
+
+    mocker.patch(
+        "app.services.rates.requests.put", return_value=_mock_response(200, {"applied": True})
+    )
+    response = test_client.post(
+        f"/api/rates/proposals/{first_id}/approve",
+        headers=_headers(verified_superadmin),
+    )
+    assert response.status_code == 200
+
+    db_session.expire_all()
+
+    first_notif = db_session.query(Notification).filter_by(
+        user_id=reviewer.id, reference_id=first_id
+    ).one()
+    second_notif = db_session.query(Notification).filter_by(
+        user_id=reviewer.id, reference_id=second_id
+    ).one()
+    assert first_notif.status == "RESOLVED"
+    assert second_notif.status == "ACTIVE"
+
+
+# ---------------------------------------------------------------------------
+# get_proposal_by_id (GET /rates/proposals/{proposal_id})
+# ---------------------------------------------------------------------------
+
+
+def test_get_proposal_by_id_returns_proposal(
+    mocker, test_client, db_session, manager_without_override
+):
+    mocker.patch("app.services.rates.requests.put")
+    create_response = test_client.put(
+        f"/api/rates/crypto/{uuid4()}",
+        json={"buyFeeValue": 3.0},
+        headers=_headers(manager_without_override),
+    )
+    proposal_id = str(db_session.query(RateApprovalRequest).one().id)
 
     response = test_client.get(
         f"/api/rates/proposals/{proposal_id}",

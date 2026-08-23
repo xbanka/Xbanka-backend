@@ -6,6 +6,7 @@ from uuid import UUID
 from app.core.base.services import Service
 from app.core.enums import (
     NotificationReferenceTypeEnum,
+    NotificationStatusEnum,
     Permission as PermissionEnum,
     RateApprovalRequestTypeEnum,
     RatesApprovalStatusEnum,
@@ -416,7 +417,7 @@ class RatesService(Service):
         request_dict = request.model_dump(exclude_unset=True, mode="json")
 
         override = RatesService._can_override_proposal_flow(db, current_user)
-        proposed_change = RatesService._submit_change(
+        RatesService._submit_change(
             db,
             rate_id,
             RateApprovalRequestTypeEnum.ASSET_UPDATE,
@@ -428,13 +429,11 @@ class RatesService(Service):
 
         if override:
             return {
-                "message": "Rate change applied successfully.",
-                "proposed_change": proposed_change
+                "message": "Rate change applied successfully."
             }
 
         return {
-            "message": "Rate change proposal submitted successfully.",
-            "proposed_change": proposed_change
+            "message": "Rate change proposal submitted successfully."
         }
 
 
@@ -545,7 +544,7 @@ class RatesService(Service):
                 detail="Proposal has already been processed"
             )
 
-        result = RatesService._apply_change(proposal.type, proposal.target_id, proposal.payload)
+        RatesService._apply_change(proposal.type, proposal.target_id, proposal.payload)
 
         # Implement logic to approve the proposal
         proposal.status = RatesApprovalStatusEnum.APPROVED
@@ -555,6 +554,13 @@ class RatesService(Service):
         db.commit()
         db.refresh(proposal)
 
+        # Every other reviewer who was notified about this proposal now has a
+        # stale action prompt; resolve them all so the frontend can disable
+        # the approve/reject controls wherever this proposal is still shown.
+        ERPService.resolve_notifications_for_reference(
+            db, NotificationReferenceTypeEnum.RATE_PROPOSAL, proposal.id
+        )
+
         if proposal.requested_by_id != current_user.user.id:
             ERPService.new_notification(
                 db,
@@ -562,9 +568,16 @@ class RatesService(Service):
                 message=f"Your proposal for {proposal.target_label or 'a rate change'} was approved.",
                 reference_type=NotificationReferenceTypeEnum.RATE_PROPOSAL,
                 reference_id=proposal.id,
+                status=NotificationStatusEnum.RESOLVED,
             )
 
-        return result
+        # Built via the schema, not returned as the raw ORM row: the
+        # notification commits above already expired `proposal`, and a bare
+        # object hands back an empty body once FastAPI falls through to its
+        # vars()-based fallback encoder. Reading fields through
+        # _to_proposal_response goes through normal attribute access, which
+        # transparently reloads expired columns instead of returning nothing.
+        return RatesService._to_proposal_response(proposal, proposal.requested_by)
 
     @staticmethod
     def reject_proposal(db: Session, proposal_id: UUID, current_user: CurrentUser):
@@ -584,7 +597,10 @@ class RatesService(Service):
         # Implement logic to reject the proposal
         proposal.status = RatesApprovalStatusEnum.REJECTED
         db.commit()
-        db.refresh(proposal)
+
+        ERPService.resolve_notifications_for_reference(
+            db, NotificationReferenceTypeEnum.RATE_PROPOSAL, proposal.id
+        )
 
         if proposal.requested_by_id != current_user.user.id:
             ERPService.new_notification(
@@ -593,9 +609,10 @@ class RatesService(Service):
                 message=f"Your proposal for {proposal.target_label or 'a rate change'} was rejected.",
                 reference_type=NotificationReferenceTypeEnum.RATE_PROPOSAL,
                 reference_id=proposal.id,
+                status=NotificationStatusEnum.RESOLVED,
             )
 
-        return proposal
+        return RatesService._to_proposal_response(proposal, proposal.requested_by)
 
     @staticmethod
     def create_log(
