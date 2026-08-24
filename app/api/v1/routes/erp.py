@@ -1,7 +1,16 @@
 from typing import List, Optional
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, File, Query, UploadFile, status
+from fastapi import (
+    APIRouter,
+    Depends,
+    File,
+    Query,
+    UploadFile,
+    WebSocket,
+    WebSocketDisconnect,
+    status,
+)
 from sqlalchemy.orm import Session
 
 from app.core.enums import (
@@ -18,7 +27,9 @@ from app.schemas.erp.notifications import (
 from app.schemas.erp.payout import ERPPaginatedPayoutResponse, ERPPayoutResponse, ERPPayoutDetailResponse, ERPProcessPayoutResponse
 from app.schemas.erp.user import ERPMeResponse
 from app.schemas.payout import ProcessPayoutRequest
+from app.services.auth import AuthService
 from app.services.erp_user import ERPService
+from app.services.websocket_manager import notification_manager
 from app.utils.auth import require_account_type, require_permissions
 from app.utils.schema import CurrentUser
 
@@ -39,6 +50,21 @@ def get_notifications(
     current_user: CurrentUser = Depends(require_account_type("erp")),
 ):
     return ERPService.get_notifications(db, current_user.user.id)
+
+
+@erp.websocket("/notifications/ws")
+async def notifications_websocket(
+    websocket: WebSocket,
+    current_user: CurrentUser = Depends(AuthService.get_current_user_ws),
+):
+    user_id = str(current_user.user.id)
+    await notification_manager.connect(user_id, websocket)
+    try:
+        while True:
+            # nothing expected from the client; just keep the connection open
+            await websocket.receive_text()
+    except WebSocketDisconnect:
+        notification_manager.disconnect(user_id, websocket)
 
 
 @erp.patch(

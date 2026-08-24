@@ -5,7 +5,7 @@ import jwt
 import requests
 import logging
 from requests.exceptions import RequestException
-from fastapi import Depends, HTTPException, status
+from fastapi import Depends, HTTPException, Query, WebSocket, WebSocketException, status
 from fastapi.security import OAuth2PasswordBearer
 from jose import JWTError
 from jwt.exceptions import DecodeError, ExpiredSignatureError, InvalidTokenError
@@ -313,6 +313,35 @@ class AuthService(Service):
 
         if user is None:
             raise credentials_exception
+
+        return CurrentUser(user, account_type)
+
+    @staticmethod
+    def get_current_user_ws(
+        websocket: WebSocket,
+        token: str = Query(...),
+        db: Session = Depends(get_db),
+    ) -> CurrentUser:
+        """Same validation as get_current_user, adapted for websockets: the
+        browser WebSocket API can't set an Authorization header, so the token
+        travels as a query param instead."""
+        try:
+            payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+            user_id = payload.get("sub")
+            account_type = payload.get("account_type")
+            if user_id is None:
+                raise InvalidTokenError
+            token_data = TokenData(id=user_id)
+        except (InvalidTokenError, ExpiredSignatureError, DecodeError):
+            raise WebSocketException(code=status.WS_1008_POLICY_VIOLATION)
+
+        if account_type == "erp":
+            user = db.query(ERPUser).filter_by(id=token_data.id).first()
+        else:
+            raise WebSocketException(code=status.WS_1008_POLICY_VIOLATION)
+
+        if user is None:
+            raise WebSocketException(code=status.WS_1008_POLICY_VIOLATION)
 
         return CurrentUser(user, account_type)
 

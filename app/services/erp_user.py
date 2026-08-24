@@ -6,6 +6,7 @@ from uuid import UUID
 
 from botocore.exceptions import ClientError
 from fastapi import HTTPException, UploadFile, status
+from fastapi.encoders import jsonable_encoder
 from psycopg2 import IntegrityError
 from sqlalchemy import and_, func, or_, select
 from sqlalchemy.dialects.postgresql import UUID as SA_UUID
@@ -31,8 +32,10 @@ from app.models.role_permissions import RolePermissions
 from app.models.user_permissions import UserPermissions
 from app.schemas.payout import ProcessPayoutRequest
 from app.services.affiliate import AffiliateService
+from app.schemas.erp.notifications import NotificationsResponse
 from app.schemas.erp.payout import ERPPayoutDetailResponse
 from app.schemas.erp.user import RegisterBase
+from app.services.websocket_manager import notification_manager
 from app.utils.permissions import calculate_permission_overrides
 from app.utils.s3_utils import upload_file, validate_file
 from app.utils.settings import settings
@@ -112,6 +115,13 @@ class ERPService(Service):
         pass
 
     @staticmethod
+    def _push_notification(event: str, notif: Notification) -> None:
+        notification_manager.send_to_user_threadsafe(
+            str(notif.user_id),
+            {"event": event, "data": jsonable_encoder(NotificationsResponse.model_validate(notif))},
+        )
+
+    @staticmethod
     def get_notifications(db: Session, user_id: UUID):
         stmt = (
             select(Notification)
@@ -146,6 +156,7 @@ class ERPService(Service):
         notif.read_at = datetime.now()
         db.commit()
         db.refresh(notif)
+        ERPService._push_notification("notification:updated", notif)
         return notif
 
     @staticmethod
@@ -245,6 +256,8 @@ class ERPService(Service):
         ]
         db.add_all(notifications)
         db.commit()
+        for notif in notifications:
+            ERPService._push_notification("notification:new", notif)
         return notifications
 
     @staticmethod
@@ -256,14 +269,18 @@ class ERPService(Service):
         """Mark every notification pointing at `reference_id` as RESOLVED, so
         the frontend stops offering an action (e.g. approve/reject) on it once
         it's been actioned anywhere else."""
-        db.query(Notification).filter(
-            Notification.reference_type == reference_type,
-            Notification.reference_id == reference_id,
-        ).update(
-            {Notification.status: NotificationStatusEnum.RESOLVED},
-            synchronize_session=False,
-        )
+        notifications = db.scalars(
+            select(Notification).where(
+                Notification.reference_type == reference_type,
+                Notification.reference_id == reference_id,
+                Notification.status != NotificationStatusEnum.RESOLVED,
+            )
+        ).all()
+        for notif in notifications:
+            notif.status = NotificationStatusEnum.RESOLVED
         db.commit()
+        for notif in notifications:
+            ERPService._push_notification("notification:updated", notif)
 
     @staticmethod
     def get_all_payouts(
