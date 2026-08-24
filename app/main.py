@@ -1,3 +1,4 @@
+import asyncio
 import logging
 import sentry_sdk
 
@@ -9,6 +10,7 @@ from starlette.middleware.sessions import SessionMiddleware
 
 from app.api.v1.routes import api_version_one
 # from app.api.v2.routes import api_version_two
+from app.services.websocket_manager import notification_manager
 from app.utils.settings import settings
 
 
@@ -116,6 +118,13 @@ async def response_validation_exception_handler(
             "path": request.url.path,
         },
     )
+
+
+@app.on_event("startup")
+async def capture_event_loop():
+    # notification_manager pushes are triggered from sync (threadpool) route
+    # handlers, so it needs a handle on the loop to hop back onto it.
+    notification_manager.set_loop(asyncio.get_running_loop())
 
 
 @app.get("/")
