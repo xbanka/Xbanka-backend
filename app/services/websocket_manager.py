@@ -75,7 +75,7 @@ class NotificationConnectionManager:
             try:
                 await connection.send_json(message)
             except Exception:
-                logger.warning("Dropping dead notification socket for user %s", user_id, exc_info=True)
+                logger.info("Dropping dead notification socket for user %s", user_id, exc_info=True)
                 self.disconnect(user_id, connection)
 
     def send_to_user_threadsafe(self, user_id: str, message: dict) -> None:
@@ -83,7 +83,11 @@ class NotificationConnectionManager:
         (e.g. a plain `def` FastAPI route handler in the threadpool)."""
         if self.loop is None or user_id not in self.active_connections:
             return
-        asyncio.run_coroutine_threadsafe(self.send_to_user(user_id, message), self.loop)
+        
+        asyncio.run_coroutine_threadsafe(
+            self.send_to_user(user_id, message), 
+            self.loop
+        )
 
 
 global_manager = GlobalConnectionManager()

@@ -1,6 +1,7 @@
 import asyncio
 import logging
 import sentry_sdk
+from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, Request, status
 from fastapi.exceptions import RequestValidationError, ResponseValidationError
@@ -48,7 +49,15 @@ sentry_sdk.init(
     environment=ENVIRONMENT,
 )
 
-app = FastAPI()
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # notification_manager pushes are triggered from sync (threadpool) route
+    # handlers, so it needs a handle on the loop to hop back onto it.
+    notification_manager.set_loop(asyncio.get_running_loop())
+    yield
+
+
+app = FastAPI(lifespan=lifespan)
 app.include_router(api_version_one)
 # app.include_router(api_version_two)
 
@@ -118,14 +127,6 @@ async def response_validation_exception_handler(
             "path": request.url.path,
         },
     )
-
-
-@app.on_event("startup")
-async def capture_event_loop():
-    # notification_manager pushes are triggered from sync (threadpool) route
-    # handlers, so it needs a handle on the loop to hop back onto it.
-    notification_manager.set_loop(asyncio.get_running_loop())
-
 
 @app.get("/")
 def read_root():
