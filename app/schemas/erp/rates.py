@@ -98,6 +98,8 @@ class AssetSummary(BaseModel):
     sellFeeValue: float
     overrideSegment: bool = False
     segmentId: UUID
+    obiexRate: float
+    obiexValue: float
     createdAt: datetime
     updatedAt: datetime
 
