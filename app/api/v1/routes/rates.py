@@ -4,13 +4,11 @@ from fastapi import APIRouter, Depends, status
 from sqlalchemy.orm import Session
 from app.db.database import get_db
 from app.schemas.erp.rates import (
-    AssignAssetsToSegmentRequest, 
-    BulkAssetsResponse, 
-    BulkSegmentsResponse, 
-    AssetsRequest, 
-    BulkUpdateSegmentsResponse, 
-    SegmentsBulkUpdateRequest, 
-    UpdateAssetResponse
+    AssignAssetsToSegmentRequest,
+    BulkAssetsResponse,
+    BulkSegmentsResponse,
+    AssetsRequest,
+    SegmentsBulkUpdateRequest,
 )
 from app.services.rates import RatesService
 from app.utils.auth import require_account_type

@@ -1,0 +1,57 @@
+name: CI
+
+on:
+  pull_request:
+    branches: [main, staging]
+
+env:
+  AFFILIATE_FRONTEND_URL: http://localhost:3000
+  ERP_FRONTEND_URL: http://localhost:3001
+  ENVIRONMENT: test
+  TEST_EMAIL: test@example.com
+  ALLOW_SUPER_ADMIN_BOOTSTRAP: "false"
+  SECRET_KEY: test_secret_key
+  ALGORITHM: HS256
+  ACCESS_TOKEN_EXPIRE_MINUTES: "30"
+  JWT_REFRESH_EXPIRY: "5"
+  PAYSTACK_SECRET_KEY: test_paystack_key
+  NUBAN_SECRET_KEY: test_nuban_key
+  DB_USER: test
+  DB_PASSWORD: test
+  DB_HOST: localhost
+  DB_PORT: "5432"
+  DB_NAME: test
+  DB_TYPE: postgres
+  ALEMBIC_DATABASE_URL: sqlite:///./test.db
+  RESEND_API_KEY: test_resend_key
+  S3_BUCKET_TRANSACTIONS: test-bucket-transactions
+  S3_BUCKET_PAYOUTS: test-bucket-payouts
+  AWS_ACCESS_KEY_ID: test
+  AWS_SECRET_ACCESS_KEY: test
+  AWS_REGION: us-east-1
+  VERIFY_TOKEN: test_verify_token
+  GOOGLE_CLIENT_ID: test
+  GOOGLE_CLIENT_SECRET: test
+  GOOGLE_REDIRECT_URI: http://localhost:8000/auth/google/callback
+  INTERNAL_KEY: test_internal_key
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - run: pip install -r requirements.txt
+      - run: ruff check .
+
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - run: pip install -r requirements.txt
+      - run: pytest
