@@ -508,12 +508,12 @@ class AffiliateService(Service):
         #     .where(Payout.status == PayoutStatusEnum.failed)
         # ) or 0
 
-        pending_earnings = db.scalar(
-            select(func.coalesce(func.sum(Transaction.commission_amount), 0))
-            .join(Customer, Customer.id == Transaction.customer_id)
-            .where(Customer.affiliate_id == affiliate_id)
-            .where(Transaction.status == TransactionStatusEnum.pending)
-        ) or 0
+        # pending_earnings = db.scalar(
+        #     select(func.coalesce(func.sum(Transaction.commission_amount), 0))
+        #     .join(Customer, Customer.id == Transaction.customer_id)
+        #     .where(Customer.affiliate_id == affiliate_id)
+        #     .where(Transaction.status == TransactionStatusEnum.pending)
+        # ) or 0
 
         return {
             "total_earnings": total_earnings,
