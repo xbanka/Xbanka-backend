@@ -49,11 +49,16 @@ def get_current_erp(current_user: CurrentUser = Depends(require_account_type("er
 def get_notifications(
     status: Optional[NotificationStatusEnum] = Query(None),
     reference_type: Optional[NotificationReferenceTypeEnum] = Query(None),
+    is_read: Optional[bool] = Query(None),
     db: Session = Depends(get_db),
     current_user: CurrentUser = Depends(require_account_type("erp")),
 ):
     return ERPService.get_notifications(
-        db, current_user.user.id, status=status, reference_type=reference_type
+        db,
+        current_user.user.id,
+        status=status,
+        reference_type=reference_type,
+        is_read=is_read,
     )
 
 

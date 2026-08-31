@@ -127,6 +127,7 @@ class ERPService(Service):
         user_id: UUID,
         status: Optional[NotificationStatusEnum] = None,
         reference_type: Optional[NotificationReferenceTypeEnum] = None,
+        is_read: Optional[bool] = None,
     ):
         stmt = (
             select(Notification)
@@ -138,6 +139,8 @@ class ERPService(Service):
             stmt = stmt.where(Notification.status == status)
         if reference_type is not None:
             stmt = stmt.where(Notification.reference_type == reference_type)
+        if is_read is not None:
+            stmt = stmt.where(Notification.is_read == is_read)
         notifications = db.execute(stmt).scalars().all()
         return notifications
 
