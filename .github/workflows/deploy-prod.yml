@@ -18,5 +18,4 @@ jobs:
             cd ${{ secrets.DEPLOY_PATH }}
             git fetch origin main
             git reset --hard origin/main
-            docker compose -p xbanka-prod -f compose.yaml -f compose.prod.yaml run --rm migrate
             make prod-up
