@@ -33,6 +33,7 @@ class ERPMeResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
     id: UUID
+    staff_code: str
     first_name: str
     last_name: str
     email: EmailStr
