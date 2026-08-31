@@ -1,6 +1,7 @@
 from app.schemas.shared import ApiResponse
 
 from decimal import Decimal
+from typing import Optional
 from pydantic import BaseModel, ConfigDict, Field
 
 
@@ -36,11 +37,11 @@ class ERPDashboardDisplay(BaseModel):
 
 class TransactionMetrics(BaseModel):
     total: int
-    success: int
+    successful: int
     pending: int
     failed: int
     stuck_in_pending: int = Field(alias="stuckInPending")
-    stuck_value: Decimal = Field(alias="stuckValue")
+    stuck_value: Optional[Decimal] = Field(default=None, alias="stuckValue")
 
 TransactionMetricsResponse = ApiResponse[TransactionMetrics]
 
