@@ -1,8 +1,21 @@
+import secrets
+
 from sqlalchemy import Boolean, ForeignKey, String
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.models.base_model import BaseModel
+
+# Excludes visually ambiguous characters (0/O, 1/I). Statistically unique
+# (33^5 ≈ 39M combinations); actual uniqueness is enforced by the DB index.
+# Callers that need a DB-verified-unique code should use
+# app.services.erp_user.generate_unique_staff_code instead of relying on
+# this default.
+STAFF_CODE_ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"
+
+
+def _default_staff_code() -> str:
+    return "ST-" + "".join(secrets.choice(STAFF_CODE_ALPHABET) for _ in range(5))
 
 
 class ERPUser(BaseModel):
@@ -12,6 +25,9 @@ class ERPUser(BaseModel):
     last_name: Mapped[str] = mapped_column(String(100), nullable=False, index=True)
     email: Mapped[str] = mapped_column(
         String(120), unique=True, nullable=False, index=True
+    )
+    staff_code: Mapped[str] = mapped_column(
+        String(20), unique=True, nullable=False, index=True, default=_default_staff_code
     )
     hashed_password: Mapped[str] = mapped_column(String(255), nullable=True)
 

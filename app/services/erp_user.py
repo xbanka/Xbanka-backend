@@ -1,5 +1,6 @@
 from decimal import Decimal
 import logging
+import secrets
 from datetime import datetime
 from typing import List, Optional, Sequence
 from uuid import UUID
@@ -23,7 +24,7 @@ from app.core.enums import (
 )
 from app.core.hash import Hasher
 from app.models.affiliate import Affiliate
-from app.models.erp_user import ERPUser
+from app.models.erp_user import STAFF_CODE_ALPHABET, ERPUser
 from app.models.notifications import Notification
 from app.models.payouts import Payout
 from app.models.permission import Permission
@@ -47,6 +48,13 @@ logger = logging.getLogger(__name__)
 
 
 ALLOW_SUPER_ADMIN_BOOTSTRAP = settings.ALLOW_SUPER_ADMIN_BOOTSTRAP
+
+
+def generate_unique_staff_code(db: Session) -> str:
+    while True:
+        code = "ST-" + "".join(secrets.choice(STAFF_CODE_ALPHABET) for _ in range(5))
+        if not db.query(ERPUser).filter_by(staff_code=code).first():
+            return code
 
 
 class ERPService(Service):
@@ -417,6 +425,7 @@ class ERPService(Service):
                 first_name=obj_in.first_name,
                 last_name=obj_in.last_name,
                 email=obj_in.email,
+                staff_code=generate_unique_staff_code(db),
                 hashed_password=Hasher.get_password_hash(obj_in.password),
                 verified=True,
                 role=role_obj,
@@ -533,6 +542,7 @@ class ERPService(Service):
                     first_name="",
                     last_name="",
                     email=email,
+                    staff_code=generate_unique_staff_code(db),
                     role_id=role.id,
                     verified=False,
                 )
