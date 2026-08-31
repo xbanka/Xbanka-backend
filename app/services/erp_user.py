@@ -122,13 +122,22 @@ class ERPService(Service):
         )
 
     @staticmethod
-    def get_notifications(db: Session, user_id: UUID):
+    def get_notifications(
+        db: Session,
+        user_id: UUID,
+        status: Optional[NotificationStatusEnum] = None,
+        reference_type: Optional[NotificationReferenceTypeEnum] = None,
+    ):
         stmt = (
             select(Notification)
             .where(Notification.user_id == user_id)
             .options(joinedload(Notification.affiliate))
             .order_by(Notification.created_at.desc())
         )
+        if status is not None:
+            stmt = stmt.where(Notification.status == status)
+        if reference_type is not None:
+            stmt = stmt.where(Notification.reference_type == reference_type)
         notifications = db.execute(stmt).scalars().all()
         return notifications
 
