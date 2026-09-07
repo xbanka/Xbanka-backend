@@ -8,6 +8,7 @@ from app.models.permission import Permission
 from app.models.role import Role
 from app.models.role_permissions import RolePermissions
 from app.models.user_permissions import UserPermissions
+from app.services.auth import AuthService
 
 
 @pytest.fixture
@@ -97,6 +98,13 @@ def _url(staff_id):
     return f"/api/staff/{staff_id}/roles-permissions"
 
 
+def _target_headers(target_staff):
+    token = AuthService.create_access_token(
+        data={"sub": str(target_staff.id), "account_type": "erp"}
+    )
+    return {"Authorization": f"Bearer {token}"}
+
+
 def test_update_role_only_leaves_permission_overrides_untouched(
     super_client, db_session, target_staff, manager_role, permissions
 ):
@@ -111,10 +119,24 @@ def test_update_role_only_leaves_permission_overrides_untouched(
 
     response = super_client.patch(_url(target_staff.id), json={"role": "Manager"})
 
+    # A role change is proposed, not applied immediately - the target staff
+    # member must confirm it themselves before it takes effect.
     assert response.status_code == 200
     body = response.json()
-    assert body["staff"]["role"]["name"] == "Manager"
-    assert "hashed_password" not in body["staff"]
+    assert body["status"] == "PENDING"
+    role_change_id = body["role_change_id"]
+
+    db_session.refresh(target_staff)
+    assert target_staff.role.name == "Viewer"
+
+    confirm_response = super_client.post(
+        f"/api/audit/role-changes/{role_change_id}/confirm",
+        headers=_target_headers(target_staff),
+    )
+    assert confirm_response.status_code == 200
+
+    db_session.refresh(target_staff)
+    assert target_staff.role.name == "Manager"
 
     overrides = (
         db_session.query(UserPermissions)
