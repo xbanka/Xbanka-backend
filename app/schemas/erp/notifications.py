@@ -28,6 +28,11 @@ class NotificationsResponse(BaseModel):
     affiliate: Optional[AffiliateSummaryResponse] = None
 
 
+class NotificationCountsResponse(BaseModel):
+    all: int
+    unread: int
+
+
 class NotificationReadResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
