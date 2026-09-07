@@ -22,6 +22,7 @@ from app.core.enums import (
 )
 from app.db.database import get_db
 from app.schemas.erp.notifications import (
+    NotificationCountsResponse,
     NotificationReadResponse,
     NotificationsResponse,
 )
@@ -60,6 +61,14 @@ def get_notifications(
         reference_type=reference_type,
         is_read=is_read,
     )
+
+
+@erp.get("/notifications/counts", response_model=NotificationCountsResponse)
+def get_notification_counts(
+    db: Session = Depends(get_db),
+    current_user: CurrentUser = Depends(require_account_type("erp")),
+):
+    return ERPService.get_notification_counts(db, current_user.user.id)
 
 
 @erp.websocket("/notifications/ws")
