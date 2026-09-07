@@ -134,8 +134,23 @@ def test_super_admin_can_promote_target_to_super_admin(
         headers=_headers(verified_superadmin),
     )
 
+    # A role change is proposed, not applied immediately - the target staff
+    # member must confirm it themselves before it takes effect.
     assert response.status_code == 200
-    assert response.json()["staff"]["role"]["name"] == "Super Admin"
+    body = response.json()
+    assert body["status"] == "PENDING"
+
+    db_session.refresh(target_staff)
+    assert target_staff.role.name == "Viewer"
+
+    confirm_response = test_client.post(
+        f"/api/audit/role-changes/{body['role_change_id']}/confirm",
+        headers=_headers(target_staff),
+    )
+    assert confirm_response.status_code == 200
+
+    db_session.refresh(target_staff)
+    assert target_staff.role.name == "Super Admin"
 
 
 def test_non_super_admin_cannot_modify_an_existing_super_admins_role(

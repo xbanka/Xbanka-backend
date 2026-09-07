@@ -78,5 +78,22 @@ class ERPUser(BaseModel):
         back_populates="performed_by",
     )
 
+    role_changes = relationship(
+        "RoleChangeLog",
+        foreign_keys="RoleChangeLog.staff_id",
+        back_populates="staff",
+    )
+
+    role_changes_requested = relationship(
+        "RoleChangeLog",
+        foreign_keys="RoleChangeLog.requested_by_id",
+        back_populates="requested_by",
+    )
+
+    login_attempts = relationship(
+        "LoginLog",
+        back_populates="user",
+    )
+
     def __repr__(self):
         return f"<ERPUser(first_name='{self.first_name}', last_name='{self.last_name}', email='{self.email}')>"
