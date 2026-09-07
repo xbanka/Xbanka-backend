@@ -123,10 +123,15 @@ class ERPService(Service):
         pass
 
     @staticmethod
-    def _push_notification(event: str, notif: Notification) -> None:
+    def _push_notification(db: Session, event: str, notif: Notification) -> None:
+        counts = ERPService.get_notification_counts(db, notif.user_id)
         notification_manager.send_to_user_threadsafe(
             str(notif.user_id),
-            {"event": event, "data": jsonable_encoder(NotificationsResponse.model_validate(notif))},
+            {
+                "event": event,
+                "data": jsonable_encoder(NotificationsResponse.model_validate(notif)),
+                "counts": counts,
+            },
         )
 
     @staticmethod
@@ -153,6 +158,15 @@ class ERPService(Service):
         return notifications
 
     @staticmethod
+    def get_notification_counts(db: Session, user_id: UUID) -> dict:
+        stmt = select(
+            func.count().label("all"),
+            func.count().filter(Notification.is_read.is_(False)).label("unread"),
+        ).where(Notification.user_id == user_id)
+        row = db.execute(stmt).one()
+        return {"all": row.all, "unread": row.unread}
+
+    @staticmethod
     def mark_notification_as_read(db: Session, id: UUID, user_id: UUID):
         # scoping on user_id doubles as authorization: a notification belonging
         # to another user is indistinguishable from one that doesn't exist
@@ -176,7 +190,7 @@ class ERPService(Service):
         notif.read_at = datetime.now()
         db.commit()
         db.refresh(notif)
-        ERPService._push_notification("notification:updated", notif)
+        ERPService._push_notification(db, "notification:updated", notif)
         return notif
 
     @staticmethod
@@ -277,7 +291,7 @@ class ERPService(Service):
         db.add_all(notifications)
         db.commit()
         for notif in notifications:
-            ERPService._push_notification("notification:new", notif)
+            ERPService._push_notification(db, "notification:new", notif)
         return notifications
 
     @staticmethod
@@ -300,7 +314,7 @@ class ERPService(Service):
             notif.status = NotificationStatusEnum.RESOLVED
         db.commit()
         for notif in notifications:
-            ERPService._push_notification("notification:updated", notif)
+            ERPService._push_notification(db, "notification:updated", notif)
 
     @staticmethod
     def get_all_payouts(
