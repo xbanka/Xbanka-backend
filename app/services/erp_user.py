@@ -795,7 +795,10 @@ class ERPService(Service):
     ) -> RoleChangeLog:
         """Role changes are self-confirmed by the affected staff member, not
         applied immediately - the change (and any bundled permission edit)
-        only takes effect once they acknowledge it via confirm_role_change."""
+        only takes effect once they acknowledge it via confirm_role_change.
+        No notification is sent here: the staff member learns about it via
+        the blocking confirmation modal (driven by `pending_role_change` on
+        GET /erp/me), not the notification bell."""
         role_change = RoleChangeLog(
             staff_id=staff_user.id,
             requested_by_id=acting_user.id,
@@ -809,14 +812,14 @@ class ERPService(Service):
         db.commit()
         db.refresh(role_change)
 
-        ERPService.new_notification(
-            db,
-            recipients=[staff_user],
-            message=f"Your role is being changed to {role.name}. Please confirm to continue.",
-            reference_type=NotificationReferenceTypeEnum.STAFF_ACCOUNT,
-            reference_id=role_change.id,
-        )
-        db.refresh(role_change)
+        # ERPService.new_notification(
+        #     db,
+        #     recipients=[staff_user],
+        #     message=f"Your role is being changed to {role.name}. Please confirm to continue.",
+        #     reference_type=NotificationReferenceTypeEnum.STAFF_ACCOUNT,
+        #     reference_id=role_change.id,
+        # )
+
         return role_change
 
     @staticmethod
