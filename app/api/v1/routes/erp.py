@@ -22,9 +22,11 @@ from app.core.enums import (
 )
 from app.db.database import get_db
 from app.schemas.erp.notifications import (
+    NotificationCountsResponse,
     NotificationReadResponse,
     NotificationsResponse,
 )
+from app.schemas.erp.audit import PendingRoleChangeSummary
 from app.schemas.erp.payout import ERPPaginatedPayoutResponse, ERPPayoutResponse, ERPPayoutDetailResponse, ERPProcessPayoutResponse
 from app.schemas.erp.user import ERPMeResponse
 from app.schemas.payout import ProcessPayoutRequest
@@ -41,8 +43,23 @@ APPROVE_AFFILIATE_PAYOUTS = PermissionEnum.APPROVE_AFFILIATE_PAYOUTS
 
 
 @erp.get("/me", status_code=status.HTTP_200_OK, response_model=ERPMeResponse)
-def get_current_erp(current_user: CurrentUser = Depends(require_account_type("erp"))):
-    return current_user.user
+def get_current_erp(
+    db: Session = Depends(get_db),
+    current_user: CurrentUser = Depends(
+        require_account_type("erp", allow_pending_role_change=True)
+    ),
+):
+    pending = ERPService.get_pending_role_change(db, current_user.user.id)
+    me = ERPMeResponse.model_validate(current_user.user)
+    if pending is not None:
+        me.pending_role_change = PendingRoleChangeSummary(
+            id=pending.id,
+            new_role=pending.new_role,
+            reason=pending.reason,
+            requested_by=f"{pending.requested_by.first_name} {pending.requested_by.last_name}",
+            created_at=pending.created_at,
+        )
+    return me
 
 
 @erp.get("/notifications", response_model=List[NotificationsResponse])
@@ -60,6 +77,14 @@ def get_notifications(
         reference_type=reference_type,
         is_read=is_read,
     )
+
+
+@erp.get("/notifications/counts", response_model=NotificationCountsResponse)
+def get_notification_counts(
+    db: Session = Depends(get_db),
+    current_user: CurrentUser = Depends(require_account_type("erp")),
+):
+    return ERPService.get_notification_counts(db, current_user.user.id)
 
 
 @erp.websocket("/notifications/ws")

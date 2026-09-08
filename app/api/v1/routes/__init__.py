@@ -1,6 +1,7 @@
 from fastapi import APIRouter
 
 from .affiliate import affiliate as affiliate_router
+from .audit import audit as audit_router
 from .auth import auth as auth_router
 from .customer import customer as customer_router
 from .dashboard import dashboard as dashboard_router
@@ -13,6 +14,7 @@ from .webhook import webhook as webhook_router
 api_version_one = APIRouter(prefix="/api")
 
 api_version_one.include_router(affiliate_router)
+api_version_one.include_router(audit_router)
 api_version_one.include_router(auth_router)
 api_version_one.include_router(customer_router)
 api_version_one.include_router(dashboard_router)

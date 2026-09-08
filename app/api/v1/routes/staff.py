@@ -1,3 +1,4 @@
+from typing import Union
 from uuid import UUID
 
 from fastapi import APIRouter, BackgroundTasks, Depends, Query, status
@@ -6,6 +7,8 @@ from sqlalchemy.orm import Session
 from app.core.email import send_invite_email
 from app.core.enums import Permission
 from app.db.database import get_db
+from app.models.role_change_log import RoleChangeLog
+from app.schemas.erp.audit import RoleChangeProposedResponse
 from app.schemas.erp.user import (
     AllStaffResponse,
     InviteStaffRequest,
@@ -110,7 +113,7 @@ def update_staff_details(
 
 @staff.patch(
     "/{staff_id}/roles-permissions",
-    response_model=UpdatePermissionsResponse,
+    response_model=Union[UpdatePermissionsResponse, RoleChangeProposedResponse],
     status_code=status.HTTP_200_OK,
 )
 def update_staff_roles_permissions(
@@ -119,10 +122,16 @@ def update_staff_roles_permissions(
     db: Session = Depends(get_db),
     current_user: CurrentUser = Depends(require_permissions(EDIT_STAFF_PERMISSIONS, EDIT_STAFF_ROLES)),
 ):
-    staff = ERPService.update_staff_roles_permissions(
-        db, staff_id, request.role, request.permissions, current_user.user
+    result = ERPService.update_staff_roles_permissions(
+        db, staff_id, request.role, request.permissions, request.reason, current_user.user
     )
+    if isinstance(result, RoleChangeLog):
+        return {
+            "message": "Role change proposed. The staff member must confirm it before it takes effect.",
+            "role_change_id": result.id,
+            "status": result.status,
+        }
     return {
         "message": "Staff member's role and permissions updated successfully.",
-        "staff": staff,
+        "staff": result,
     }

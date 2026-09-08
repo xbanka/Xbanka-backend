@@ -10,7 +10,7 @@ from fastapi import (
 from sqlalchemy.orm import Session
 
 from app.core.email import send_forgot_password_email
-from app.core.enums import EmailTypeEnum
+from app.core.enums import EmailTypeEnum, LoginStatusEnum
 from app.db.database import get_db
 from app.models.erp_user import ERPUser
 from app.schemas.erp.user import (
@@ -26,6 +26,7 @@ from app.schemas.erp.user import (
 )
 from app.services.auth import AuthService
 from app.services.erp_user import ERPService
+from app.utils.request import get_client_ip
 from app.utils.settings import settings
 
 erp = APIRouter(prefix="/erp")
@@ -36,9 +37,38 @@ ACCESS_TOKEN_EXPIRE_MINUTES = settings.ACCESS_TOKEN_EXPIRE_MINUTES
 
 
 @erp.post("/login", response_model=LoginResponse, status_code=status.HTTP_200_OK)
-def login(create_request: LoginBase, response: Response, db: Session = Depends(get_db)):
-    user: ERPUser = AuthService.authenticate_user(
-        db, ERPUser, create_request.email, create_request.password
+def login(
+    create_request: LoginBase,
+    request: Request,
+    response: Response,
+    db: Session = Depends(get_db),
+):
+    ip_address = get_client_ip(request)
+
+    try:
+        user: ERPUser = AuthService.authenticate_user(
+            db, ERPUser, create_request.email, create_request.password
+        )
+    except HTTPException as exc:
+        existing_user = (
+            db.query(ERPUser).filter_by(email=create_request.email).first()
+        )
+        ERPService.log_login_attempt(
+            db,
+            attempted_email=create_request.email,
+            user_id=existing_user.id if existing_user else None,
+            ip_address=ip_address,
+            login_status=LoginStatusEnum.FAILED,
+            failure_reason=str(exc.detail),
+        )
+        raise
+
+    ERPService.log_login_attempt(
+        db,
+        attempted_email=create_request.email,
+        user_id=user.id,
+        ip_address=ip_address,
+        login_status=LoginStatusEnum.SUCCESS,
     )
 
     access_token = AuthService.create_access_token(
