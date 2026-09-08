@@ -321,6 +321,20 @@ class NotificationReferenceTypeEnum(str, enum.Enum):
     STAFF_ACCOUNT = "STAFF_ACCOUNT"
 
 
+class RoleChangeStatusEnum(str, enum.Enum):
+    """A role change is self-confirmed by the affected staff member (not
+    peer-approved), so there's no REJECTED state - only PENDING (proposed,
+    not yet applied) and CONFIRMED (applied)."""
+
+    PENDING = "PENDING"
+    CONFIRMED = "CONFIRMED"
+
+
+class LoginStatusEnum(str, enum.Enum):
+    SUCCESS = "SUCCESS"
+    FAILED = "FAILED"
+
+
 class NotificationStatusEnum(str, enum.Enum):
     """Whether a notification's underlying reference (e.g. a proposal) is
     still open. ACTIVE notifications may still prompt an action (approve/
