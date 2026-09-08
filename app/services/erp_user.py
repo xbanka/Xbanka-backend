@@ -16,19 +16,23 @@ from sqlalchemy.orm import Session, joinedload
 
 from app.core.base.services import Service
 from app.core.enums import (
+    LoginStatusEnum,
     NotificationReferenceTypeEnum,
     NotificationStatusEnum,
     PayoutMethodEnum,
     PayoutStatusEnum,
+    RoleChangeStatusEnum,
     UploadStatusEnum,
 )
 from app.core.hash import Hasher
 from app.models.affiliate import Affiliate
 from app.models.erp_user import STAFF_CODE_ALPHABET, ERPUser
+from app.models.login_log import LoginLog
 from app.models.notifications import Notification
 from app.models.payouts import Payout
 from app.models.permission import Permission
 from app.models.role import SUPER_ADMIN, Role
+from app.models.role_change_log import RoleChangeLog
 from app.models.role_permissions import RolePermissions
 from app.models.user_permissions import UserPermissions
 from app.schemas.payout import ProcessPayoutRequest
@@ -123,10 +127,15 @@ class ERPService(Service):
         pass
 
     @staticmethod
-    def _push_notification(event: str, notif: Notification) -> None:
+    def _push_notification(db: Session, event: str, notif: Notification) -> None:
+        counts = ERPService.get_notification_counts(db, notif.user_id)
         notification_manager.send_to_user_threadsafe(
             str(notif.user_id),
-            {"event": event, "data": jsonable_encoder(NotificationsResponse.model_validate(notif))},
+            {
+                "event": event,
+                "data": jsonable_encoder(NotificationsResponse.model_validate(notif)),
+                "counts": counts,
+            },
         )
 
     @staticmethod
@@ -153,6 +162,15 @@ class ERPService(Service):
         return notifications
 
     @staticmethod
+    def get_notification_counts(db: Session, user_id: UUID) -> dict:
+        stmt = select(
+            func.count().label("all"),
+            func.count().filter(Notification.is_read.is_(False)).label("unread"),
+        ).where(Notification.user_id == user_id)
+        row = db.execute(stmt).one()
+        return {"all": row.all, "unread": row.unread}
+
+    @staticmethod
     def mark_notification_as_read(db: Session, id: UUID, user_id: UUID):
         # scoping on user_id doubles as authorization: a notification belonging
         # to another user is indistinguishable from one that doesn't exist
@@ -176,7 +194,7 @@ class ERPService(Service):
         notif.read_at = datetime.now()
         db.commit()
         db.refresh(notif)
-        ERPService._push_notification("notification:updated", notif)
+        ERPService._push_notification(db, "notification:updated", notif)
         return notif
 
     @staticmethod
@@ -277,7 +295,7 @@ class ERPService(Service):
         db.add_all(notifications)
         db.commit()
         for notif in notifications:
-            ERPService._push_notification("notification:new", notif)
+            ERPService._push_notification(db, "notification:new", notif)
         return notifications
 
     @staticmethod
@@ -300,7 +318,7 @@ class ERPService(Service):
             notif.status = NotificationStatusEnum.RESOLVED
         db.commit()
         for notif in notifications:
-            ERPService._push_notification("notification:updated", notif)
+            ERPService._push_notification(db, "notification:updated", notif)
 
     @staticmethod
     def get_all_payouts(
@@ -735,13 +753,84 @@ class ERPService(Service):
         return staff_user
 
     @staticmethod
+    def _apply_permission_changes(
+        db: Session,
+        staff_user: ERPUser,
+        added: List[str],
+        removed: List[str],
+        permissions_by_name: dict,
+    ) -> None:
+        """Replace a staff member's UserPermissions override rows. Shared by
+        the immediate permissions-only path and role-change confirmation."""
+        db.query(UserPermissions).filter(
+            UserPermissions.user_id == staff_user.id
+        ).delete(synchronize_session=False)
+
+        for perm_name in added:
+            db.add(
+                UserPermissions(
+                    user_id=staff_user.id,
+                    permission_id=permissions_by_name[perm_name].id,
+                    is_active=True,
+                )
+            )
+
+        for perm_name in removed:
+            db.add(
+                UserPermissions(
+                    user_id=staff_user.id,
+                    permission_id=permissions_by_name[perm_name].id,
+                    is_active=False,
+                )
+            )
+
+    @staticmethod
+    def _propose_role_change(
+        db: Session,
+        staff_user: ERPUser,
+        role: Role,
+        selected_permissions: Optional[List[str]],
+        reason: Optional[str],
+        acting_user: ERPUser,
+    ) -> RoleChangeLog:
+        """Role changes are self-confirmed by the affected staff member, not
+        applied immediately - the change (and any bundled permission edit)
+        only takes effect once they acknowledge it via confirm_role_change.
+        No notification is sent here: the staff member learns about it via
+        the blocking confirmation modal (driven by `pending_role_change` on
+        GET /erp/me), not the notification bell."""
+        role_change = RoleChangeLog(
+            staff_id=staff_user.id,
+            requested_by_id=acting_user.id,
+            previous_role=staff_user.role.name,
+            new_role=role.name,
+            reason=reason,
+            pending_permissions=selected_permissions,
+            status=RoleChangeStatusEnum.PENDING,
+        )
+        db.add(role_change)
+        db.commit()
+        db.refresh(role_change)
+
+        # ERPService.new_notification(
+        #     db,
+        #     recipients=[staff_user],
+        #     message=f"Your role is being changed to {role.name}. Please confirm to continue.",
+        #     reference_type=NotificationReferenceTypeEnum.STAFF_ACCOUNT,
+        #     reference_id=role_change.id,
+        # )
+
+        return role_change
+
+    @staticmethod
     def update_staff_roles_permissions(
         db: Session,
         staff_id: UUID,
         role_name: Optional[str],
         selected_permissions: Optional[List[str]],
+        reason: Optional[str],
         acting_user: ERPUser,
-    ) -> ERPUser:
+    ) -> ERPUser | RoleChangeLog:
         staff_user = db.query(ERPUser).get(staff_id)
         if not staff_user:
             raise HTTPException(
@@ -762,7 +851,6 @@ class ERPService(Service):
                 detail="Only a Super Admin can modify another Super Admin's role or permissions.",
             )
 
-        role = None
         if role_name is not None:
             if role_name == SUPER_ADMIN and not is_acting_super_admin:
                 raise HTTPException(
@@ -775,47 +863,32 @@ class ERPService(Service):
                     status_code=status.HTTP_404_NOT_FOUND, detail="Role not found"
                 )
 
-        added: List[str] = []
-        removed: List[str] = []
-        permissions_by_name: dict = {}
-        if selected_permissions is not None:
-            # Validate the new permission selection against whichever role the
-            # staff member will end up with (the new one if changing, else current).
-            effective_role_name = role_name if role_name is not None else staff_user.role.name
-            added, removed, permissions_by_name = ERPService._resolve_permission_changes(
-                db, effective_role_name, selected_permissions
+            # Validate any bundled permission selection against the role
+            # being proposed, so a rejected/invalid combination fails now
+            # rather than surfacing only once the staff member confirms.
+            if selected_permissions is not None:
+                ERPService._resolve_permission_changes(
+                    db, role_name, selected_permissions
+                )
+
+            return ERPService._propose_role_change(
+                db, staff_user, role, selected_permissions, reason, acting_user
             )
 
+        # Permissions-only edit (no role change): applies immediately, as before.
+        if selected_permissions is None:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="At least one of 'role' or 'permissions' must be provided.",
+            )
+        added, removed, permissions_by_name = ERPService._resolve_permission_changes(
+            db, staff_user.role.name, selected_permissions
+        )
+
         try:
-            if role is not None:
-                staff_user.role = role
-
-            if selected_permissions is not None:
-                # clear all user_permission records
-                db.query(UserPermissions).filter(
-                    UserPermissions.user_id == staff_user.id
-                ).delete(synchronize_session=False)
-
-                # Add custom permissions
-                for perm_name in added:
-                    db.add(
-                        UserPermissions(
-                            user_id=staff_user.id,
-                            permission_id=permissions_by_name[perm_name].id,
-                            is_active=True,
-                        )
-                    )
-
-                # Remove permissions
-                for perm_name in removed:
-                    db.add(
-                        UserPermissions(
-                            user_id=staff_user.id,
-                            permission_id=permissions_by_name[perm_name].id,
-                            is_active=False,
-                        )
-                    )
-
+            ERPService._apply_permission_changes(
+                db, staff_user, added, removed, permissions_by_name
+            )
             db.commit()
             db.refresh(staff_user)
 
@@ -833,22 +906,160 @@ class ERPService(Service):
             db.rollback()
             raise HTTPException(status_code=500, detail="An unknown error occurred")
 
-        change_messages = []
-        if role is not None:
-            change_messages.append(f"Your role has been changed to {role.name}.")
-        if selected_permissions is not None:
-            change_messages.append("Your permissions have been updated.")
-
         ERPService.new_notification(
             db,
             recipients=[staff_user],
-            message=" ".join(change_messages),
+            message="Your permissions have been updated.",
             reference_type=NotificationReferenceTypeEnum.STAFF_ACCOUNT,
             reference_id=staff_user.id,
         )
         db.refresh(staff_user)
 
         return staff_user
+
+    @staticmethod
+    def get_pending_role_change(db: Session, staff_id: UUID) -> Optional[RoleChangeLog]:
+        return db.scalar(
+            select(RoleChangeLog).where(
+                RoleChangeLog.staff_id == staff_id,
+                RoleChangeLog.status == RoleChangeStatusEnum.PENDING,
+            )
+        )
+
+    @staticmethod
+    def confirm_role_change(
+        db: Session, role_change_id: UUID, current_user: ERPUser
+    ) -> RoleChangeLog:
+        role_change = db.get(RoleChangeLog, role_change_id)
+        if not role_change:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND, detail="Role change not found"
+            )
+        if role_change.status != RoleChangeStatusEnum.PENDING:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="This role change has already been confirmed",
+            )
+        if role_change.staff_id != current_user.id:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Only the affected staff member can confirm this role change",
+            )
+
+        staff_user = current_user
+        role = db.query(Role).filter(Role.name == role_change.new_role).first()
+        if not role:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND, detail="Role not found"
+            )
+
+        try:
+            staff_user.role = role
+
+            if role_change.pending_permissions is not None:
+                added, removed, permissions_by_name = ERPService._resolve_permission_changes(
+                    db, role.name, role_change.pending_permissions
+                )
+                ERPService._apply_permission_changes(
+                    db, staff_user, added, removed, permissions_by_name
+                )
+
+            role_change.status = RoleChangeStatusEnum.CONFIRMED
+            role_change.confirmed_at = datetime.now()
+            db.commit()
+            db.refresh(role_change)
+            db.refresh(staff_user)
+
+        except IntegrityError as e:
+            print(e)
+            db.rollback()
+            raise HTTPException(status_code=400, detail="Database integrity error")
+        except SQLAlchemyError as e:
+            db.rollback()
+            raise HTTPException(
+                status_code=500, detail=f"An error occurred saving entity: {e}"
+            )
+
+        ERPService.new_notification(
+            db,
+            recipients=[role_change.requested_by],
+            message=f"{staff_user.first_name} {staff_user.last_name} confirmed their role change to {role.name}.",
+            reference_type=NotificationReferenceTypeEnum.STAFF_ACCOUNT,
+            reference_id=role_change.id,
+            status=NotificationStatusEnum.RESOLVED,
+        )
+        db.refresh(role_change)
+
+        return role_change
+
+    @staticmethod
+    def get_role_changes(
+        db: Session,
+        status: Optional[RoleChangeStatusEnum] = None,
+        search: Optional[str] = None,
+        page: int = 1,
+        limit: int = 10,
+    ):
+        stmt = select(RoleChangeLog).options(
+            joinedload(RoleChangeLog.staff), joinedload(RoleChangeLog.requested_by)
+        )
+        if status is not None:
+            stmt = stmt.where(RoleChangeLog.status == status)
+        if search:
+            like = f"%{search}%"
+            stmt = stmt.join(ERPUser, RoleChangeLog.staff_id == ERPUser.id).where(
+                or_(
+                    ERPUser.first_name.ilike(like),
+                    ERPUser.last_name.ilike(like),
+                    ERPUser.staff_code.ilike(like),
+                )
+            )
+        stmt = (
+            stmt.order_by(RoleChangeLog.created_at.desc())
+            .offset((page - 1) * limit)
+            .limit(limit)
+        )
+        return db.execute(stmt).scalars().all()
+
+    @staticmethod
+    def log_login_attempt(
+        db: Session,
+        attempted_email: str,
+        user_id: Optional[UUID],
+        ip_address: Optional[str],
+        login_status: LoginStatusEnum,
+        failure_reason: Optional[str] = None,
+    ) -> None:
+        db.add(
+            LoginLog(
+                attempted_email=attempted_email,
+                user_id=user_id,
+                ip_address=ip_address,
+                status=login_status,
+                failure_reason=failure_reason,
+            )
+        )
+        db.commit()
+
+    @staticmethod
+    def get_login_logs(
+        db: Session,
+        status: Optional[LoginStatusEnum] = None,
+        search: Optional[str] = None,
+        page: int = 1,
+        limit: int = 10,
+    ):
+        stmt = select(LoginLog).options(joinedload(LoginLog.user))
+        if status is not None:
+            stmt = stmt.where(LoginLog.status == status)
+        if search:
+            stmt = stmt.where(LoginLog.attempted_email.ilike(f"%{search}%"))
+        stmt = (
+            stmt.order_by(LoginLog.created_at.desc())
+            .offset((page - 1) * limit)
+            .limit(limit)
+        )
+        return db.execute(stmt).scalars().all()
 
 
     @staticmethod
