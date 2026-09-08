@@ -12,6 +12,8 @@ from pydantic import (
     model_validator,
 )
 
+from app.schemas.erp.audit import PendingRoleChangeSummary
+
 
 class PermissionResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
@@ -40,6 +42,7 @@ class ERPMeResponse(BaseModel):
     role: RoleResponse
     created_at: datetime
     verified: bool
+    pending_role_change: Optional[PendingRoleChangeSummary] = None
 
 
 class AllStaffResponse(BaseModel):
@@ -144,6 +147,7 @@ class UpdateStaffRequest(BaseModel):
 class UpdatePermissionsRequest(BaseModel):
     role: Optional[str] = None
     permissions: Optional[List[str]] = None
+    reason: Optional[str] = None
 
     @model_validator(mode="after")
     def _require_role_or_permissions(self):
