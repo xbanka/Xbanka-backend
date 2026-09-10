@@ -5,6 +5,7 @@ from fastapi import (
     APIRouter,
     Depends,
     File,
+    HTTPException,
     Query,
     UploadFile,
     WebSocket,
@@ -25,6 +26,7 @@ from app.schemas.erp.notifications import (
     NotificationCountsResponse,
     NotificationReadResponse,
     NotificationsResponse,
+    TransactionActivityResponse,
 )
 from app.schemas.erp.audit import PendingRoleChangeSummary
 from app.schemas.erp.payout import ERPPaginatedPayoutResponse, ERPPayoutResponse, ERPPayoutDetailResponse, ERPProcessPayoutResponse
@@ -32,6 +34,7 @@ from app.schemas.erp.user import ERPMeResponse
 from app.schemas.payout import ProcessPayoutRequest
 from app.services.auth import AuthService
 from app.services.erp_user import ERPService
+from app.services.internal_backend import InternalAPIService
 from app.services.websocket_manager import notification_manager
 from app.utils.auth import require_account_type, require_permissions
 from app.utils.schema import CurrentUser
@@ -40,6 +43,7 @@ erp = APIRouter(prefix="/erp", tags=["ERP"])
 
 VIEW_AFFILIATE_PAYOUTS = PermissionEnum.VIEW_AFFILIATE_PAYOUTS
 APPROVE_AFFILIATE_PAYOUTS = PermissionEnum.APPROVE_AFFILIATE_PAYOUTS
+VIEW_TRANSACTIONS = PermissionEnum.VIEW_TRANSACTIONS
 
 
 @erp.get("/me", status_code=status.HTTP_200_OK, response_model=ERPMeResponse)
@@ -85,6 +89,18 @@ def get_notification_counts(
     current_user: CurrentUser = Depends(require_account_type("erp")),
 ):
     return ERPService.get_notification_counts(db, current_user.user.id)
+
+
+@erp.get("/notifications/transactions", response_model=TransactionActivityResponse)
+def get_transaction_activity(
+    current_user: CurrentUser = Depends(require_permissions(VIEW_TRANSACTIONS)),
+    page: int = Query(1, ge=1, description="Page number"),
+    limit: int = Query(20, ge=1, le=100, description="Items per page"),
+):
+    try:
+        return InternalAPIService.get_transaction_activity(page=page, limit=limit)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 @erp.websocket("/notifications/ws")
