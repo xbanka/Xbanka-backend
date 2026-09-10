@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import Optional
+from typing import List, Optional
 from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict
@@ -39,3 +39,27 @@ class NotificationReadResponse(BaseModel):
     id: UUID
     is_read: bool
     read_at: datetime | None
+
+
+class TransactionActivityItem(BaseModel):
+    id: UUID
+    reference: Optional[str] = None
+    message: str
+    amount: Optional[float] = None
+    currency: Optional[str] = None
+    status: Optional[str] = None
+    type: Optional[str] = None
+    display_type: Optional[str] = None
+    created_at: datetime
+
+
+class TransactionActivityMeta(BaseModel):
+    page: Optional[int] = None
+    limit: Optional[int] = None
+    totalItems: Optional[int] = None
+    totalPages: Optional[int] = None
+
+
+class TransactionActivityResponse(BaseModel):
+    items: List[TransactionActivityItem]
+    meta: TransactionActivityMeta
