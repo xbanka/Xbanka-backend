@@ -211,7 +211,6 @@ class ERPService(Service):
 
         granting_roles = select(RolePermissions.role_id).where(
             RolePermissions.permission_id == perm.id,
-            RolePermissions.is_allowed.is_(True),
         )
 
         # at most one row per (user, permission) thanks to the composite PK
@@ -485,18 +484,9 @@ class ERPService(Service):
     def _resolve_permission_changes(
         db: Session, role_name: str, selected_permissions: List[str]
     ) -> tuple[List[str], List[str], dict]:
-        """Validate selected_permissions against a role's allowed/forbidden sets and
-        return (added, removed, permissions_by_name) to apply as UserPermissions overrides."""
-        allowed_permissions, forbidden_permissions = ERPService.get_role_permissions(
-            db, role_name
-        )
-
-        for perm in selected_permissions:
-            if perm in forbidden_permissions:
-                raise HTTPException(
-                    status_code=status.HTTP_400_BAD_REQUEST,
-                    detail=f"Permission '{perm}' is forbidden for role '{role_name}' and cannot be assigned.",
-                )
+        """Validate selected_permissions against a role's defaults and return
+        (added, removed, permissions_by_name) to apply as UserPermissions overrides."""
+        allowed_permissions = ERPService.get_role_permissions(db, role_name)
 
         permissions_by_name = {
             perm.name: perm
@@ -608,9 +598,8 @@ class ERPService(Service):
         return staff_user
 
     @staticmethod
-    def get_role_permissions(
-        db: Session, role_name: str
-    ) -> tuple[List[str], List[str]]:
+    def get_role_permissions(db: Session, role_name: str) -> List[str]:
+        """Names of the permissions `role_name` grants by default."""
         role = db.query(Role).filter(Role.name == role_name).first()
         if not role:
             raise HTTPException(
@@ -618,27 +607,15 @@ class ERPService(Service):
             )
 
         if role_name == SUPER_ADMIN:
-            all_permissions = db.query(Permission).all()
-            perm_names = [perm.name for perm in all_permissions]
-            return (perm_names, [])
+            return [name for (name,) in db.query(Permission.name).all()]
 
         rows = (
-            db.query(RolePermissions.is_allowed, Permission.name)
-            .join(Role, Role.id == RolePermissions.role_id)
-            .join(Permission, Permission.id == RolePermissions.permission_id)
-            .filter(Role.name == role_name)
+            db.query(Permission.name)
+            .join(RolePermissions, Permission.id == RolePermissions.permission_id)
+            .filter(RolePermissions.role_id == role.id)
             .all()
         )
-
-        if not rows:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND, detail="Role not found"
-            )
-
-        return (
-            [name for allowed, name in rows if allowed],
-            [name for allowed, name in rows if not allowed],
-        )
+        return [name for (name,) in rows]
 
     @staticmethod
     def get_staff_permissions(db: Session, staff_id: UUID) -> List[str]:
@@ -652,17 +629,15 @@ class ERPService(Service):
         # against the whole permissions table and ignores both its own
         # role_permissions rows and any per-user override. Same rule as
         # Role.allowed_permissions and get_role_permissions above; without it a
-        # Super Admin resolves to nothing, since its rows carry is_allowed NULL
-        # and don't cover permissions added after the role was seeded.
+        # Super Admin misses every permission added after the role was seeded.
         if staff_user.role.name == SUPER_ADMIN:
             return [name for (name,) in db.query(Permission.name).all()]
 
-        # Load role's allowed permissions via the RolePermissions link (uses is_allowed)
+        # Load role's default permissions via the RolePermissions link
         role_allowed = (
             db.query(Permission.name)
             .join(RolePermissions, Permission.id == RolePermissions.permission_id)
             .filter(RolePermissions.role_id == staff_user.role_id)
-            .filter(RolePermissions.is_allowed)
             .all()
         )
 
