@@ -18,20 +18,14 @@ def add_staff_permission(db_session) -> PermissionModel:
 
 @pytest.fixture
 def staff_role(db_session, add_staff_permission) -> Role:
-    """A role a staff member can be invited into. Needs at least one
-    RolePermissions row: get_role_permissions treats a role with none as
-    not found."""
+    """A role a staff member can be invited into."""
     role = Role(name="Support")
     db_session.add(role)
     db_session.commit()
     db_session.refresh(role)
 
     db_session.add(
-        RolePermissions(
-            role_id=role.id,
-            permission_id=add_staff_permission.id,
-            is_allowed=True,
-        )
+        RolePermissions(role_id=role.id, permission_id=add_staff_permission.id)
     )
     db_session.commit()
     return role
@@ -45,11 +39,7 @@ def other_role(db_session, add_staff_permission) -> Role:
     db_session.refresh(role)
 
     db_session.add(
-        RolePermissions(
-            role_id=role.id,
-            permission_id=add_staff_permission.id,
-            is_allowed=False,
-        )
+        RolePermissions(role_id=role.id, permission_id=add_staff_permission.id)
     )
     db_session.commit()
     return role

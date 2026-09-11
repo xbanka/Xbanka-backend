@@ -22,7 +22,7 @@ def _make_role(db_session, name: str, allowed=()) -> Role:
     db_session.refresh(role)
 
     for perm in allowed:
-        db_session.add(RolePermissions(role_id=role.id, permission_id=perm.id, is_allowed=True))
+        db_session.add(RolePermissions(role_id=role.id, permission_id=perm.id))
     db_session.commit()
     return role
 
