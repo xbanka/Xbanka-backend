@@ -768,12 +768,19 @@ class ERPService(Service):
         reason: Optional[str],
         acting_user: ERPUser,
     ) -> RoleChangeLog:
-        """Role changes are self-confirmed by the affected staff member, not
-        applied immediately - the change (and any bundled permission edit)
-        only takes effect once they acknowledge it via confirm_role_change.
-        No notification is sent here: the staff member learns about it via
-        the blocking confirmation modal (driven by `pending_role_change` on
-        GET /erp/me), not the notification bell."""
+        """Proposing supersedes every earlier pending change for the same staff
+        member, so only the latest one can ever be confirmed."""
+        superseded_ids = db.scalars(
+            select(RoleChangeLog.id).where(
+                RoleChangeLog.staff_id == staff_user.id,
+                RoleChangeLog.status == RoleChangeStatusEnum.PENDING,
+            )
+        ).all()
+        if superseded_ids:
+            db.query(RoleChangeLog).filter(
+                RoleChangeLog.id.in_(superseded_ids)
+            ).update({RoleChangeLog.status: RoleChangeStatusEnum.SUPERSEDED})
+
         role_change = RoleChangeLog(
             staff_id=staff_user.id,
             requested_by_id=acting_user.id,
@@ -787,13 +794,19 @@ class ERPService(Service):
         db.commit()
         db.refresh(role_change)
 
-        # ERPService.new_notification(
-        #     db,
-        #     recipients=[staff_user],
-        #     message=f"Your role is being changed to {role.name}. Please confirm to continue.",
-        #     reference_type=NotificationReferenceTypeEnum.STAFF_ACCOUNT,
-        #     reference_id=role_change.id,
-        # )
+        # The superseded proposals' confirm prompts would now only 400.
+        for superseded_id in superseded_ids:
+            ERPService.resolve_notifications_for_reference(
+                db, NotificationReferenceTypeEnum.STAFF_ACCOUNT, superseded_id
+            )
+
+        ERPService.new_notification(
+            db,
+            recipients=[staff_user],
+            message=f"Your role is being changed to {role.name}. Please confirm to continue.",
+            reference_type=NotificationReferenceTypeEnum.STAFF_ACCOUNT,
+            reference_id=role_change.id,
+        )
 
         return role_change
 
@@ -905,10 +918,17 @@ class ERPService(Service):
     def confirm_role_change(
         db: Session, role_change_id: UUID, current_user: ERPUser
     ) -> RoleChangeLog:
-        role_change = db.get(RoleChangeLog, role_change_id)
+        # Row lock: a concurrent proposal supersedes this row with an UPDATE,
+        # so the two serialise and a superseded change can't slip through.
+        role_change = db.get(RoleChangeLog, role_change_id, with_for_update=True)
         if not role_change:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND, detail="Role change not found"
+            )
+        if role_change.status == RoleChangeStatusEnum.SUPERSEDED:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="This role change was replaced by a newer request and can no longer be confirmed",
             )
         if role_change.status != RoleChangeStatusEnum.PENDING:
             raise HTTPException(
@@ -954,6 +974,10 @@ class ERPService(Service):
             raise HTTPException(
                 status_code=500, detail=f"An error occurred saving entity: {e}"
             )
+
+        ERPService.resolve_notifications_for_reference(
+            db, NotificationReferenceTypeEnum.STAFF_ACCOUNT, role_change.id
+        )
 
         ERPService.new_notification(
             db,
