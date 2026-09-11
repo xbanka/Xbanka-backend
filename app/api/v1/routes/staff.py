@@ -76,8 +76,9 @@ def get_role_permissions(
     db: Session = Depends(get_db),
     current_user: CurrentUser = Depends(require_account_type("erp")),
 ):
-    default, forbidden = ERPService.get_role_permissions(db, role)
-    return {"default": default, "forbidden": forbidden}
+    default = ERPService.get_role_permissions(db, role)
+    # Roles no longer forbid permissions; "forbidden" stays for frontend compatibility.
+    return {"default": default, "forbidden": []}
 
 
 @staff.get("/{staff_id}/permissions", status_code=status.HTTP_200_OK)
