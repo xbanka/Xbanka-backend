@@ -324,6 +324,7 @@ class NotificationReferenceTypeEnum(str, enum.Enum):
 class RoleChangeStatusEnum(str, enum.Enum):
     PENDING = "PENDING"
     CONFIRMED = "CONFIRMED"
+    SUPERSEDED = "SUPERSEDED"
 
 
 class LoginStatusEnum(str, enum.Enum):
