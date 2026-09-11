@@ -49,9 +49,7 @@ VIEW_TRANSACTIONS = PermissionEnum.VIEW_TRANSACTIONS
 @erp.get("/me", status_code=status.HTTP_200_OK, response_model=ERPMeResponse)
 def get_current_erp(
     db: Session = Depends(get_db),
-    current_user: CurrentUser = Depends(
-        require_account_type("erp", allow_pending_role_change=True)
-    ),
+    current_user: CurrentUser = Depends(require_account_type("erp")),
 ):
     pending = ERPService.get_pending_role_change(db, current_user.user.id)
     me = ERPMeResponse.model_validate(current_user.user)
