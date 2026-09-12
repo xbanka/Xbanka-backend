@@ -915,6 +915,22 @@ class ERPService(Service):
         )
 
     @staticmethod
+    def get_pending_role_changes(
+        db: Session, staff_ids: Sequence[SA_UUID]
+    ) -> dict[SA_UUID, RoleChangeLog]:
+        """Pending role changes for `staff_ids`, keyed by staff id. A new
+        proposal supersedes earlier ones, so there's at most one per staff."""
+        if not staff_ids:
+            return {}
+        role_changes = db.scalars(
+            select(RoleChangeLog).where(
+                RoleChangeLog.staff_id.in_(staff_ids),
+                RoleChangeLog.status == RoleChangeStatusEnum.PENDING,
+            )
+        ).all()
+        return {rc.staff_id: rc for rc in role_changes}
+
+    @staticmethod
     def confirm_role_change(
         db: Session, role_change_id: UUID, current_user: ERPUser
     ) -> RoleChangeLog:
