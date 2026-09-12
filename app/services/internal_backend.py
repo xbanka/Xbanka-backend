@@ -1,3 +1,4 @@
+import re
 from datetime import datetime, timezone
 from io import BytesIO
 from uuid import UUID
@@ -14,6 +15,28 @@ from app.utils.settings import settings
 INTERNAL_KEY = settings.INTERNAL_KEY
 BASE_URL = settings.INTERNAL_BASE_URL
 
+# Verbs a transaction's summary sentence reads with, keyed by its `type`.
+# Types without an entry fall back to a generic "made a <displayType>" phrasing.
+TRANSACTION_VERBS = {
+    "DEPOSIT": "received",
+    "WITHDRAWAL": "withdrew",
+    "WITHDRAW": "withdrew",
+    "TRANSFER": "sent",
+    "SEND": "sent",
+    "PAYOUT": "received",
+    "SWAP": "converted",
+    "CONVERT": "converted",
+    "TRADE": "traded",
+    "BUY": "bought",
+    "SELL": "sold",
+    "REFUND": "received",
+}
+
+# Matches a counterparty called out in a transaction's `note`, e.g.
+# "Received from Joseph Eyebiokin" or "Sent to Joseph Eyebiokin".
+COUNTERPARTY_PATTERN = re.compile(
+    r"^(received from|sent to|paid to|from|to)\s+(.+)$", re.IGNORECASE
+)
 
 
 class InternalAPIService(Service):
@@ -186,6 +209,72 @@ class InternalAPIService(Service):
             return InternalAPIService._request("GET", f"/internal/wallet/transactions/{id}")
         except Exception as e:
             raise HTTPException(status_code=500, detail=str(e))
+
+    @staticmethod
+    def _extract_counterparty(note: str | None) -> str | None:
+        if not note:
+            return None
+        match = COUNTERPARTY_PATTERN.match(note.strip())
+        if not match:
+            return None
+        lead, name = match.group(1).lower(), match.group(2).strip()
+        preposition = "to" if lead in ("sent to", "paid to", "to") else "from"
+        return f"{preposition} {name}"
+
+    @staticmethod
+    def _format_transaction_message(item: dict) -> str:
+        customer = item.get("customer") or {}
+        name = " ".join(
+            part for part in [customer.get("firstName"), customer.get("lastName")] if part
+        ) or "A customer"
+
+        txn_type = (item.get("type") or "").upper()
+        display_type = item.get("displayType") or txn_type.replace("_", " ").title() or "transaction"
+
+        amount = item.get("amount")
+        currency = item.get("currency") or ""
+        amount_display = None
+        if amount is not None:
+            amount_display = f"{float(amount):.2f}".rstrip("0").rstrip(".")
+        amount_currency = " ".join(part for part in [amount_display, currency] if part)
+
+        verb = TRANSACTION_VERBS.get(txn_type)
+        if verb:
+            sentence = f"{name} {verb} {amount_currency} {display_type}".strip()
+        else:
+            sentence = f"{name} made a {display_type} of {amount_currency}".strip()
+
+        counterparty = InternalAPIService._extract_counterparty(item.get("note"))
+        if counterparty:
+            sentence = f"{sentence} {counterparty}"
+
+        return sentence
+
+    @staticmethod
+    def get_transaction_activity(page: int = 1, limit: int = 20, **filters) -> dict:
+        """Recent transactions from the internal API, each reduced to a
+        notification-bar-ready summary message (e.g. "Daniel Eyebiokin
+        received 5000 NGN Fiat Deposit from Joseph Eyebiokin")."""
+        response = InternalAPIService.get_all_transactions(page=page, limit=limit, **filters)
+        data = response.get("data", {})
+        items = data.get("items", [])
+
+        activity = [
+            {
+                "id": item.get("id"),
+                "reference": item.get("reference"),
+                "message": InternalAPIService._format_transaction_message(item),
+                "amount": item.get("amount"),
+                "currency": item.get("currency"),
+                "status": item.get("status"),
+                "type": item.get("type"),
+                "display_type": item.get("displayType"),
+                "created_at": item.get("createdAt"),
+            }
+            for item in items
+        ]
+
+        return {"items": activity, "meta": data.get("meta", {})}
 
     @staticmethod
     def get_user_transactions(user_id: UUID, page: int = 1, limit: int = 10, **kwargs):
