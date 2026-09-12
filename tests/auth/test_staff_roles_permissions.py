@@ -42,17 +42,10 @@ def manager_role(db_session, permissions):
             RolePermissions(
                 role_id=role.id,
                 permission_id=permissions["transactions:view"].id,
-                is_allowed=True,
             ),
             RolePermissions(
                 role_id=role.id,
                 permission_id=permissions["transactions:create"].id,
-                is_allowed=True,
-            ),
-            RolePermissions(
-                role_id=role.id,
-                permission_id=permissions["finance:approve_payments"].id,
-                is_allowed=False,
             ),
         ]
     )
@@ -71,7 +64,6 @@ def viewer_role(db_session, permissions):
         RolePermissions(
             role_id=role.id,
             permission_id=permissions["customers:view"].id,
-            is_allowed=True,
         )
     )
     db_session.commit()
@@ -173,18 +165,24 @@ def test_requires_role_or_permissions(super_client, target_staff):
     assert response.status_code == 422
 
 
-def test_forbidden_permission_rejected(
-    super_client, target_staff, manager_role, permissions
+def test_any_permission_can_be_assigned_regardless_of_role(
+    db_session, manager_role, permissions
 ):
-    response = super_client.patch(
-        _url(target_staff.id),
-        json={"role": "Manager", "permissions": ["finance:approve_payments"]},
+    """Roles never forbid a permission: one outside the role's defaults is
+    simply added as a per-user override."""
+    from app.services.erp_user import ERPService
+
+    added, removed, _ = ERPService._resolve_permission_changes(
+        db_session,
+        "Manager",
+        ["transactions:view", "transactions:create", "finance:approve_payments"],
     )
-    assert response.status_code == 400
-    assert "forbidden" in response.json()["detail"].lower()
+
+    assert list(added) == ["finance:approve_payments"]
+    assert not removed
 
 
-def test_forbidden_permission_does_not_wipe_existing_overrides(
+def test_rejected_permissions_do_not_wipe_existing_overrides(
     super_client, db_session, target_staff, manager_role, permissions
 ):
     """Regression test: validation must run before existing overrides are deleted."""
@@ -199,7 +197,7 @@ def test_forbidden_permission_does_not_wipe_existing_overrides(
 
     response = super_client.patch(
         _url(target_staff.id),
-        json={"role": "Manager", "permissions": ["finance:approve_payments"]},
+        json={"role": "Manager", "permissions": ["not:a-real-permission"]},
     )
     assert response.status_code == 400
 
@@ -234,15 +232,39 @@ def test_role_not_found(super_client, target_staff):
 
 
 # ---------------------------------------------------------------------------
-# RoleResponse.allowed_permissions (regression: Super Admin used to serialise
-# only its own role_permissions rows. In prod those 59 rows all carried
-# is_allowed = NULL — RolePermissions.is_allowed defaults Python-side, so rows
-# inserted by raw SQL got NULL — and 18 permissions had no row at all, so the
-# response silently under-reported. Super Admin must return every permission.)
+# get_role_permissions / GET /staff/permissions
 # ---------------------------------------------------------------------------
 
 
-def test_super_admin_sees_every_permission_despite_null_and_missing_rows(
+def test_role_without_default_permissions_resolves_to_empty(db_session):
+    from app.services.erp_user import ERPService
+
+    db_session.add(Role(name="Blank"))
+    db_session.commit()
+
+    assert ERPService.get_role_permissions(db_session, "Blank") == []
+
+
+def test_role_permissions_endpoint_never_reports_forbidden(
+    super_client, manager_role
+):
+    response = super_client.get("/api/staff/permissions", params={"role": "Manager"})
+
+    assert response.status_code == 200
+    body = response.json()
+    assert sorted(body["default"]) == ["transactions:create", "transactions:view"]
+    assert body["forbidden"] == []
+
+
+# ---------------------------------------------------------------------------
+# RoleResponse.allowed_permissions (regression: Super Admin used to serialise
+# only its own role_permissions rows, and in prod 18 permissions had no row at
+# all, so the response silently under-reported. Super Admin must return every
+# permission.)
+# ---------------------------------------------------------------------------
+
+
+def test_super_admin_sees_every_permission_despite_missing_rows(
     db_session, permissions
 ):
     from app.schemas.erp.user import RoleResponse
@@ -252,12 +274,11 @@ def test_super_admin_sees_every_permission_despite_null_and_missing_rows(
     db_session.commit()
     db_session.refresh(role)
 
-    # exactly the prod shape: a partial set of rows, every one is_allowed = NULL
+    # the prod shape: only a partial set of rows
     db_session.add(
         RolePermissions(
             role_id=role.id,
             permission_id=permissions["transactions:view"].id,
-            is_allowed=None,
         )
     )
     db_session.commit()
@@ -269,35 +290,31 @@ def test_super_admin_sees_every_permission_despite_null_and_missing_rows(
     assert "finance:approve_payments" in allowed  # never had a row
 
 
-def test_non_super_admin_still_honours_is_allowed(db_session, manager_role):
+def test_non_super_admin_resolves_to_its_own_rows(db_session, manager_role):
     from app.schemas.erp.user import RoleResponse
 
     allowed = RoleResponse.model_validate(manager_role).allowed_permissions
 
-    assert "transactions:view" in allowed
-    assert "finance:approve_payments" not in allowed
+    assert sorted(allowed) == ["transactions:create", "transactions:view"]
 
 
 # ---------------------------------------------------------------------------
-# get_staff_permissions (regression: it filtered on RolePermissions.is_allowed,
-# so a Super Admin — whose rows all carry NULL — resolved to nothing. Both
-# callers happened to short-circuit on the role name first, so the bug was
-# latent; any new caller would have been silently denied.)
+# get_staff_permissions (regression: a Super Admin's rows don't cover every
+# permission, so resolving it through role_permissions under-reported.)
 # ---------------------------------------------------------------------------
 
 
-def _super_admin_staff(db_session, permissions, *, null_row_for=None):
+def _super_admin_staff(db_session, permissions, *, row_for=None):
     role = Role(name="Super Admin")
     db_session.add(role)
     db_session.commit()
     db_session.refresh(role)
 
-    if null_row_for:
+    if row_for:
         db_session.add(
             RolePermissions(
                 role_id=role.id,
-                permission_id=permissions[null_row_for].id,
-                is_allowed=None,
+                permission_id=permissions[row_for].id,
             )
         )
 
@@ -320,9 +337,7 @@ def test_get_staff_permissions_super_admin_resolves_to_every_permission(
 ):
     from app.services.erp_user import ERPService
 
-    staff = _super_admin_staff(
-        db_session, permissions, null_row_for="transactions:view"
-    )
+    staff = _super_admin_staff(db_session, permissions, row_for="transactions:view")
 
     resolved = ERPService.get_staff_permissions(db_session, staff.id)
 
@@ -381,4 +396,4 @@ def test_get_staff_permissions_non_super_admin_still_applies_overrides(
 
     assert "transactions:view" in resolved          # role default
     assert "transactions:create" not in resolved    # stripped by override
-    assert "finance:approve_payments" not in resolved  # is_allowed = False
+    assert "finance:approve_payments" not in resolved  # not a role default
