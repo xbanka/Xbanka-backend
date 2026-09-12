@@ -8,10 +8,11 @@ from app.core.email import send_invite_email
 from app.core.enums import Permission
 from app.db.database import get_db
 from app.models.role_change_log import RoleChangeLog
-from app.schemas.erp.audit import RoleChangeProposedResponse
+from app.schemas.erp.audit import RoleChangeDetail, RoleChangeProposedResponse
 from app.schemas.erp.user import (
     AllStaffResponse,
     InviteStaffRequest,
+    StaffListItem,
     UpdatePermissionsRequest,
     UpdatePermissionsResponse,
     UpdateStaffRequest,
@@ -39,7 +40,22 @@ def get_all_staff(
     current_user: CurrentUser = Depends(require_permissions(VIEW_STAFF_LIST))
 ):
     staff_members = ERPService.get_all_staff(db)
-    return {"staff": staff_members, "count": len(staff_members)}
+    pending = ERPService.get_pending_role_changes(
+        db, [member.id for member in staff_members]
+    )
+
+    items = []
+    for member in staff_members:
+        item = StaffListItem.model_validate(member)
+        role_change = pending.get(member.id)
+        if role_change is not None:
+            item.role_change = RoleChangeDetail(
+                previous_role=role_change.previous_role,
+                new_role=role_change.new_role,
+            )
+        items.append(item)
+
+    return {"staff": items, "count": len(items)}
 
 
 @staff.post("/invite", status_code=status.HTTP_200_OK)
