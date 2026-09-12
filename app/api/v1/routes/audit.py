@@ -52,9 +52,7 @@ def get_role_changes(
 def confirm_role_change(
     role_change_id: UUID,
     db: Session = Depends(get_db),
-    current_user: CurrentUser = Depends(
-        require_account_type("erp", allow_pending_role_change=True)
-    ),
+    current_user: CurrentUser = Depends(require_account_type("erp")),
 ):
     role_change = ERPService.confirm_role_change(db, role_change_id, current_user.user)
     return {"message": "Role change confirmed.", "status": role_change.status}
