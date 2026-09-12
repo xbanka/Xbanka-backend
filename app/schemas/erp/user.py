@@ -12,7 +12,7 @@ from pydantic import (
     model_validator,
 )
 
-from app.schemas.erp.audit import PendingRoleChangeSummary
+from app.schemas.erp.audit import PendingRoleChangeSummary, RoleChangeDetail
 
 
 class PermissionResponse(BaseModel):
@@ -31,7 +31,7 @@ class RoleResponse(BaseModel):
     allowed_permissions: List[str]
 
 
-class ERPMeResponse(BaseModel):
+class StaffBase(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
     id: UUID
@@ -42,13 +42,22 @@ class ERPMeResponse(BaseModel):
     role: RoleResponse
     created_at: datetime
     verified: bool
+
+
+class ERPMeResponse(StaffBase):
     pending_role_change: Optional[PendingRoleChangeSummary] = None
+
+
+class StaffListItem(StaffBase):
+    # Set only while a role change awaits the staff member's confirmation;
+    # null when there's none or once it has been confirmed.
+    role_change: Optional[RoleChangeDetail] = None
 
 
 class AllStaffResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
-    staff: List[ERPMeResponse]
+    staff: List[StaffListItem]
     count: int
 
 
