@@ -166,6 +166,33 @@ def test_superseded_and_confirmed_proposals_resolve_their_notifications(
     assert notification_statuses()[second_id] == "RESOLVED"
 
 
+def test_staff_list_shows_role_change_only_while_pending(
+    test_client, db_session, verified_superadmin
+):
+    viewer_role = _make_role(db_session, "Viewer")
+    _make_role(db_session, "Manager")
+    target = _make_staff(db_session, viewer_role, "target6@example.com")
+    bystander = _make_staff(db_session, viewer_role, "bystander@example.com")
+    target_id, bystander_id = str(target.id), str(bystander.id)
+
+    def role_changes():
+        response = test_client.get(
+            "/api/staff/all", headers=_headers(verified_superadmin)
+        )
+        assert response.status_code == 200
+        return {s["id"]: s["role_change"] for s in response.json()["staff"]}
+
+    assert role_changes()[target_id] is None
+
+    propose = _propose_role_change(test_client, verified_superadmin, target, "Manager")
+    changes = role_changes()
+    assert changes[target_id] == {"previous_role": "Viewer", "new_role": "Manager"}
+    assert changes[bystander_id] is None
+
+    assert _confirm(test_client, target, propose.json()["role_change_id"]).status_code == 200
+    assert role_changes()[target_id] is None
+
+
 def test_only_the_affected_staff_member_can_confirm(
     test_client, db_session, verified_superadmin
 ):
