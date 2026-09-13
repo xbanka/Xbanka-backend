@@ -126,6 +126,34 @@ async def send_forgot_password_email(
     )
 
 
+async def send_password_changed_email(
+    recipient: str,
+    email_type: EmailTypeEnum,
+    first_name: str,
+    last_name: str,
+    changed_at: str,
+    reset_url: str,
+    background_tasks: BackgroundTasks,
+):
+    _resolve_frontend_url(email_type)
+
+    html, text = email_templates.password_changed_email(
+        first_name=first_name,
+        last_name=last_name,
+        changed_at=changed_at,
+        reset_url=reset_url,
+        product=product_map.get(email_type, "Xbanka"),
+    )
+
+    background_tasks.add_task(
+        _dispatch,
+        "Your Password Was Changed",
+        _recipients(recipient),
+        html,
+        text,
+    )
+
+
 async def send_invite_email(
     recipient: str, signup_url: str, background_tasks: BackgroundTasks
 ):
