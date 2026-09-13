@@ -128,7 +128,7 @@ class ERPService(Service):
     @staticmethod
     def change_password(
         db: Session, user_id: UUID, current_password: str, new_password: str
-    ) -> None:
+    ) -> ERPUser:
         erp_user = ERPService.get_user_by_id(db, user_id)
 
         # 400 rather than 401: the caller is authenticated, and a 401 would
@@ -161,6 +161,17 @@ class ERPService(Service):
             raise HTTPException(
                 status_code=500, detail=f"An error occurred saving entity: {e}"
             )
+
+        ERPService.new_notification(
+            db,
+            recipients=[erp_user],
+            message="Your password was changed. If this wasn't you, reset your password immediately.",
+            reference_type=NotificationReferenceTypeEnum.STAFF_ACCOUNT,
+            reference_id=erp_user.id,
+        )
+        db.refresh(erp_user)
+
+        return erp_user
 
     @staticmethod
     def _push_notification(db: Session, event: str, notif: Notification) -> None:
