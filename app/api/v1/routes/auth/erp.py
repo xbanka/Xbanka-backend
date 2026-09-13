@@ -14,6 +14,7 @@ from app.core.enums import EmailTypeEnum, LoginStatusEnum
 from app.db.database import get_db
 from app.models.erp_user import ERPUser
 from app.schemas.erp.user import (
+    ChangePasswordRequest,
     ForgotPasswordRequest,
     ForgotPasswordResponse,
     LoginBase,
@@ -26,7 +27,9 @@ from app.schemas.erp.user import (
 )
 from app.services.auth import AuthService
 from app.services.erp_user import ERPService
+from app.utils.auth import require_account_type
 from app.utils.request import get_client_ip
+from app.utils.schema import CurrentUser
 from app.utils.settings import settings
 
 erp = APIRouter(prefix="/erp")
@@ -228,3 +231,19 @@ def reset_password(reset_request: ResetPasswordRequest, db: Session = Depends(ge
     )
 
     return {"message": "Password has been reset successfully"}
+
+
+@erp.post("/change-password", response_model=ForgotPasswordResponse)
+def change_password(
+    change_request: ChangePasswordRequest,
+    db: Session = Depends(get_db),
+    current_user: CurrentUser = Depends(require_account_type("erp")),
+):
+    ERPService.change_password(
+        db,
+        current_user.user.id,
+        change_request.current_password,
+        change_request.new_password,
+    )
+
+    return {"message": "Password has been changed successfully"}
