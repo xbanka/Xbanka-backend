@@ -4,7 +4,6 @@ from decimal import Decimal
 from typing import Optional
 
 from sqlalchemy import DECIMAL, DateTime, Enum, ForeignKey, String
-from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.core.enums import PayoutStatusEnum, UploadStatusEnum
