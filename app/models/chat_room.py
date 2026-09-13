@@ -1,3 +1,4 @@
+import uuid
 from datetime import datetime
 
 from sqlalchemy import Boolean, DateTime, ForeignKey, String
@@ -13,10 +14,10 @@ Base = declarative_base()
 class ChatRoom(BaseModel):
     __tablename__ = "chat_rooms"
 
-    customer_id: Mapped[UUID] = mapped_column(ForeignKey("customers.id"))
+    customer_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("customers.id"))
     customer = relationship("Customer", back_populates="chat_rooms")
 
-    assigned_to: Mapped[UUID] = mapped_column(
+    assigned_to: Mapped[uuid.UUID] = mapped_column(
         ForeignKey("erp_users.id"), nullable=True
     )
     assigned_staff = relationship("ERPUser", back_populates="assiged_chat_rooms")

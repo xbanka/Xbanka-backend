@@ -1,3 +1,4 @@
+import uuid
 from datetime import datetime
 from decimal import Decimal
 from typing import Optional
@@ -27,7 +28,7 @@ class Payout(BaseModel):
 
     attachment_url: Mapped[str] = mapped_column(String, nullable=True)
 
-    affiliate_id: Mapped[UUID] = mapped_column(
+    affiliate_id: Mapped[uuid.UUID] = mapped_column(
         ForeignKey("affiliates.id"), nullable=False, index=True
     )
 

@@ -1,3 +1,4 @@
+import uuid
 from datetime import date
 from decimal import Decimal
 
@@ -15,7 +16,7 @@ class AffiliateMonthlyVolume(BaseModel):
         UniqueConstraint("affiliate_id", "month", name="uix_affiliate_monthly_volume"),
     )
 
-    affiliate_id: Mapped[UUID] = mapped_column(
+    affiliate_id: Mapped[uuid.UUID] = mapped_column(
         ForeignKey("affiliates.id"), nullable=False, index=True
     )
     month: Mapped[date] = mapped_column(Date, nullable=False)  # Format: 'YYYY-MM'
