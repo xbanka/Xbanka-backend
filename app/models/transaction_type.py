@@ -1,5 +1,5 @@
+import uuid
 from sqlalchemy import ForeignKey, String
-from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.models.base_model import BaseModel
@@ -10,7 +10,7 @@ class TransactionType(BaseModel):
 
     name: Mapped[str] = mapped_column(String, nullable=False, index=True)
 
-    service_type_id: Mapped[UUID] = mapped_column(
+    service_type_id: Mapped[uuid.UUID] = mapped_column(
         ForeignKey("service_types.id"), nullable=False, index=True
     )
 

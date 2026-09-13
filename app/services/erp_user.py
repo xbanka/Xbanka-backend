@@ -10,7 +10,6 @@ from fastapi import HTTPException, UploadFile, status
 from fastapi.encoders import jsonable_encoder
 from psycopg2 import IntegrityError
 from sqlalchemy import and_, func, or_, select
-from sqlalchemy.dialects.postgresql import UUID as SA_UUID
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session, joinedload
 
@@ -266,8 +265,8 @@ class ERPService(Service):
         reference_type: NotificationReferenceTypeEnum,
         amount: Decimal | str | None = None,
         method: PayoutMethodEnum | None = None,
-        affiliate_id: SA_UUID | None = None,
-        reference_id: SA_UUID | None = None,
+        affiliate_id: UUID | None = None,
+        reference_id: UUID | None = None,
         status: NotificationStatusEnum = NotificationStatusEnum.ACTIVE,
     ) -> List[Notification]:
         """Create one notification row per recipient, so read state is per-user."""
@@ -301,7 +300,7 @@ class ERPService(Service):
     def resolve_notifications_for_reference(
         db: Session,
         reference_type: NotificationReferenceTypeEnum,
-        reference_id: SA_UUID,
+        reference_id: UUID,
     ) -> None:
         """Mark every notification pointing at `reference_id` as RESOLVED, so
         the frontend stops offering an action (e.g. approve/reject) on it once
@@ -916,8 +915,8 @@ class ERPService(Service):
 
     @staticmethod
     def get_pending_role_changes(
-        db: Session, staff_ids: Sequence[SA_UUID]
-    ) -> dict[SA_UUID, RoleChangeLog]:
+        db: Session, staff_ids: Sequence[UUID]
+    ) -> dict[UUID, RoleChangeLog]:
         """Pending role changes for `staff_ids`, keyed by staff id. A new
         proposal supersedes earlier ones, so there's at most one per staff."""
         if not staff_ids:
