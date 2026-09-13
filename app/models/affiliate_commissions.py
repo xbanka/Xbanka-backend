@@ -1,8 +1,8 @@
+import uuid
 from datetime import date
 from decimal import Decimal
 
 from sqlalchemy import Date, ForeignKey, Numeric, UniqueConstraint
-from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.models.base_model import BaseModel
@@ -17,10 +17,10 @@ class AffiliateCommission(BaseModel):
         ),
     )
 
-    affiliate_id: Mapped[UUID] = mapped_column(
+    affiliate_id: Mapped[uuid.UUID] = mapped_column(
         ForeignKey("affiliates.id"), nullable=False, index=True
     )
-    transaction_id: Mapped[UUID] = mapped_column(
+    transaction_id: Mapped[uuid.UUID] = mapped_column(
         ForeignKey("transactions.id"), nullable=False, index=True
     )
     commission_amount: Mapped[Decimal] = mapped_column(Numeric(12, 2), nullable=False)

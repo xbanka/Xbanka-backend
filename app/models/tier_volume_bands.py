@@ -1,7 +1,7 @@
+import uuid
 from decimal import Decimal
 
 from sqlalchemy import ForeignKey, Numeric, String
-from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.models.base_model import BaseModel
@@ -11,7 +11,7 @@ class TierVolumeBand(BaseModel):
     __tablename__ = "tier_volume_bands"
 
     tier_name: Mapped[str] = mapped_column(String, nullable=False)
-    tier_id: Mapped[UUID] = mapped_column(
+    tier_id: Mapped[uuid.UUID] = mapped_column(
         ForeignKey("affiliate_tiers.id"), nullable=False, index=True
     )
     min_volume: Mapped[Decimal] = mapped_column(Numeric(18, 2), nullable=False)

@@ -1,3 +1,4 @@
+import uuid
 from sqlalchemy import ForeignKey, Enum, Integer, String
 from sqlalchemy.dialects.postgresql import UUID, JSONB
 from sqlalchemy.orm import relationship, mapped_column, Mapped
@@ -19,12 +20,12 @@ class RateApprovalRequest(BaseModel):
         JSONB,
         nullable=False
     )
-    target_id: Mapped[UUID] = mapped_column(
+    target_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True),
         nullable=False,
         index=True
     )
-    requested_by_id: Mapped[UUID] = mapped_column(
+    requested_by_id: Mapped[uuid.UUID] = mapped_column(
         ForeignKey("erp_users.id"),
         nullable=False, index=True
     )
