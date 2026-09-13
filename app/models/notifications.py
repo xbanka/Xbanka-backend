@@ -1,3 +1,4 @@
+import uuid
 from datetime import datetime
 from typing import Optional
 
@@ -18,7 +19,7 @@ class Notification(BaseModel):
     __tablename__ = "notifications"
     __table_args__ = (Index("ix_notifications_user_read", "user_id", "is_read"),)
 
-    user_id: Mapped[UUID] = mapped_column(
+    user_id: Mapped[uuid.UUID] = mapped_column(
         ForeignKey("erp_users.id", ondelete="CASCADE"), nullable=False, index=True
     )
     message: Mapped[str] = mapped_column(String(200), nullable=False)
@@ -42,7 +43,7 @@ class Notification(BaseModel):
         Enum(NotificationReferenceTypeEnum), nullable=False, index=True
     )
 
-    reference_id: Mapped[Optional[UUID]] = mapped_column(
+    reference_id: Mapped[Optional[uuid.UUID]] = mapped_column(
         UUID(as_uuid=True), nullable=True
     )
     status: Mapped[NotificationStatusEnum] = mapped_column(
@@ -52,7 +53,7 @@ class Notification(BaseModel):
         server_default=NotificationStatusEnum.ACTIVE.value,
         index=True,
     )
-    affiliate_id: Mapped[Optional[UUID]] = mapped_column(
+    affiliate_id: Mapped[Optional[uuid.UUID]] = mapped_column(
         ForeignKey("affiliates.id"), nullable=True, index=True
     )
 
