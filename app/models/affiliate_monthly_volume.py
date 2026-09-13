@@ -1,8 +1,8 @@
+import uuid
 from datetime import date
 from decimal import Decimal
 
 from sqlalchemy import Date, ForeignKey, Numeric, UniqueConstraint
-from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.models.base_model import BaseModel
@@ -15,7 +15,7 @@ class AffiliateMonthlyVolume(BaseModel):
         UniqueConstraint("affiliate_id", "month", name="uix_affiliate_monthly_volume"),
     )
 
-    affiliate_id: Mapped[UUID] = mapped_column(
+    affiliate_id: Mapped[uuid.UUID] = mapped_column(
         ForeignKey("affiliates.id"), nullable=False, index=True
     )
     month: Mapped[date] = mapped_column(Date, nullable=False)  # Format: 'YYYY-MM'
