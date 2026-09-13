@@ -1,3 +1,5 @@
+from datetime import datetime, timezone
+
 from fastapi import (
     APIRouter,
     BackgroundTasks,
@@ -9,7 +11,7 @@ from fastapi import (
 )
 from sqlalchemy.orm import Session
 
-from app.core.email import send_forgot_password_email
+from app.core.email import send_forgot_password_email, send_password_changed_email
 from app.core.enums import EmailTypeEnum, LoginStatusEnum
 from app.db.database import get_db
 from app.models.erp_user import ERPUser
@@ -234,16 +236,28 @@ def reset_password(reset_request: ResetPasswordRequest, db: Session = Depends(ge
 
 
 @erp.post("/change-password", response_model=ForgotPasswordResponse)
-def change_password(
+async def change_password(
     change_request: ChangePasswordRequest,
+    background_tasks: BackgroundTasks,
     db: Session = Depends(get_db),
     current_user: CurrentUser = Depends(require_account_type("erp")),
 ):
-    ERPService.change_password(
+    user = ERPService.change_password(
         db,
         current_user.user.id,
         change_request.current_password,
         change_request.new_password,
+    )
+
+    # Security alert: reaches the owner even if someone else changed it.
+    await send_password_changed_email(
+        recipient=user.email,
+        email_type=EmailTypeEnum.erp,
+        first_name=str(user.first_name),
+        last_name=str(user.last_name),
+        changed_at=datetime.now(timezone.utc).strftime("%d %B %Y at %H:%M UTC"),
+        reset_url=f"{ERP_FRONTEND_URL}/forgot-password",
+        background_tasks=background_tasks,
     )
 
     return {"message": "Password has been changed successfully"}
