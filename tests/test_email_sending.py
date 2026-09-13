@@ -113,6 +113,30 @@ def test_password_reset_sends_both_parts(sent):
     assert params["from"] == email.RESEND_FROM
 
 
+def test_password_changed_alert_includes_time_and_reset_link(sent):
+    background_tasks = BackgroundTasks()
+
+    _run(
+        email.send_password_changed_email(
+            recipient="user@example.com",
+            email_type=EmailTypeEnum.erp,
+            first_name="Joshua",
+            last_name="Oloton",
+            changed_at="13 September 2026 at 14:05 UTC",
+            reset_url="https://erp.xbankang.com/forgot-password",
+            background_tasks=background_tasks,
+        )
+    )
+    _run(background_tasks())
+
+    (params,) = sent
+    assert params["subject"] == "Your Password Was Changed"
+    for part in (params["html"], params["text"]):
+        assert "13 September 2026 at 14:05 UTC" in part
+        assert "https://erp.xbankang.com/forgot-password" in part
+    assert "Xbanka ERP" in params["html"]
+
+
 def test_upstream_failure_does_not_propagate(sent, mocker):
     """The response has already been returned by the time this runs, so a
     delivery failure must be logged rather than raised."""

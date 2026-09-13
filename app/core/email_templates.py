@@ -246,6 +246,47 @@ def password_reset_email(
     return html, text
 
 
+def password_changed_email(
+    first_name: str, last_name: str, changed_at: str, reset_url: str, product: str
+) -> tuple[str, str]:
+    """(html, text) for the password-changed security alert."""
+    greeting = f"Hello {_full_name(first_name, last_name)},"
+    paragraphs = [
+        f"The password on your {escape(product)} account was changed on "
+        f"{escape(changed_at)}.",
+        "If you made this change, no further action is needed.",
+    ]
+    notice = (
+        "If you didn't change your password, reset it immediately using the "
+        f"button above and contact {SUPPORT_EMAIL} — someone else may have "
+        "access to your account."
+    )
+
+    html = _render(
+        title="Your Password Was Changed",
+        preheader="The password on your Xbanka account was just changed.",
+        heading="Your password was changed",
+        greeting=greeting,
+        paragraphs=paragraphs,
+        cta_label="Reset Password",
+        cta_url=reset_url,
+        notice=notice,
+        product=product,
+    )
+    text = _plaintext(
+        heading="Your password was changed",
+        greeting=f"Hello {' '.join(p for p in [first_name, last_name] if p) or 'there'},",
+        paragraphs=[
+            f"The password on your {product} account was changed on {changed_at}.",
+            "If you made this change, no further action is needed.",
+        ],
+        cta_label="Didn't do this? Reset your password",
+        cta_url=reset_url,
+        notice=notice,
+    )
+    return html, text
+
+
 def staff_invite_email(signup_url: str) -> tuple[str, str]:
     """(html, text) for the ERP staff invitation."""
     paragraphs = [
