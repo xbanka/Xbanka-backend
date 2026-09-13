@@ -1,8 +1,9 @@
+import uuid
 from datetime import datetime
 from typing import List, Optional
 
 from sqlalchemy import DateTime, Enum, ForeignKey, String
-from sqlalchemy.dialects.postgresql import JSONB, UUID
+from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.core.enums import RoleChangeStatusEnum
@@ -12,14 +13,14 @@ from app.models.base_model import BaseModel
 class RoleChangeLog(BaseModel):
     __tablename__ = "role_change_logs"
 
-    staff_id: Mapped[UUID] = mapped_column(
+    staff_id: Mapped[uuid.UUID] = mapped_column(
         ForeignKey("erp_users.id"), nullable=False, index=True
     )
     staff = relationship(
         "ERPUser", foreign_keys=[staff_id], back_populates="role_changes"
     )
 
-    requested_by_id: Mapped[UUID] = mapped_column(
+    requested_by_id: Mapped[uuid.UUID] = mapped_column(
         ForeignKey("erp_users.id"), nullable=False, index=True
     )
     requested_by = relationship(

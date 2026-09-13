@@ -1,5 +1,5 @@
+import uuid
 from sqlalchemy import Boolean, ForeignKey, String, Enum
-from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.core.enums import AuthProviderEnum
@@ -26,7 +26,7 @@ class Affiliate(BaseModel):
     auth_provider: Mapped[AuthProviderEnum] = mapped_column(Enum(AuthProviderEnum), nullable=False, default=AuthProviderEnum.email)  # 'email' or 'google'
     google_id: Mapped[str] = mapped_column(String(255), nullable=True, unique=True)  # Store Google user ID for affiliates authenticated via Google
 
-    current_tier_id: Mapped[UUID] = mapped_column(
+    current_tier_id: Mapped[uuid.UUID] = mapped_column(
         ForeignKey("affiliate_tiers.id"), nullable=True, index=True
     )
 

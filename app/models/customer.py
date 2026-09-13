@@ -1,5 +1,5 @@
+import uuid
 from sqlalchemy import Boolean, DateTime, ForeignKey, String
-from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.models.base_model import BaseModel
@@ -21,7 +21,7 @@ class Customer(BaseModel):
         DateTime(timezone=True), nullable=True
     )  # time of first transaction
 
-    affiliate_id: Mapped[UUID] = mapped_column(
+    affiliate_id: Mapped[uuid.UUID] = mapped_column(
         ForeignKey("affiliates.id"), nullable=True, index=True
     )
 

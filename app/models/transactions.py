@@ -1,7 +1,7 @@
+import uuid
 from decimal import Decimal
 
 from sqlalchemy import DECIMAL, Computed, Enum, ForeignKey, Numeric, String
-from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.core.enums import CryptoPairEnum, ServiceTypeEnum, TransactionStatusEnum, UploadStatusEnum
@@ -62,7 +62,7 @@ class Transaction(BaseModel):
 
     attachment_url: Mapped[str] = mapped_column(String, nullable=True)
 
-    customer_id: Mapped[UUID] = mapped_column(
+    customer_id: Mapped[uuid.UUID] = mapped_column(
         ForeignKey("customers.id"), nullable=False, index=True
     )
 
