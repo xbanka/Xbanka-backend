@@ -2,7 +2,6 @@ import uuid
 from typing import Optional
 
 from sqlalchemy import Enum, ForeignKey, String
-from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.core.enums import LoginStatusEnum
