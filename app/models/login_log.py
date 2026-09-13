@@ -1,3 +1,4 @@
+import uuid
 from typing import Optional
 
 from sqlalchemy import Enum, ForeignKey, String
@@ -13,7 +14,7 @@ class LoginLog(BaseModel):
 
     attempted_email: Mapped[str] = mapped_column(String, nullable=False, index=True)
 
-    user_id: Mapped[Optional[UUID]] = mapped_column(
+    user_id: Mapped[Optional[uuid.UUID]] = mapped_column(
         ForeignKey("erp_users.id"), nullable=True, index=True
     )
     user = relationship("ERPUser", back_populates="login_attempts")

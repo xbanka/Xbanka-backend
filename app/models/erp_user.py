@@ -1,3 +1,4 @@
+import uuid
 import secrets
 
 from sqlalchemy import Boolean, ForeignKey, String
@@ -33,7 +34,7 @@ class ERPUser(BaseModel):
 
     verified: Mapped[bool] = mapped_column(Boolean, nullable=False)
 
-    role_id: Mapped[UUID] = mapped_column(
+    role_id: Mapped[uuid.UUID] = mapped_column(
         ForeignKey("roles.id"), nullable=False, index=True
     )
     role = relationship("Role", back_populates="users")

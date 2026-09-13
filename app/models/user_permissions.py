@@ -1,3 +1,4 @@
+import uuid
 from sqlalchemy import Boolean, DateTime, ForeignKey, func
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
@@ -8,10 +9,10 @@ from app.db.database import Base
 class UserPermissions(Base):
     __tablename__ = "user_permissions"
 
-    user_id: Mapped[UUID] = mapped_column(
+    user_id: Mapped[uuid.UUID] = mapped_column(
         ForeignKey("erp_users.id", ondelete="CASCADE"), primary_key=True
     )
-    permission_id: Mapped[UUID] = mapped_column(
+    permission_id: Mapped[uuid.UUID] = mapped_column(
         ForeignKey("permissions.id", ondelete="CASCADE"), primary_key=True
     )
 
