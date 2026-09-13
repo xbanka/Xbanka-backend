@@ -126,6 +126,54 @@ class ERPService(Service):
         pass
 
     @staticmethod
+    def change_password(
+        db: Session, user_id: UUID, current_password: str, new_password: str
+    ) -> ERPUser:
+        erp_user = ERPService.get_user_by_id(db, user_id)
+
+        # 400 rather than 401: the caller is authenticated, and a 401 would
+        # read to the frontend as an expired session and log them out.
+        if not erp_user.hashed_password or not Hasher.verify_password(
+            current_password, erp_user.hashed_password
+        ):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Current password is incorrect.",
+            )
+
+        if Hasher.verify_password(new_password, erp_user.hashed_password):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="New password must be different from your current password.",
+            )
+
+        if not is_valid_password(new_password):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Password must be at least 8 characters long and contain at least one uppercase letter, one lowercase letter, one digit, and one special character.",
+            )
+
+        try:
+            erp_user.hashed_password = Hasher.get_password_hash(new_password)
+            db.commit()
+        except SQLAlchemyError as e:
+            db.rollback()
+            raise HTTPException(
+                status_code=500, detail=f"An error occurred saving entity: {e}"
+            )
+
+        ERPService.new_notification(
+            db,
+            recipients=[erp_user],
+            message="Your password was changed. If this wasn't you, reset your password immediately.",
+            reference_type=NotificationReferenceTypeEnum.STAFF_ACCOUNT,
+            reference_id=erp_user.id,
+        )
+        db.refresh(erp_user)
+
+        return erp_user
+
+    @staticmethod
     def _push_notification(db: Session, event: str, notif: Notification) -> None:
         counts = ERPService.get_notification_counts(db, notif.user_id)
         notification_manager.send_to_user_threadsafe(
