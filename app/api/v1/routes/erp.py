@@ -30,7 +30,7 @@ from app.schemas.erp.notifications import (
 )
 from app.schemas.erp.audit import PendingRoleChangeSummary
 from app.schemas.erp.payout import ERPPaginatedPayoutResponse, ERPPayoutResponse, ERPPayoutDetailResponse, ERPProcessPayoutResponse
-from app.schemas.erp.user import ERPMeResponse
+from app.schemas.erp.user import ERPMeResponse, UpdateERPRequest
 from app.schemas.payout import ProcessPayoutRequest
 from app.services.auth import AuthService
 from app.services.erp_user import ERPService
@@ -46,13 +46,11 @@ APPROVE_AFFILIATE_PAYOUTS = PermissionEnum.APPROVE_AFFILIATE_PAYOUTS
 VIEW_TRANSACTIONS = PermissionEnum.VIEW_TRANSACTIONS
 
 
-@erp.get("/me", status_code=status.HTTP_200_OK, response_model=ERPMeResponse)
-def get_current_erp(
-    db: Session = Depends(get_db),
-    current_user: CurrentUser = Depends(require_account_type("erp")),
-):
-    pending = ERPService.get_pending_role_change(db, current_user.user.id)
-    me = ERPMeResponse.model_validate(current_user.user)
+def _me_response(db: Session, user) -> ERPMeResponse:
+    """Shared by GET and PATCH /me, so the frontend can replace its cached
+    profile with either response."""
+    me = ERPMeResponse.model_validate(user)
+    pending = ERPService.get_pending_role_change(db, user.id)
     if pending is not None:
         me.pending_role_change = PendingRoleChangeSummary(
             id=pending.id,
@@ -62,6 +60,34 @@ def get_current_erp(
             created_at=pending.created_at,
         )
     return me
+
+
+@erp.get("/me", status_code=status.HTTP_200_OK, response_model=ERPMeResponse)
+def get_current_erp(
+    db: Session = Depends(get_db),
+    current_user: CurrentUser = Depends(require_account_type("erp")),
+):
+    return _me_response(db, current_user.user)
+
+
+@erp.patch("/me", status_code=status.HTTP_200_OK, response_model=ERPMeResponse)
+def update_current_erp(
+    update_request: UpdateERPRequest,
+    db: Session = Depends(get_db),
+    current_user: CurrentUser = Depends(require_account_type("erp")),
+):
+    updated_user = ERPService.update_current_erp(db, current_user.user.id, update_request)
+    return _me_response(db, updated_user)
+
+
+@erp.post("/me/avatar", status_code=status.HTTP_200_OK, response_model=ERPMeResponse)
+def upload_current_erp_avatar(
+    avatar: UploadFile = File(...),
+    db: Session = Depends(get_db),
+    current_user: CurrentUser = Depends(require_account_type("erp")),
+):
+    updated_user = ERPService.update_avatar(db, current_user.user.id, avatar)
+    return _me_response(db, updated_user)
 
 
 @erp.get("/notifications", response_model=List[NotificationsResponse])

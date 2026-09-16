@@ -1,6 +1,26 @@
 import re
 from uuid import UUID
 
+import phonenumbers
+
+
+PHONE_INPUT_PATTERN = re.compile(r"^\+?[\d\s().-]+$")
+
+
+def normalize_phone(phone: str, default_region: str = "NG") -> str | None:
+    """E.164 form of `phone` (e.g. "+2348031234567"), or None if it isn't a
+    valid number. Numbers without a leading "+" are read as Nigerian, so
+    "08031234567" works; anything else needs its country code."""
+    if not phone or not PHONE_INPUT_PATTERN.match(phone.strip()):
+        return None
+    try:
+        parsed = phonenumbers.parse(phone, default_region)
+    except phonenumbers.NumberParseException:
+        return None
+    if not phonenumbers.is_valid_number(parsed):
+        return None
+    return phonenumbers.format_number(parsed, phonenumbers.PhoneNumberFormat.E164)
+
 
 def is_valid_phone(phone: str):
     phone_regex = r"^(?:\+234[789][01]\d{8}|0[789][01]\d{8}|\+\d{1,15})$"

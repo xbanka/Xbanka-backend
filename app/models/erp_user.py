@@ -30,6 +30,10 @@ class ERPUser(BaseModel):
         String(20), unique=True, nullable=False, index=True, default=_default_staff_code
     )
     hashed_password: Mapped[str] = mapped_column(String(255), nullable=True)
+    # E.164 (e.g. +2348031234567); normalised by app.utils.validators.normalize_phone
+    phone: Mapped[str | None] = mapped_column(String(20), nullable=True)
+    # S3 object path of the profile picture, e.g. "avatars/<id>_<hex>.png"
+    avatar_url: Mapped[str | None] = mapped_column(String(255), nullable=True)
 
     verified: Mapped[bool] = mapped_column(Boolean, nullable=False)
 
