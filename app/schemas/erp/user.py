@@ -13,6 +13,7 @@ from pydantic import (
 )
 
 from app.schemas.erp.audit import PendingRoleChangeSummary, RoleChangeDetail
+from app.utils.validators import normalize_phone
 
 
 class PermissionResponse(BaseModel):
@@ -39,6 +40,8 @@ class StaffBase(BaseModel):
     first_name: str
     last_name: str
     email: EmailStr
+    phone: Optional[str] = None
+    avatar_url: Optional[str] = None
     role: RoleResponse
     created_at: datetime
     verified: bool
@@ -46,6 +49,57 @@ class StaffBase(BaseModel):
 
 class ERPMeResponse(StaffBase):
     pending_role_change: Optional[PendingRoleChangeSummary] = None
+
+
+class UpdateERPRequest(BaseModel):
+    """A staff member's edits to their own profile. Omitted fields are left
+    as they are; phone can be sent as null or "" to clear it."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    first_name: Optional[str] = None
+    last_name: Optional[str] = None
+    phone: Optional[str] = None
+
+    @field_validator("first_name", "last_name", mode="before")
+    @classmethod
+    def _clean_name(cls, v, info: ValidationInfo):
+        # field_name is typed Optional; it's always set here, since this
+        # validator is only attached to first_name and last_name.
+        label = (info.field_name or "name").replace("_", " ").capitalize()
+        if v is None or (isinstance(v, str) and not v.strip()):
+            raise HTTPException(status_code=400, detail=f"{label} cannot be empty.")
+        if not isinstance(v, str):
+            raise HTTPException(status_code=400, detail=f"{label} must be text.")
+        v = v.strip()
+        if len(v) > 100:  # matches the erp_users column length
+            raise HTTPException(
+                status_code=400, detail=f"{label} must be at most 100 characters."
+            )
+        return v
+
+    @field_validator("phone", mode="before")
+    @classmethod
+    def _normalize_phone(cls, v):
+        if v is None or (isinstance(v, str) and not v.strip()):
+            return None
+        normalized = normalize_phone(v) if isinstance(v, str) else None
+        if normalized is None:
+            raise HTTPException(
+                status_code=400,
+                detail="Invalid phone number. Use a Nigerian number (e.g. 08031234567) "
+                "or include the country code (e.g. +447911123456).",
+            )
+        return normalized
+
+    @model_validator(mode="after")
+    def _require_a_field(self):
+        if not self.model_fields_set:
+            raise HTTPException(
+                status_code=400,
+                detail="Provide at least one of first_name, last_name or phone.",
+            )
+        return self
 
 
 class StaffListItem(StaffBase):

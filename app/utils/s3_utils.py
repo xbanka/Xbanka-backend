@@ -37,6 +37,38 @@ def validate_file(file: UploadFile, id: UUID) -> str:
     return key
 
 
+ALLOWED_IMAGE_EXTENSIONS = {"jpg", "jpeg", "png", "webp"}
+
+ALLOWED_IMAGE_CONTENT_TYPES = {
+    "image/jpeg",
+    "image/png",
+    "image/webp",
+}
+
+MAX_IMAGE_BYTES = 5 * 1024 * 1024
+
+
+def validate_image(file: UploadFile, id: UUID) -> str:
+    """Like validate_file, but images only (no PDFs) and size-capped - for
+    avatars, which are displayed in the browser rather than downloaded."""
+    filename = file.filename
+
+    if not filename:
+        raise HTTPException(400, "Filename not found")
+
+    ext = Path(filename).suffix.lower().lstrip(".")
+    if ext not in ALLOWED_IMAGE_EXTENSIONS:
+        raise HTTPException(400, "Invalid file type. Use a JPG, PNG or WebP image")
+
+    if file.content_type not in ALLOWED_IMAGE_CONTENT_TYPES:
+        raise HTTPException(400, "Invalid content type. Use a JPG, PNG or WebP image")
+
+    if file.size is not None and file.size > MAX_IMAGE_BYTES:
+        raise HTTPException(400, "Image is too large. The limit is 5MB")
+
+    return f"{id}_{uuid4().hex}.{ext}"
+
+
 def upload_file(file, bucket, object_name=None):
     """Upload a file to an S3 bucket
 

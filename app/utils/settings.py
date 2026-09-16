@@ -46,6 +46,10 @@ class Settings(BaseSettings):
 
     S3_BUCKET_TRANSACTIONS: str
     S3_BUCKET_PAYOUTS: str
+    # Staff profile pictures. Defaulted rather than required so the app still
+    # boots before the bucket exists; the upload in ERPService.update_avatar is
+    # commented out until then.
+    S3_BUCKET_AVATARS: str = ""
 
     AWS_ACCESS_KEY_ID: str
     AWS_SECRET_ACCESS_KEY: str
