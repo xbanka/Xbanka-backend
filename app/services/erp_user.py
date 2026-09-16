@@ -38,10 +38,10 @@ from app.schemas.payout import ProcessPayoutRequest
 from app.services.affiliate import AffiliateService
 from app.schemas.erp.notifications import NotificationsResponse
 from app.schemas.erp.payout import ERPPayoutDetailResponse
-from app.schemas.erp.user import RegisterBase
+from app.schemas.erp.user import RegisterBase, UpdateERPRequest
 from app.services.websocket_manager import notification_manager
 from app.utils.permissions import calculate_permission_overrides
-from app.utils.s3_utils import upload_file, validate_file
+from app.utils.s3_utils import upload_file, validate_file, validate_image
 from app.utils.settings import settings
 from app.utils.validators import is_valid_email, is_valid_password
 
@@ -124,6 +124,81 @@ class ERPService(Service):
     @staticmethod
     def get_current_user(db: Session):
         pass
+
+    @staticmethod
+    def update_current_erp(
+        db: Session, user_id: UUID, update_request: UpdateERPRequest
+    ) -> ERPUser:
+        """Apply a staff member's edits to their own profile. Only fields sent
+        in the request are considered; when none of them differ from what's
+        stored, nothing is written and no notification is sent."""
+        erp_user = ERPService.get_user_by_id(db, user_id)
+
+        changes = {
+            field: value
+            for field, value in update_request.model_dump(exclude_unset=True).items()
+            if getattr(erp_user, field) != value
+        }
+        if not changes:
+            return erp_user
+
+        for field, value in changes.items():
+            setattr(erp_user, field, value)
+
+        try:
+            db.commit()
+            db.refresh(erp_user)
+        except SQLAlchemyError:
+            db.rollback()
+            logger.exception("Failed to update profile for staff %s", user_id)
+            raise HTTPException(
+                status_code=500, detail="An error occurred updating your details"
+            )
+
+        ERPService.new_notification(
+            db,
+            recipients=[erp_user],
+            message="Your profile details have been updated.",
+            reference_type=NotificationReferenceTypeEnum.STAFF_ACCOUNT,
+            reference_id=erp_user.id,
+        )
+        db.refresh(erp_user)
+
+        return erp_user
+
+
+    @staticmethod
+    def update_avatar(db: Session, user_id: UUID, avatar: UploadFile) -> ERPUser:
+        """Store a staff member's own profile picture. Upload to S3."""
+        erp_user = ERPService.get_user_by_id(db, user_id)
+
+        avatar_key = validate_image(avatar, user_id)
+        avatar_url = f"avatars/{avatar_key}"
+
+        # TODO: enable once the avatars bucket and its credentials exist.
+        # upload_file(avatar.file, S3_BUCKET_AVATARS, avatar_url)
+
+        try:
+            erp_user.avatar_url = avatar_url
+            db.commit()
+            db.refresh(erp_user)
+        except SQLAlchemyError:
+            db.rollback()
+            logger.exception("Failed to save avatar for staff %s", user_id)
+            raise HTTPException(
+                status_code=500, detail="An error occurred saving your profile picture"
+            )
+
+        ERPService.new_notification(
+            db,
+            recipients=[erp_user],
+            message="Your profile picture has been updated.",
+            reference_type=NotificationReferenceTypeEnum.STAFF_ACCOUNT,
+            reference_id=erp_user.id,
+        )
+        db.refresh(erp_user)
+
+        return erp_user
 
     @staticmethod
     def change_password(
