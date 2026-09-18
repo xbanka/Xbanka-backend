@@ -5,11 +5,24 @@ from uuid import UUID
 from pydantic import BaseModel, ConfigDict
 
 from app.core.enums import (
+    NotificationActionTypeEnum,
     NotificationReferenceTypeEnum,
     NotificationStatusEnum,
     NotificationTypeEnum,
 )
 from app.schemas.affiliate import AffiliateSummaryResponse
+
+
+class NotificationAction(BaseModel):
+    """An action the recipient can still take from the notification panel.
+
+    Set only while the action is genuinely available - it disappears once the
+    underlying record is actioned - so the frontend renders the button on
+    `action` rather than guessing from `reference_type`.
+    """
+
+    type: NotificationActionTypeEnum
+    role_change_id: UUID
 
 
 class NotificationsResponse(BaseModel):
@@ -26,6 +39,7 @@ class NotificationsResponse(BaseModel):
     reference_id: Optional[UUID]
     status: NotificationStatusEnum
     affiliate: Optional[AffiliateSummaryResponse] = None
+    action: Optional[NotificationAction] = None
 
 
 class NotificationCountsResponse(BaseModel):

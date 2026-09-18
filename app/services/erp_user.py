@@ -16,6 +16,7 @@ from sqlalchemy.orm import Session, joinedload
 from app.core.base.services import Service
 from app.core.enums import (
     LoginStatusEnum,
+    NotificationActionTypeEnum,
     NotificationReferenceTypeEnum,
     NotificationStatusEnum,
     PayoutMethodEnum,
@@ -36,7 +37,7 @@ from app.models.role_permissions import RolePermissions
 from app.models.user_permissions import UserPermissions
 from app.schemas.payout import ProcessPayoutRequest
 from app.services.affiliate import AffiliateService
-from app.schemas.erp.notifications import NotificationsResponse
+from app.schemas.erp.notifications import NotificationAction, NotificationsResponse
 from app.schemas.erp.payout import ERPPayoutDetailResponse
 from app.schemas.erp.user import RegisterBase, UpdateERPRequest
 from app.services.websocket_manager import notification_manager
@@ -251,14 +252,50 @@ class ERPService(Service):
     @staticmethod
     def _push_notification(db: Session, event: str, notif: Notification) -> None:
         counts = ERPService.get_notification_counts(db, notif.user_id)
+        (data,) = ERPService.to_notification_responses(db, notif.user_id, [notif])
         notification_manager.send_to_user_threadsafe(
             str(notif.user_id),
             {
                 "event": event,
-                "data": jsonable_encoder(NotificationsResponse.model_validate(notif)),
+                "data": jsonable_encoder(data),
                 "counts": counts,
             },
         )
+
+    @staticmethod
+    def _action_for(
+        notif: Notification, pending_role_change: Optional[RoleChangeLog]
+    ) -> Optional[NotificationAction]:
+        """The action `notif` still offers its recipient, or None.
+
+        Derived rather than stored: the same row offers Confirm while the role
+        change is pending and offers nothing once it is confirmed or superseded.
+        """
+        if (
+            pending_role_change is not None
+            and notif.reference_type == NotificationReferenceTypeEnum.STAFF_ACCOUNT
+            and notif.reference_id == pending_role_change.id
+        ):
+            return NotificationAction(
+                type=NotificationActionTypeEnum.CONFIRM_ROLE_CHANGE,
+                role_change_id=pending_role_change.id,
+            )
+        return None
+
+    @staticmethod
+    def to_notification_responses(
+        db: Session, user_id: UUID, notifications: Sequence[Notification]
+    ) -> List[NotificationsResponse]:
+        """Serialise notifications with their derived `action`. A staff member
+        has at most one pending role change (proposals supersede earlier ones),
+        so a single lookup covers the whole list."""
+        pending_role_change = ERPService.get_pending_role_change(db, user_id)
+        responses = []
+        for notif in notifications:
+            response = NotificationsResponse.model_validate(notif)
+            response.action = ERPService._action_for(notif, pending_role_change)
+            responses.append(response)
+        return responses
 
     @staticmethod
     def get_notifications(
@@ -281,7 +318,7 @@ class ERPService(Service):
         if is_read is not None:
             stmt = stmt.where(Notification.is_read == is_read)
         notifications = db.execute(stmt).scalars().all()
-        return notifications
+        return ERPService.to_notification_responses(db, user_id, notifications)
 
     @staticmethod
     def get_notification_counts(db: Session, user_id: UUID) -> dict:
@@ -291,6 +328,34 @@ class ERPService(Service):
         ).where(Notification.user_id == user_id)
         row = db.execute(stmt).one()
         return {"all": row.all, "unread": row.unread}
+
+    @staticmethod
+    def _has_open_action(db: Session, notif: Notification) -> bool:
+        """Whether `notif` still prompts its recipient to do something.
+
+        RATE_PROPOSAL notifications carry a pending approve/reject. A
+        STAFF_ACCOUNT one does too while it points at a role change the
+        recipient has yet to confirm.
+        """
+        if notif.reference_type == NotificationReferenceTypeEnum.RATE_PROPOSAL:
+            return True
+
+        if (
+            notif.reference_type == NotificationReferenceTypeEnum.STAFF_ACCOUNT
+            and notif.reference_id is not None
+        ):
+            return (
+                db.scalar(
+                    select(RoleChangeLog.id).where(
+                        RoleChangeLog.id == notif.reference_id,
+                        RoleChangeLog.staff_id == notif.user_id,
+                        RoleChangeLog.status == RoleChangeStatusEnum.PENDING,
+                    )
+                )
+                is not None
+            )
+
+        return False
 
     @staticmethod
     def mark_notification_as_read(db: Session, id: UUID, user_id: UUID):
@@ -308,10 +373,10 @@ class ERPService(Service):
             )
 
         notif.is_read = True
-        # RATE_PROPOSAL notifications are only resolved by resolve_notifications_for_reference,
-        # once the proposal is actually approved/rejected - reading one shouldn't
-        # prematurely hide the still-pending approve/reject action.
-        if notif.reference_type != NotificationReferenceTypeEnum.RATE_PROPOSAL:
+        # Reading a notification must not cancel a pending action it still offers: those
+        # are resolved by resolve_notifications_for_reference once the underlying
+        # thing is actually sorted out.
+        if not ERPService._has_open_action(db, notif):
             notif.status = NotificationStatusEnum.RESOLVED
         notif.read_at = datetime.now()
         db.commit()

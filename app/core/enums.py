@@ -327,6 +327,13 @@ class RoleChangeStatusEnum(str, enum.Enum):
     SUPERSEDED = "SUPERSEDED"
 
 
+class NotificationActionTypeEnum(str, enum.Enum):
+    """What a notification still lets its recipient do. Derived per request
+    from the state of the thing it references, never stored."""
+
+    CONFIRM_ROLE_CHANGE = "CONFIRM_ROLE_CHANGE"
+
+
 class LoginStatusEnum(str, enum.Enum):
     SUCCESS = "SUCCESS"
     FAILED = "FAILED"
