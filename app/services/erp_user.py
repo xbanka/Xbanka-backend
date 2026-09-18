@@ -293,6 +293,34 @@ class ERPService(Service):
         return {"all": row.all, "unread": row.unread}
 
     @staticmethod
+    def _has_open_action(db: Session, notif: Notification) -> bool:
+        """Whether `notif` still prompts its recipient to do something.
+
+        RATE_PROPOSAL notifications carry a pending approve/reject. A
+        STAFF_ACCOUNT one does too while it points at a role change the
+        recipient has yet to confirm.
+        """
+        if notif.reference_type == NotificationReferenceTypeEnum.RATE_PROPOSAL:
+            return True
+
+        if (
+            notif.reference_type == NotificationReferenceTypeEnum.STAFF_ACCOUNT
+            and notif.reference_id is not None
+        ):
+            return (
+                db.scalar(
+                    select(RoleChangeLog.id).where(
+                        RoleChangeLog.id == notif.reference_id,
+                        RoleChangeLog.staff_id == notif.user_id,
+                        RoleChangeLog.status == RoleChangeStatusEnum.PENDING,
+                    )
+                )
+                is not None
+            )
+
+        return False
+
+    @staticmethod
     def mark_notification_as_read(db: Session, id: UUID, user_id: UUID):
         # scoping on user_id doubles as authorization: a notification belonging
         # to another user is indistinguishable from one that doesn't exist
@@ -308,10 +336,10 @@ class ERPService(Service):
             )
 
         notif.is_read = True
-        # RATE_PROPOSAL notifications are only resolved by resolve_notifications_for_reference,
-        # once the proposal is actually approved/rejected - reading one shouldn't
-        # prematurely hide the still-pending approve/reject action.
-        if notif.reference_type != NotificationReferenceTypeEnum.RATE_PROPOSAL:
+        # Reading a notification must not cancel a pending action it still offers: those
+        # are resolved by resolve_notifications_for_reference once the underlying
+        # thing is actually sorted out.
+        if not ERPService._has_open_action(db, notif):
             notif.status = NotificationStatusEnum.RESOLVED
         notif.read_at = datetime.now()
         db.commit()
