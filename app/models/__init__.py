@@ -7,6 +7,8 @@ from .bank_details import BankDetails
 from .customer import Customer
 from .erp_user import ERPUser
 from .login_log import LoginLog
+from .notification_preferences import NotificationPreference
+from .notification_settings import NotificationSettings
 from .notifications import Notification
 from .payouts import Payout
 from .permission import Permission
@@ -30,6 +32,8 @@ __all__ = [
     "ERPUser",
     "LoginLog",
     "Notification",
+    "NotificationPreference",
+    "NotificationSettings",
     "Payout",
     "Permission",
     "RateApprovalRequest",

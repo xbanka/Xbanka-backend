@@ -17,6 +17,7 @@ from app.core.base.services import Service
 from app.core.enums import (
     LoginStatusEnum,
     NotificationActionTypeEnum,
+    NotificationCategoryEnum,
     NotificationReferenceTypeEnum,
     NotificationStatusEnum,
     PayoutMethodEnum,
@@ -28,6 +29,14 @@ from app.core.hash import Hasher
 from app.models.affiliate import Affiliate
 from app.models.erp_user import STAFF_CODE_ALPHABET, ERPUser
 from app.models.login_log import LoginLog
+from app.models.notification_preferences import (
+    DEFAULT_NOTIFICATION_PREFERENCES,
+    NotificationPreference,
+)
+from app.models.notification_settings import (
+    DEFAULT_CHANNEL_SETTINGS,
+    NotificationSettings,
+)
 from app.models.notifications import Notification
 from app.models.payouts import Payout
 from app.models.permission import Permission
@@ -37,7 +46,11 @@ from app.models.role_permissions import RolePermissions
 from app.models.user_permissions import UserPermissions
 from app.schemas.payout import ProcessPayoutRequest
 from app.services.affiliate import AffiliateService
-from app.schemas.erp.notifications import NotificationAction, NotificationsResponse
+from app.schemas.erp.notifications import (
+    NotificationAction,
+    NotificationPreferencesUpdate,
+    NotificationsResponse,
+)
 from app.schemas.erp.payout import ERPPayoutDetailResponse
 from app.schemas.erp.user import RegisterBase, UpdateERPRequest
 from app.services.websocket_manager import notification_manager
@@ -319,6 +332,96 @@ class ERPService(Service):
             stmt = stmt.where(Notification.is_read == is_read)
         notifications = db.execute(stmt).scalars().all()
         return ERPService.to_notification_responses(db, user_id, notifications)
+
+    @staticmethod
+    def get_notification_preferences(db: Session, user_id: UUID) -> dict:
+        """Every channel switch and category toggle for `user_id`, defaults
+        filled in. No stored row means enabled, so a staff member who has never
+        opened the settings page gets everything on."""
+        settings_row = db.get(NotificationSettings, user_id)
+        stored = {
+            preference.category: preference
+            for preference in db.scalars(
+                select(NotificationPreference).where(
+                    NotificationPreference.user_id == user_id
+                )
+            )
+        }
+
+        return {
+            "channels": {
+                "in_app": (
+                    settings_row.in_app_enabled
+                    if settings_row
+                    else DEFAULT_CHANNEL_SETTINGS["in_app"]
+                ),
+                "email": (
+                    settings_row.email_enabled
+                    if settings_row
+                    else DEFAULT_CHANNEL_SETTINGS["email"]
+                ),
+            },
+            "categories": {
+                category: (
+                    {"in_app": stored[category].in_app, "email": stored[category].email}
+                    if category in stored
+                    else dict(DEFAULT_NOTIFICATION_PREFERENCES[category])
+                )
+                for category in NotificationCategoryEnum
+            },
+        }
+
+    @staticmethod
+    def update_notification_preferences(
+        db: Session, user_id: UUID, update: NotificationPreferencesUpdate
+    ) -> dict:
+        """Apply only the toggles the request sent, leaving the rest alone.
+        Rows are created on demand, so the first change is also the first row."""
+        ERPService.get_user_by_id(db, user_id)
+
+        if update.channels is not None:
+            settings_row = db.get(NotificationSettings, user_id)
+            if settings_row is None:
+                # seed from the defaults, so the fields this request doesn't
+                # mention keep the value the settings page was showing
+                settings_row = NotificationSettings(
+                    user_id=user_id,
+                    in_app_enabled=DEFAULT_CHANNEL_SETTINGS["in_app"],
+                    email_enabled=DEFAULT_CHANNEL_SETTINGS["email"],
+                )
+                db.add(settings_row)
+            if update.channels.in_app is not None:
+                settings_row.in_app_enabled = update.channels.in_app
+            if update.channels.email is not None:
+                settings_row.email_enabled = update.channels.email
+
+        for category, toggles in (update.categories or {}).items():
+            preference = db.get(NotificationPreference, (user_id, category))
+            if preference is None:
+                preference = NotificationPreference(
+                    user_id=user_id,
+                    category=category,
+                    **DEFAULT_NOTIFICATION_PREFERENCES[category],
+                )
+                db.add(preference)
+            if toggles.in_app is not None:
+                preference.in_app = toggles.in_app
+            if toggles.email is not None:
+                preference.email = toggles.email
+
+        try:
+            db.commit()
+        except SQLAlchemyError:
+            db.rollback()
+            logger.exception(
+                "Failed to update notification preferences for staff %s", user_id
+            )
+            raise HTTPException(
+                status_code=500,
+                detail="An error occurred updating your notification preferences",
+            )
+
+        return ERPService.get_notification_preferences(db, user_id)
 
     @staticmethod
     def get_notification_counts(db: Session, user_id: UUID) -> dict:

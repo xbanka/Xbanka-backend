@@ -65,6 +65,22 @@ class ERPUser(BaseModel):
         passive_deletes=True,
     )
 
+    # Both absent until the staff member changes something; see the models for
+    # why a missing row means "enabled".
+    notification_settings = relationship(
+        "NotificationSettings",
+        back_populates="user",
+        uselist=False,
+        cascade="all, delete-orphan",
+        passive_deletes=True,
+    )
+    notification_preferences = relationship(
+        "NotificationPreference",
+        back_populates="user",
+        cascade="all, delete-orphan",
+        passive_deletes=True,
+    )
+
     rate_requests = relationship(
         "RateApprovalRequest",
         back_populates="requested_by",

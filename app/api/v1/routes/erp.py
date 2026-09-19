@@ -24,6 +24,8 @@ from app.core.enums import (
 from app.db.database import get_db
 from app.schemas.erp.notifications import (
     NotificationCountsResponse,
+    NotificationPreferencesResponse,
+    NotificationPreferencesUpdate,
     NotificationReadResponse,
     NotificationsResponse,
     TransactionActivityResponse,
@@ -88,6 +90,33 @@ def upload_current_erp_avatar(
 ):
     updated_user = ERPService.update_avatar(db, current_user.user.id, avatar)
     return _me_response(db, updated_user)
+
+
+@erp.get(
+    "/me/notification-preferences",
+    status_code=status.HTTP_200_OK,
+    response_model=NotificationPreferencesResponse,
+)
+def get_notification_preferences(
+    db: Session = Depends(get_db),
+    current_user: CurrentUser = Depends(require_account_type("erp")),
+):
+    return ERPService.get_notification_preferences(db, current_user.user.id)
+
+
+@erp.patch(
+    "/me/notification-preferences",
+    status_code=status.HTTP_200_OK,
+    response_model=NotificationPreferencesResponse,
+)
+def update_notification_preferences(
+    update_request: NotificationPreferencesUpdate,
+    db: Session = Depends(get_db),
+    current_user: CurrentUser = Depends(require_account_type("erp")),
+):
+    return ERPService.update_notification_preferences(
+        db, current_user.user.id, update_request
+    )
 
 
 @erp.get("/notifications", response_model=List[NotificationsResponse])

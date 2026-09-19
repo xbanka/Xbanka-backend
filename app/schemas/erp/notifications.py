@@ -1,11 +1,13 @@
 from datetime import datetime
-from typing import List, Optional
+from typing import Dict, List, Optional
 from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict
+from fastapi import HTTPException
+from pydantic import BaseModel, ConfigDict, model_validator
 
 from app.core.enums import (
     NotificationActionTypeEnum,
+    NotificationCategoryEnum,
     NotificationReferenceTypeEnum,
     NotificationStatusEnum,
     NotificationTypeEnum,
@@ -40,6 +42,50 @@ class NotificationsResponse(BaseModel):
     status: NotificationStatusEnum
     affiliate: Optional[AffiliateSummaryResponse] = None
     action: Optional[NotificationAction] = None
+
+
+class ToggleSet(BaseModel):
+    """Both channels for one row of the settings page."""
+
+    in_app: bool
+    email: bool
+
+
+class ToggleSetUpdate(BaseModel):
+    """The same pair, partially filled: omitted means "leave as it is"."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    in_app: Optional[bool] = None
+    email: Optional[bool] = None
+
+
+class NotificationPreferencesResponse(BaseModel):
+    """Always complete - every category and both channel switches, with
+    defaults filled in - so the settings page renders from one call."""
+
+    channels: ToggleSet
+    categories: Dict[NotificationCategoryEnum, ToggleSet]
+
+
+class NotificationPreferencesUpdate(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    channels: Optional[ToggleSetUpdate] = None
+    categories: Optional[Dict[NotificationCategoryEnum, ToggleSetUpdate]] = None
+
+    @model_validator(mode="after")
+    def _require_a_toggle(self):
+        has_channel = self.channels is not None and bool(self.channels.model_fields_set)
+        has_category = bool(self.categories) and any(
+            bool(toggles.model_fields_set) for toggles in self.categories.values()
+        )
+        if not (has_channel or has_category):
+            raise HTTPException(
+                status_code=400,
+                detail="Provide at least one channel switch or category toggle.",
+            )
+        return self
 
 
 class NotificationCountsResponse(BaseModel):
