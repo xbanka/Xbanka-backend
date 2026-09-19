@@ -327,6 +327,23 @@ class RoleChangeStatusEnum(str, enum.Enum):
     SUPERSEDED = "SUPERSEDED"
 
 
+class NotificationCategoryEnum(str, enum.Enum):
+    """The groupings staff can mute on the Settings - Notifications page.
+
+    TRANSACTION_ACTIVITY, KYC_VERIFICATION and SUPPORT_ACTIVITY have no events
+    behind them yet; their toggles are stored but gate nothing until those
+    features exist.
+    """
+
+    TRANSACTION_ACTIVITY = "TRANSACTION_ACTIVITY"
+    APPROVAL_REQUESTS = "APPROVAL_REQUESTS"
+    ROLE_PERMISSION_CHANGES = "ROLE_PERMISSION_CHANGES"
+    RATE_MANAGEMENT = "RATE_MANAGEMENT"
+    KYC_VERIFICATION = "KYC_VERIFICATION"
+    SUPPORT_ACTIVITY = "SUPPORT_ACTIVITY"
+    SYSTEM_SECURITY = "SYSTEM_SECURITY"
+
+
 class NotificationActionTypeEnum(str, enum.Enum):
     """What a notification still lets its recipient do. Derived per request
     from the state of the thing it references, never stored."""
