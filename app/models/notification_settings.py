@@ -6,6 +6,11 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 from app.db.database import Base
 
 
+# Both channels are on until the staff member says otherwise; the per-category
+# defaults in notification_preferences decide what actually reaches them.
+DEFAULT_CHANNEL_SETTINGS: dict[str, bool] = {"in_app": True, "email": True}
+
+
 class NotificationSettings(Base):
     """A staff member's two channel switches.
 
