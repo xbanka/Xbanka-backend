@@ -19,6 +19,7 @@ down:
 # ------------------------
 staging-up:
 	docker compose \
+		--env-file .env.staging \
 		-p xbanka-staging \
 		-f $(BASE) \
 		-f $(STAGING) \
@@ -26,6 +27,7 @@ staging-up:
 
 staging-down:
 	docker compose \
+		--env-file .env.staging \
 		-p xbanka-staging \
 		-f $(BASE) \
 		-f $(STAGING) \
@@ -36,6 +38,7 @@ staging-down:
 # ------------------------
 prod-up:
 	docker compose \
+		--env-file .env.prod \
 		-p xbanka-prod \
 		-f $(BASE) \
 		-f $(PROD) \
@@ -43,6 +46,7 @@ prod-up:
 
 prod-down:
 	docker compose \
+		--env-file .env.prod \
 		-p xbanka-prod \
 		-f $(BASE) \
 		-f $(PROD) \
