@@ -1,4 +1,5 @@
 import pytest
+from botocore.exceptions import ClientError
 
 from app.core.hash import Hasher
 from app.models.erp_user import ERPUser
@@ -6,9 +7,35 @@ from app.models.notifications import Notification
 from app.models.role import Role
 from app.services.auth import AuthService
 from app.utils.s3_utils import MAX_IMAGE_BYTES
+from app.utils.settings import settings
 
 URL = "/api/erp/me/avatar"
 PNG_BYTES = b"\x89PNG\r\n\x1a\n" + b"0" * 64
+
+
+@pytest.fixture(autouse=True)
+def s3(monkeypatch) -> list[dict]:
+    """Record avatar uploads and stub presigning, so no test reaches AWS."""
+    uploads: list[dict] = []
+
+    def fake_upload(file, bucket, object_name=None, content_type=None):
+        uploads.append(
+            {
+                "bucket": bucket,
+                "key": object_name,
+                "content_type": content_type,
+                "body": file.read(),
+            }
+        )
+
+    monkeypatch.setattr("app.services.erp_user.S3_BUCKET_AVATARS", "test-avatars")
+    monkeypatch.setattr(settings, "S3_BUCKET_AVATARS", "test-avatars")
+    monkeypatch.setattr("app.services.erp_user.upload_file", fake_upload)
+    monkeypatch.setattr(
+        "app.schemas.erp.user.get_image_url",
+        lambda key, bucket: f"https://signed.test/{bucket}/{key}",
+    )
+    return uploads
 
 
 @pytest.fixture
@@ -61,6 +88,61 @@ def test_upload_stores_avatar_path(test_client, db_session, staff):
     assert test_client.get("/api/erp/me", headers=_headers(staff)).json()["avatar_url"] == avatar_url
 
 
+def test_upload_sends_file_to_avatars_bucket(test_client, staff, s3):
+    avatar_url = _upload(test_client, staff).json()["avatar_url"]
+
+    assert s3 == [
+        {
+            "bucket": "test-avatars",
+            "key": avatar_url,
+            "content_type": "image/png",
+            "body": PNG_BYTES,
+        }
+    ]
+
+
+def test_response_includes_signed_url(test_client, staff):
+    uploaded = _upload(test_client, staff).json()
+    expected = f"https://signed.test/test-avatars/{uploaded['avatar_url']}"
+
+    assert uploaded["avatar_signed_url"] == expected
+    me = test_client.get("/api/erp/me", headers=_headers(staff)).json()
+    assert me["avatar_signed_url"] == expected
+
+
+def test_no_signed_url_without_an_avatar(test_client, staff):
+    me = test_client.get("/api/erp/me", headers=_headers(staff)).json()
+
+    assert me["avatar_url"] is None
+    assert me["avatar_signed_url"] is None
+
+
+def test_no_signed_url_when_bucket_not_configured(test_client, staff, monkeypatch):
+    avatar_url = _upload(test_client, staff).json()["avatar_url"]
+    monkeypatch.setattr(settings, "S3_BUCKET_AVATARS", "")
+
+    me = test_client.get("/api/erp/me", headers=_headers(staff)).json()
+
+    assert me["avatar_url"] == avatar_url
+    assert me["avatar_signed_url"] is None
+
+
+def test_failed_s3_upload_returns_500_and_changes_nothing(
+    test_client, db_session, staff, monkeypatch
+):
+    def failing_upload(*args, **kwargs):
+        raise ClientError({"Error": {"Code": "AccessDenied", "Message": "no"}}, "PutObject")
+
+    monkeypatch.setattr("app.services.erp_user.upload_file", failing_upload)
+
+    response = _upload(test_client, staff)
+
+    assert response.status_code == 500
+    assert response.json()["detail"] == "An error occurred uploading your profile picture"
+    assert _reload(db_session, staff).avatar_url is None
+    assert db_session.query(Notification).filter(Notification.user_id == staff.id).count() == 0
+
+
 def test_each_upload_replaces_the_previous_path(test_client, db_session, staff):
     first = _upload(test_client, staff).json()["avatar_url"]
     second = _upload(test_client, staff, name="new.jpg", content_type="image/jpeg").json()["avatar_url"]
@@ -79,12 +161,13 @@ def test_each_upload_replaces_the_previous_path(test_client, db_session, staff):
         ("me.txt", "text/plain"),
     ],
 )
-def test_rejects_non_image_uploads(test_client, db_session, staff, name, content_type):
+def test_rejects_non_image_uploads(test_client, db_session, staff, s3, name, content_type):
     response = _upload(test_client, staff, name=name, content_type=content_type)
 
     assert response.status_code == 400
     assert "Invalid" in response.json()["detail"]
     assert _reload(db_session, staff).avatar_url is None
+    assert s3 == []
 
 
 def test_rejects_oversized_image(test_client, db_session, staff):

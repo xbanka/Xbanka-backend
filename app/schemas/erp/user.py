@@ -8,11 +8,14 @@ from pydantic import (
     ConfigDict,
     EmailStr,
     ValidationInfo,
+    computed_field,
     field_validator,
     model_validator,
 )
 
 from app.schemas.erp.audit import PendingRoleChangeSummary, RoleChangeDetail
+from app.utils.s3_utils import get_image_url
+from app.utils.settings import settings
 from app.utils.validators import normalize_phone
 
 
@@ -49,6 +52,15 @@ class StaffBase(BaseModel):
 
 class ERPMeResponse(StaffBase):
     pending_role_change: Optional[PendingRoleChangeSummary] = None
+
+    @computed_field
+    @property
+    def avatar_signed_url(self) -> Optional[str]:
+        """Short-lived link the browser can load the avatar from. avatar_url is
+        only the S3 key, and the bucket is private."""
+        if not self.avatar_url or not settings.S3_BUCKET_AVATARS:
+            return None
+        return get_image_url(self.avatar_url, settings.S3_BUCKET_AVATARS)
 
 
 class UpdateERPRequest(BaseModel):

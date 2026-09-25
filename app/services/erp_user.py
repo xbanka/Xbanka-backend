@@ -5,7 +5,7 @@ from datetime import datetime
 from typing import List, Optional, Sequence
 from uuid import UUID
 
-from botocore.exceptions import ClientError
+from botocore.exceptions import BotoCoreError, ClientError
 from fastapi import HTTPException, UploadFile, status
 from fastapi.encoders import jsonable_encoder
 from psycopg2 import IntegrityError
@@ -60,6 +60,7 @@ from app.utils.settings import settings
 from app.utils.validators import is_valid_email, is_valid_password
 
 S3_BUCKET_PAYOUTS = settings.S3_BUCKET_PAYOUTS
+S3_BUCKET_AVATARS = settings.S3_BUCKET_AVATARS
 
 logger = logging.getLogger(__name__)
 
@@ -189,8 +190,19 @@ class ERPService(Service):
         avatar_key = validate_image(avatar, user_id)
         avatar_url = f"avatars/{avatar_key}"
 
-        # TODO: enable once the avatars bucket and its credentials exist.
-        # upload_file(avatar.file, S3_BUCKET_AVATARS, avatar_url)
+        try:
+            upload_file(
+                avatar.file,
+                S3_BUCKET_AVATARS,
+                avatar_url,
+                content_type=avatar.content_type,
+            )
+        except (BotoCoreError, ClientError):
+            logger.exception("Failed to upload avatar for staff %s", user_id)
+            raise HTTPException(
+                status_code=500,
+                detail="An error occurred uploading your profile picture",
+            )
 
         try:
             erp_user.avatar_url = avatar_url

@@ -36,9 +36,6 @@ class Settings(BaseSettings):
 
     ALEMBIC_DATABASE_URL: str
 
-    # Mail configurations. The SMTP settings the old fastapi-mail path needed
-    # (MAIL_USERNAME/PASSWORD/FROM/PORT/SERVER) are gone with it; any left over
-    # in a .env file are ignored via extra="ignore" below.
     RESEND_API_KEY: str
     # Sender for every Resend-delivered email. Defaults to the address the
     # invite flow already sends from, since that domain is verified in Resend.
@@ -46,9 +43,9 @@ class Settings(BaseSettings):
 
     S3_BUCKET_TRANSACTIONS: str
     S3_BUCKET_PAYOUTS: str
-    # Staff profile pictures. Defaulted rather than required so the app still
-    # boots before the bucket exists; the upload in ERPService.update_avatar is
-    # commented out until then.
+    # Staff profile pictures. Defaulted rather than required so a deploy whose
+    # env file predates this variable still boots; until it is set,
+    # ERPService.update_avatar fails with a 500 instead.
     S3_BUCKET_AVATARS: str = ""
 
     AWS_ACCESS_KEY_ID: str

@@ -69,12 +69,15 @@ def validate_image(file: UploadFile, id: UUID) -> str:
     return f"{id}_{uuid4().hex}.{ext}"
 
 
-def upload_file(file, bucket, object_name=None):
+def upload_file(file, bucket, object_name=None, content_type=None):
     """Upload a file to an S3 bucket
 
     :param file: File to upload
     :param bucket: Bucket to upload to
     :param object_name: S3 object name. If not specified then file_name is used
+    :param content_type: Stored as the object's Content-Type. Without it S3
+        serves the object as binary/octet-stream, which browsers download
+        instead of displaying inline.
     :return: True if file was uploaded, else False
     """
 
@@ -84,13 +87,14 @@ def upload_file(file, bucket, object_name=None):
         file,
         bucket,
         object_name,
+        ExtraArgs={"ContentType": content_type} if content_type else None,
     )
 
 
-def get_image_url(key):
+def get_image_url(key, bucket=S3_BUCKET_TRANSACTIONS):
     s3_client = boto3.client("s3")
     return s3_client.generate_presigned_url(
         "get_object",
-        Params={"Bucket": S3_BUCKET_TRANSACTIONS, "Key": key},
+        Params={"Bucket": bucket, "Key": key},
         ExpiresIn=900,  # 15 minutes
     )
