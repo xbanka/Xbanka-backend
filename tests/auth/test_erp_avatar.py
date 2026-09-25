@@ -13,13 +13,15 @@ URL = "/api/erp/me/avatar"
 PNG_BYTES = b"\x89PNG\r\n\x1a\n" + b"0" * 64
 
 
-@pytest.fixture(autouse=True)
-def s3(monkeypatch) -> list[dict]:
-    """Record avatar uploads and stub presigning, so no test reaches AWS."""
-    uploads: list[dict] = []
+class FakeS3:
+    """Records avatar uploads and deletes, so no test reaches AWS."""
 
-    def fake_upload(file, bucket, object_name=None, content_type=None):
-        uploads.append(
+    def __init__(self):
+        self.uploads: list[dict] = []
+        self.deletes: list[dict] = []
+
+    def upload(self, file, bucket, object_name=None, content_type=None):
+        self.uploads.append(
             {
                 "bucket": bucket,
                 "key": object_name,
@@ -28,14 +30,23 @@ def s3(monkeypatch) -> list[dict]:
             }
         )
 
+    def delete(self, bucket, object_name):
+        self.deletes.append({"bucket": bucket, "key": object_name})
+
+
+@pytest.fixture(autouse=True)
+def s3(monkeypatch) -> FakeS3:
+    fake = FakeS3()
+
     monkeypatch.setattr("app.services.erp_user.S3_BUCKET_AVATARS", "test-avatars")
     monkeypatch.setattr(settings, "S3_BUCKET_AVATARS", "test-avatars")
-    monkeypatch.setattr("app.services.erp_user.upload_file", fake_upload)
+    monkeypatch.setattr("app.services.erp_user.upload_file", fake.upload)
+    monkeypatch.setattr("app.services.erp_user.delete_file", fake.delete)
     monkeypatch.setattr(
         "app.schemas.erp.user.get_image_url",
         lambda key, bucket: f"https://signed.test/{bucket}/{key}",
     )
-    return uploads
+    return fake
 
 
 @pytest.fixture
@@ -91,7 +102,7 @@ def test_upload_stores_avatar_path(test_client, db_session, staff):
 def test_upload_sends_file_to_avatars_bucket(test_client, staff, s3):
     avatar_url = _upload(test_client, staff).json()["avatar_url"]
 
-    assert s3 == [
+    assert s3.uploads == [
         {
             "bucket": "test-avatars",
             "key": avatar_url,
@@ -99,6 +110,7 @@ def test_upload_sends_file_to_avatars_bucket(test_client, staff, s3):
             "body": PNG_BYTES,
         }
     ]
+    assert s3.deletes == []  # nothing to replace on a first upload
 
 
 def test_response_includes_signed_url(test_client, staff):
@@ -152,6 +164,28 @@ def test_each_upload_replaces_the_previous_path(test_client, db_session, staff):
     assert _reload(db_session, staff).avatar_url == second
 
 
+def test_second_upload_deletes_the_previous_object(test_client, staff, s3):
+    first = _upload(test_client, staff).json()["avatar_url"]
+    _upload(test_client, staff, name="new.jpg", content_type="image/jpeg")
+
+    assert s3.deletes == [{"bucket": "test-avatars", "key": first}]
+
+
+def test_failed_delete_of_previous_object_does_not_fail_the_request(
+    test_client, db_session, staff, s3, monkeypatch
+):
+    _upload(test_client, staff)
+
+    def failing_delete(*args, **kwargs):
+        raise ClientError({"Error": {"Code": "AccessDenied", "Message": "no"}}, "DeleteObject")
+
+    monkeypatch.setattr("app.services.erp_user.delete_file", failing_delete)
+    response = _upload(test_client, staff, name="new.jpg", content_type="image/jpeg")
+
+    assert response.status_code == 200
+    assert _reload(db_session, staff).avatar_url == response.json()["avatar_url"]
+
+
 @pytest.mark.parametrize(
     "name,content_type",
     [
@@ -167,7 +201,7 @@ def test_rejects_non_image_uploads(test_client, db_session, staff, s3, name, con
     assert response.status_code == 400
     assert "Invalid" in response.json()["detail"]
     assert _reload(db_session, staff).avatar_url is None
-    assert s3 == []
+    assert s3.uploads == []
 
 
 def test_rejects_oversized_image(test_client, db_session, staff):

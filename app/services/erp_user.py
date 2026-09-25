@@ -55,7 +55,7 @@ from app.schemas.erp.payout import ERPPayoutDetailResponse
 from app.schemas.erp.user import RegisterBase, UpdateERPRequest
 from app.services.websocket_manager import notification_manager
 from app.utils.permissions import calculate_permission_overrides
-from app.utils.s3_utils import upload_file, validate_file, validate_image
+from app.utils.s3_utils import delete_file, upload_file, validate_file, validate_image
 from app.utils.settings import settings
 from app.utils.validators import is_valid_email, is_valid_password
 
@@ -186,6 +186,7 @@ class ERPService(Service):
     def update_avatar(db: Session, user_id: UUID, avatar: UploadFile) -> ERPUser:
         """Store a staff member's own profile picture. Upload to S3."""
         erp_user = ERPService.get_user_by_id(db, user_id)
+        previous_avatar_url = erp_user.avatar_url
 
         avatar_key = validate_image(avatar, user_id)
         avatar_url = f"avatars/{avatar_key}"
@@ -214,6 +215,16 @@ class ERPService(Service):
             raise HTTPException(
                 status_code=500, detail="An error occurred saving your profile picture"
             )
+
+        if previous_avatar_url:
+            try:
+                delete_file(S3_BUCKET_AVATARS, previous_avatar_url)
+            except (BotoCoreError, ClientError):
+                # The new avatar is already saved; leaving the old object
+                # behind is a cleanup problem, not a request failure.
+                logger.exception(
+                    "Failed to delete previous avatar for staff %s", user_id
+                )
 
         ERPService.new_notification(
             db,

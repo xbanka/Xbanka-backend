@@ -91,6 +91,13 @@ def upload_file(file, bucket, object_name=None, content_type=None):
     )
 
 
+def delete_file(bucket, object_name):
+    """Delete an object from an S3 bucket. Not raised on a missing key: S3's
+    delete is idempotent, so this is safe to call speculatively."""
+    s3_client = boto3.client("s3")
+    s3_client.delete_object(Bucket=bucket, Key=object_name)
+
+
 def get_image_url(key, bucket=S3_BUCKET_TRANSACTIONS):
     s3_client = boto3.client("s3")
     return s3_client.generate_presigned_url(
