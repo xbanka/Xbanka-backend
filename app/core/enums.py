@@ -81,7 +81,7 @@ class Permission(str, enum.Enum):
     FLAG_TRANSACTIONS = "transactions:flag"
     FREEZE_TRANSACTIONS = "transactions:freeze"
     UPDATE_TRANSACTION_STATUS = "transactions:update_status"
-    MARK_TRANSACTION_COMPLETED = "transactions:mark_completed"
+    MARK_TRANSACTION_COMPLETED = "transactions:mark_complete"
     VIEW_ASSIGNED_TRANSACTIONS = "transactions:view_assigned"
     VIEW_LIMITED_TRANSACTIONS = "transactions:view_limited"
     EXECUTE_TRANSACTIONS = "transactions:execute"
@@ -182,6 +182,7 @@ class Permission(str, enum.Enum):
     PROPOSE_RATE_CHANGES = "rates:propose_changes"
     APPROVE_RATE_CHANGES = "rates:approve_changes"
     RATE_CHANGE_OVERRIDE = "rates:change_override"  # apply rate changes directly, bypassing the proposal/approval flow
+    VIEW_RATES = "rates:view"
 
 
 # Define job roles with their default permissions
