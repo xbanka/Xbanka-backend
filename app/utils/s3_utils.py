@@ -8,6 +8,17 @@ from app.utils.settings import settings
 
 S3_BUCKET_TRANSACTIONS = settings.S3_BUCKET_TRANSACTIONS
 
+
+def _client():
+    """A fresh client per call, built lazily rather than at import time - this
+    module is imported well before any request that might need S3, and boto3
+    resolves credentials as soon as a client is constructed. Explicit
+    region_name rather than relying on boto3 finding an AWS_REGION env var on
+    its own: without it, boto3 falls back to us-east-1's legacy global
+    endpoint, which fails on any bucket outside that region with a confusing
+    signing error instead of a clear one."""
+    return boto3.client("s3", region_name=settings.AWS_REGION)
+
 ALLOWED_EXTENSIONS = {"jpg", "jpeg", "png", "pdf"}
 
 ALLOWED_CONTENT_TYPES = {
@@ -82,8 +93,7 @@ def upload_file(file, bucket, object_name=None, content_type=None):
     """
 
     # Upload the file
-    s3_client = boto3.client("s3")
-    s3_client.upload_fileobj(
+    _client().upload_fileobj(
         file,
         bucket,
         object_name,
@@ -94,13 +104,11 @@ def upload_file(file, bucket, object_name=None, content_type=None):
 def delete_file(bucket, object_name):
     """Delete an object from an S3 bucket. Not raised on a missing key: S3's
     delete is idempotent, so this is safe to call speculatively."""
-    s3_client = boto3.client("s3")
-    s3_client.delete_object(Bucket=bucket, Key=object_name)
+    _client().delete_object(Bucket=bucket, Key=object_name)
 
 
 def get_image_url(key, bucket=S3_BUCKET_TRANSACTIONS):
-    s3_client = boto3.client("s3")
-    return s3_client.generate_presigned_url(
+    return _client().generate_presigned_url(
         "get_object",
         Params={"Bucket": bucket, "Key": key},
         ExpiresIn=900,  # 15 minutes
