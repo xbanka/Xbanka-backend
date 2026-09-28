@@ -50,7 +50,9 @@ class Settings(BaseSettings):
 
     AWS_ACCESS_KEY_ID: str
     AWS_SECRET_ACCESS_KEY: str
-    AWS_REGION: str
+    # All S3 buckets live in eu-north-1. Defaulted rather than required so it
+    # doesn't need repeating in every env file; still overridable via env var.
+    AWS_REGION: str = "eu-north-1"
 
     VERIFY_TOKEN: str
 

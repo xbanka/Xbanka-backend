@@ -28,7 +28,6 @@ env:
   S3_BUCKET_PAYOUTS: test-bucket-payouts
   AWS_ACCESS_KEY_ID: test
   AWS_SECRET_ACCESS_KEY: test
-  AWS_REGION: us-east-1
   VERIFY_TOKEN: test_verify_token
   GOOGLE_CLIENT_ID: test
   GOOGLE_CLIENT_SECRET: test
