@@ -10,12 +10,7 @@ S3_BUCKET_TRANSACTIONS = settings.S3_BUCKET_TRANSACTIONS
 
 
 def _client():
-    """A fresh client per call, built lazily rather than at import time - this
-    module is imported well before any request that might need S3, and boto3
-    resolves credentials as soon as a client is constructed. Explicit
-    region_name rather than relying on boto3 finding an AWS_REGION env var on
-    its own: without it, boto3 falls back to us-east-1's legacy global
-    endpoint, which fails on any bucket outside that region with a confusing
+    """Explicit region_name provided, without it, boto3 falls back to us-east-1's legacy global endpoint, which fails on any bucket outside that region with a confusing
     signing error instead of a clear one."""
     return boto3.client("s3", region_name=settings.AWS_REGION)
 
