@@ -56,11 +56,14 @@ class ERPMeResponse(StaffBase):
     @computed_field
     @property
     def avatar_signed_url(self) -> Optional[str]:
-        """Short-lived link the browser can load the avatar from. avatar_url is
-        only the S3 key, and the bucket is private."""
+        """Link the browser can load the avatar from. avatar_url is only the
+        S3 key, and the bucket is private. An hour rather than
+        get_image_url's 15-minute default: this is loaded once into <img
+        src> and left displayed, not downloaded on demand, so it needs to
+        outlive a normal page session rather than expire quickly."""
         if not self.avatar_url or not settings.S3_BUCKET_AVATARS:
             return None
-        return get_image_url(self.avatar_url, settings.S3_BUCKET_AVATARS)
+        return get_image_url(self.avatar_url, settings.S3_BUCKET_AVATARS, expires_in=3600)
 
 
 class UpdateERPRequest(BaseModel):

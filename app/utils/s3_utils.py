@@ -102,9 +102,12 @@ def delete_file(bucket, object_name):
     _client().delete_object(Bucket=bucket, Key=object_name)
 
 
-def get_image_url(key, bucket=S3_BUCKET_TRANSACTIONS):
+def get_image_url(key, bucket=S3_BUCKET_TRANSACTIONS, expires_in=900):
+    """expires_in defaults to 15 minutes, sized for a one-time download link
+    (transaction/payout attachments). 
+    A URL that's kept loaded in the browser should pass a longer value, or it can 403 mid-session if anything re-fetches it after the signature expires."""
     return _client().generate_presigned_url(
         "get_object",
         Params={"Bucket": bucket, "Key": key},
-        ExpiresIn=900,  # 15 minutes
+        ExpiresIn=expires_in,
     )
