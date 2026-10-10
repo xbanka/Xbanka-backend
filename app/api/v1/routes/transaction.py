@@ -1,12 +1,15 @@
 from uuid import UUID
 
+import requests
+
 from fastapi import APIRouter, Depends, File, HTTPException, Query, Response, UploadFile, status
 from sqlalchemy.orm import Session
 
 from app.core.enums import Permission
 from app.db.database import get_db
 from app.schemas.transactions import (
-    TransactionCreateResponse
+    FundingCreditRequest,
+    TransactionCreateResponse,
 )
 from app.services.internal_backend import InternalAPIService
 from app.services.transaction import TransactionService
@@ -19,6 +22,7 @@ transaction = APIRouter(prefix="/transactions", tags=["Transactions"])
 CREATE_TRANSACTIONS = Permission.CREATE_TRANSACTIONS
 VIEW_TRANSACTIONS = Permission.VIEW_TRANSACTIONS
 EXPORT_TRANSACTIONS = Permission.EXPORT_TRANSACTIONS
+ADJUST_BALANCE = Permission.ADJUST_BALANCE
 
 @transaction.get(
     "/all", status_code=status.HTTP_200_OK
@@ -102,6 +106,23 @@ def create_manual_transaction_log(
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
+
+@transaction.post("/funding/credit", status_code=status.HTTP_200_OK)
+def credit_funding_account(
+    payload: FundingCreditRequest,
+    current_user: CurrentUser = Depends(require_permissions(ADJUST_BALANCE)),
+):
+    try:
+        return InternalAPIService.credit_funding_account(
+            payload.model_dump(mode="json")
+        )
+    except requests.HTTPError as e:
+        raise HTTPException(
+            status_code=e.response.status_code if e.response is not None else 502,
+            detail=e.response.text if e.response is not None else str(e),
+        )
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 @transaction.post(
