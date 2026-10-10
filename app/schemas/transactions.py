@@ -6,6 +6,7 @@ from uuid import UUID
 from pydantic import (
     BaseModel,
     ConfigDict,
+    Field,
     Discriminator,
     Tag,
     computed_field,
@@ -32,6 +33,14 @@ class LogManualTransactionsRequest(BaseModel):
     currency: str
     status: TxnStatusEnum
     metadata: TransactionMetaData
+
+
+class FundingCreditRequest(BaseModel):
+    fundingAccountId: UUID
+    amount: Decimal = Field(gt=0)
+    reference: str
+    creditedBy: str
+    attachmentUrls: List[str] = Field(default_factory=list)
 
 
 class TransactionDetailResponse(BaseModel):

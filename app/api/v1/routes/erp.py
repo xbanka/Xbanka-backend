@@ -152,6 +152,8 @@ def get_transaction_activity(
 ):
     try:
         return InternalAPIService.get_transaction_activity(page=page, limit=limit)
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 

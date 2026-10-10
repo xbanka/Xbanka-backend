@@ -52,7 +52,11 @@ class InternalAPIService(Service):
             kwargs["params"] = {k: v for k, v in kwargs["params"].items() if v is not None}
             
         response = requests.request(method, url, headers=headers, **kwargs)
-        response.raise_for_status()
+        try:
+            response.raise_for_status()
+        except requests.HTTPError:
+            # keep the core backend's status code and message instead of a generic 500
+            raise HTTPException(status_code=response.status_code, detail=response.text)
         return response.json()
     
     @staticmethod
@@ -121,6 +125,8 @@ class InternalAPIService(Service):
     def get_user_by_id(id: UUID):
         try:
             return InternalAPIService._request("GET", f"/internal/users/{id}")
+        except HTTPException:
+            raise
         except Exception as e:
             raise HTTPException(status_code=500, detail=str(e))
 
@@ -128,6 +134,11 @@ class InternalAPIService(Service):
     def log_manual_transaction(payload) -> dict:
         """Proxies the log manual transaction request to the core backend."""
         return InternalAPIService._request("POST", "/internal/wallet/transactions/manual", json=payload)
+
+    @staticmethod
+    def credit_funding_account(payload: dict) -> dict:
+        """Credits a funding account's wallet via the core backend."""
+        return InternalAPIService._request("POST", "/internal/funding/credit", json=payload)
 
     @staticmethod
     def get_all_transactions(page: int = 1, limit: int = 10, **kwargs):
@@ -207,6 +218,8 @@ class InternalAPIService(Service):
     def get_transaction_by_id(id: UUID):
         try:
             return InternalAPIService._request("GET", f"/internal/wallet/transactions/{id}")
+        except HTTPException:
+            raise
         except Exception as e:
             raise HTTPException(status_code=500, detail=str(e))
 
@@ -281,6 +294,8 @@ class InternalAPIService(Service):
         try:
             params = {"page": page, "limit": limit, **kwargs}
             return InternalAPIService._request("GET", f"/internal/users/{user_id}/transactions", params=params)
+        except HTTPException:
+            raise
         except Exception as e:
             raise HTTPException(status_code=500, detail=str(e))
         
@@ -288,6 +303,8 @@ class InternalAPIService(Service):
     def get_user_assets(user_id: UUID):
         try:
             return InternalAPIService._request("GET", f"/internal/users/{user_id}/assets")
+        except HTTPException:
+            raise
         except Exception as e:
             raise HTTPException(status_code=500, detail=str(e))
         
@@ -295,6 +312,8 @@ class InternalAPIService(Service):
     def get_user_verification_details(user_id: UUID):
         try:
             return InternalAPIService._request("GET", f"/internal/users/{user_id}/verification")
+        except HTTPException:
+            raise
         except Exception as e:
             raise HTTPException(status_code=500, detail=str(e))
         
@@ -303,6 +322,8 @@ class InternalAPIService(Service):
     def toggle_user_status(user_id: UUID):
         try:
             return InternalAPIService._request("PUT", f"/internal/users/{user_id}/status")
+        except HTTPException:
+            raise
         except Exception as e:
             raise HTTPException(status_code=500, detail=str(e))
 
@@ -311,6 +332,8 @@ class InternalAPIService(Service):
     def get_transaction_metrics():
         try:
             return InternalAPIService._request("GET", "/internal/metrics/transactions")
+        except HTTPException:
+            raise
         except Exception as e:
             raise HTTPException(status_code=500, detail=str(e))
 
@@ -318,6 +341,8 @@ class InternalAPIService(Service):
     def get_customer_metrics():
         try:
             return InternalAPIService._request("GET", "/internal/metrics/customers")
+        except HTTPException:
+            raise
         except Exception as e:
             raise HTTPException(status_code=500, detail=str(e))
 
@@ -391,5 +416,7 @@ class InternalAPIService(Service):
     def get_user_kyc_details(user_id: UUID):
         try:
             return InternalAPIService._request("GET", f"/internal/users/{user_id}/kyc")
+        except HTTPException:
+            raise
         except Exception as e:
             raise HTTPException(status_code=500, detail=str(e))

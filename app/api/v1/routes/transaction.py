@@ -6,7 +6,8 @@ from sqlalchemy.orm import Session
 from app.core.enums import Permission
 from app.db.database import get_db
 from app.schemas.transactions import (
-    TransactionCreateResponse
+    FundingCreditRequest,
+    TransactionCreateResponse,
 )
 from app.services.internal_backend import InternalAPIService
 from app.services.transaction import TransactionService
@@ -19,6 +20,7 @@ transaction = APIRouter(prefix="/transactions", tags=["Transactions"])
 CREATE_TRANSACTIONS = Permission.CREATE_TRANSACTIONS
 VIEW_TRANSACTIONS = Permission.VIEW_TRANSACTIONS
 EXPORT_TRANSACTIONS = Permission.EXPORT_TRANSACTIONS
+ADJUST_BALANCE = Permission.ADJUST_BALANCE
 
 @transaction.get(
     "/all", status_code=status.HTTP_200_OK
@@ -47,6 +49,8 @@ def fetch_all_transactions(
             startDate=start_date,
             endDate=end_date
         )
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
@@ -72,6 +76,8 @@ def export_transactions(
             startDate=start_date,
             endDate=end_date,
         )
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
@@ -99,9 +105,25 @@ def create_manual_transaction_log(
 ):
     try:
         return InternalAPIService.log_manual_transaction(payload)
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
+
+@transaction.post("/funding/credit", status_code=status.HTTP_200_OK)
+def credit_funding_account(
+    payload: FundingCreditRequest,
+    current_user: CurrentUser = Depends(require_permissions(ADJUST_BALANCE)),
+):
+    try:
+        return InternalAPIService.credit_funding_account(
+            payload.model_dump(mode="json")
+        )
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 @transaction.post(
