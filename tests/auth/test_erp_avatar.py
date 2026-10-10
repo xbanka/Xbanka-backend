@@ -44,7 +44,7 @@ def s3(monkeypatch) -> FakeS3:
     monkeypatch.setattr("app.services.erp_user.delete_file", fake.delete)
     monkeypatch.setattr(
         "app.schemas.erp.user.get_image_url",
-        lambda key, bucket: f"https://signed.test/{bucket}/{key}",
+        lambda key, bucket, expires_in=900: f"https://signed.test/{bucket}/{key}",
     )
     return fake
 
