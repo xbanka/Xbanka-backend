@@ -15,6 +15,8 @@ def search_customers(
 ):
     try:
         return InternalAPIService.search_users(q)
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
@@ -40,5 +42,7 @@ def fetch_all_customers(
             startDate=start_date,
             endDate=end_date
         )
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))

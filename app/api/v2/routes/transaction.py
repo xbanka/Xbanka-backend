@@ -33,6 +33,8 @@ def fetch_all_transactions(
             startDate=start_date,
             endDate=end_date
         )
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
@@ -46,5 +48,7 @@ def create_manual_transaction_log(
 ):
     try:
         return InternalAPIService.log_manual_transaction(payload)
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
