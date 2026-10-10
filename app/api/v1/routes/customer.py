@@ -35,6 +35,8 @@ def fetch_all_customers(
             startDate=start_date,
             endDate=end_date
         )
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
@@ -53,6 +55,8 @@ def export_customers(
             startDate=start_date,
             endDate=end_date,
         )
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
@@ -72,6 +76,8 @@ def search_customers(
 ):
     try:
         return InternalAPIService.search_users(q)
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
@@ -97,6 +103,8 @@ def get_customer_transactions(
             page=page,
             limit=limit
         )
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
     
@@ -108,6 +116,8 @@ def get_customer_assets(
 ):
     try:
         return InternalAPIService.get_user_assets(user_id=customer_id)
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
     
@@ -119,6 +129,8 @@ def get_customer_verification(
 ):
     try:
         return InternalAPIService.get_user_verification_details(user_id=customer_id)
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
     
@@ -130,6 +142,8 @@ def toggle_customer_status(
 ):
     try:
         return InternalAPIService.toggle_user_status(user_id=customer_id)
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
@@ -141,5 +155,7 @@ def get_customer_kyc(
 ):
     try:
         return InternalAPIService.get_user_kyc_details(user_id=customer_id)
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))

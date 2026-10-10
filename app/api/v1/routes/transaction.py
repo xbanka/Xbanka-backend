@@ -1,7 +1,5 @@
 from uuid import UUID
 
-import requests
-
 from fastapi import APIRouter, Depends, File, HTTPException, Query, Response, UploadFile, status
 from sqlalchemy.orm import Session
 
@@ -51,6 +49,8 @@ def fetch_all_transactions(
             startDate=start_date,
             endDate=end_date
         )
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
@@ -76,6 +76,8 @@ def export_transactions(
             startDate=start_date,
             endDate=end_date,
         )
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
@@ -103,6 +105,8 @@ def create_manual_transaction_log(
 ):
     try:
         return InternalAPIService.log_manual_transaction(payload)
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
@@ -116,11 +120,8 @@ def credit_funding_account(
         return InternalAPIService.credit_funding_account(
             payload.model_dump(mode="json")
         )
-    except requests.HTTPError as e:
-        raise HTTPException(
-            status_code=e.response.status_code if e.response is not None else 502,
-            detail=e.response.text if e.response is not None else str(e),
-        )
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
