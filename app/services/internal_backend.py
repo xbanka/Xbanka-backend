@@ -141,6 +141,11 @@ class InternalAPIService(Service):
         return InternalAPIService._request("POST", "/internal/funding/credit", json=payload)
 
     @staticmethod
+    def get_funding_credits(page: int = 1, limit: int = 10, **kwargs):
+        params = {"page": page, "limit": limit, **kwargs}
+        return InternalAPIService._request("GET", "/internal/funding/credits", params=params)
+
+    @staticmethod
     def get_all_transactions(page: int = 1, limit: int = 10, **kwargs):
         params = {"page": page, "limit": limit, **kwargs}
         return InternalAPIService._request("GET", "/internal/wallet/transactions/all", params=params)

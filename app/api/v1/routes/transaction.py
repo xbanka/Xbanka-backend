@@ -21,6 +21,7 @@ CREATE_TRANSACTIONS = Permission.CREATE_TRANSACTIONS
 VIEW_TRANSACTIONS = Permission.VIEW_TRANSACTIONS
 EXPORT_TRANSACTIONS = Permission.EXPORT_TRANSACTIONS
 ADJUST_BALANCE = Permission.ADJUST_BALANCE
+VIEW_PAYMENTS = Permission.VIEW_PAYMENTS
 
 @transaction.get(
     "/all", status_code=status.HTTP_200_OK
@@ -105,6 +106,20 @@ def create_manual_transaction_log(
 ):
     try:
         return InternalAPIService.log_manual_transaction(payload)
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@transaction.get("/funding/credits", status_code=status.HTTP_200_OK)
+def fetch_funding_credits(
+    current_user: CurrentUser = Depends(require_permissions(VIEW_PAYMENTS)),
+    page: int = Query(1, ge=1, description="Page number"),
+    limit: int = Query(10, ge=1, le=100, description="Items per page"),
+):
+    try:
+        return InternalAPIService.get_funding_credits(page=page, limit=limit)
     except HTTPException:
         raise
     except Exception as e:
