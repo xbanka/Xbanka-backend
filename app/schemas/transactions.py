@@ -43,6 +43,27 @@ class FundingCreditRequest(BaseModel):
     attachmentUrls: List[str] = Field(default_factory=list)
 
 
+class FundingIntentCompleteRequest(BaseModel):
+    bankReference: str = Field(min_length=1)
+    creditedBy: str
+    # defaults to the amount the customer declared; overrideReason is required with it
+    amount: Optional[Decimal] = Field(default=None, gt=0)
+    overrideReason: Optional[str] = None
+    fundingAccountId: Optional[UUID] = None
+    attachmentUrls: List[str] = Field(default_factory=list)
+
+    @model_validator(mode="after")
+    def _require_reason_for_override(self):
+        if self.amount is not None and not self.overrideReason:
+            raise ValueError("overrideReason is required when amount is provided")
+        return self
+
+
+class FundingIntentRejectRequest(BaseModel):
+    rejectedBy: str
+    reason: str = Field(min_length=1)
+
+
 class TransactionDetailResponse(BaseModel):
     id: UUID
     txn_id: str
