@@ -7,6 +7,8 @@ from app.core.enums import Permission
 from app.db.database import get_db
 from app.schemas.transactions import (
     FundingCreditRequest,
+    FundingIntentCompleteRequest,
+    FundingIntentRejectRequest,
     TransactionCreateResponse,
 )
 from app.services.internal_backend import InternalAPIService
@@ -134,6 +136,81 @@ def credit_funding_account(
     try:
         return InternalAPIService.credit_funding_account(
             payload.model_dump(mode="json")
+        )
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@transaction.get("/funding/intents", status_code=status.HTTP_200_OK)
+def fetch_funding_intents(
+    current_user: CurrentUser = Depends(require_permissions(VIEW_PAYMENTS)),
+    page: int = Query(1, ge=1, description="Page number"),
+    limit: int = Query(10, ge=1, le=100, description="Items per page"),
+    account_number: str = Query(
+        None,
+        alias="accountNumber",
+        pattern=r"^\d{10}$",
+        description="Sender account number (10 digits) registered by the customer",
+    ),
+    status_filter: str = Query(
+        None, alias="status", description="PENDING (default), COMPLETED or FAILED"
+    ),
+):
+    try:
+        return InternalAPIService.get_funding_intents(
+            page=page,
+            limit=limit,
+            accountNumber=account_number,
+            status=status_filter,
+        )
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@transaction.post("/funding/intents/{transaction_id}/complete", status_code=status.HTTP_200_OK)
+def complete_funding_intent(
+    transaction_id: UUID,
+    payload: FundingIntentCompleteRequest,
+    current_user: CurrentUser = Depends(require_permissions(ADJUST_BALANCE)),
+):
+    try:
+        return InternalAPIService.complete_funding_intent(
+            transaction_id, payload.model_dump(mode="json", exclude_none=True)
+        )
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@transaction.post("/funding/intents/{transaction_id}/reject", status_code=status.HTTP_200_OK)
+def reject_funding_intent(
+    transaction_id: UUID,
+    payload: FundingIntentRejectRequest,
+    current_user: CurrentUser = Depends(require_permissions(ADJUST_BALANCE)),
+):
+    try:
+        return InternalAPIService.reject_funding_intent(
+            transaction_id, payload.model_dump(mode="json")
+        )
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@transaction.post("/funding/attachments", status_code=status.HTTP_200_OK)
+def upload_funding_attachment(
+    file: UploadFile = File(...),
+    current_user: CurrentUser = Depends(require_permissions(ADJUST_BALANCE)),
+):
+    try:
+        return InternalAPIService.upload_funding_attachment(
+            file.filename or "attachment", file.file.read(), file.content_type
         )
     except HTTPException:
         raise

@@ -146,6 +146,34 @@ class InternalAPIService(Service):
         return InternalAPIService._request("GET", "/internal/funding/credits", params=params)
 
     @staticmethod
+    def get_funding_intents(page: int = 1, limit: int = 10, **kwargs):
+        params = {"page": page, "limit": limit, **kwargs}
+        return InternalAPIService._request("GET", "/internal/funding/intents", params=params)
+
+    @staticmethod
+    def complete_funding_intent(transaction_id: UUID, payload: dict) -> dict:
+        """Confirms the money arrived: credits the wallet and completes the intent."""
+        return InternalAPIService._request(
+            "POST", f"/internal/funding/intents/{transaction_id}/complete", json=payload
+        )
+
+    @staticmethod
+    def reject_funding_intent(transaction_id: UUID, payload: dict) -> dict:
+        """Marks the intent failed without touching the customer's wallet."""
+        return InternalAPIService._request(
+            "POST", f"/internal/funding/intents/{transaction_id}/reject", json=payload
+        )
+
+    @staticmethod
+    def upload_funding_attachment(filename: str, content: bytes, content_type: str | None) -> dict:
+        """Uploads a proof-of-payment file; the returned URL is passed to complete."""
+        return InternalAPIService._request(
+            "POST",
+            "/internal/funding/attachments",
+            files={"file": (filename, content, content_type or "application/octet-stream")},
+        )
+
+    @staticmethod
     def get_all_transactions(page: int = 1, limit: int = 10, **kwargs):
         params = {"page": page, "limit": limit, **kwargs}
         return InternalAPIService._request("GET", "/internal/wallet/transactions/all", params=params)
