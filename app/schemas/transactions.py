@@ -43,6 +43,31 @@ class FundingCreditRequest(BaseModel):
     attachmentUrls: List[str] = Field(default_factory=list)
 
 
+class XbankaAccountCreateRequest(BaseModel):
+    bankName: str = Field(min_length=1)
+    bankCode: str = Field(min_length=1)
+    accountNumber: str = Field(pattern=r"^\d{10}$")
+    accountName: str = Field(min_length=1)
+    isPrimary: bool = False
+    updatedBy: str
+
+
+class XbankaAccountUpdateRequest(BaseModel):
+    bankName: Optional[str] = Field(default=None, min_length=1)
+    bankCode: Optional[str] = Field(default=None, min_length=1)
+    accountNumber: Optional[str] = Field(default=None, pattern=r"^\d{10}$")
+    accountName: Optional[str] = Field(default=None, min_length=1)
+    isPrimary: Optional[bool] = None
+    isActive: Optional[bool] = None
+    updatedBy: str
+
+    @model_validator(mode="after")
+    def _require_a_change(self):
+        if not self.model_fields_set - {"updatedBy"}:
+            raise ValueError("Provide at least one field to update")
+        return self
+
+
 class FundingIntentCompleteRequest(BaseModel):
     bankReference: str = Field(min_length=1)
     creditedBy: str

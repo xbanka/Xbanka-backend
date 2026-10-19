@@ -33,6 +33,7 @@ env:
   GOOGLE_CLIENT_SECRET: test
   GOOGLE_REDIRECT_URI: http://localhost:8000/auth/google/callback
   INTERNAL_KEY: test_internal_key
+  INTERNAL_BASE_URL: http://localhost:9000
 
 jobs:
   lint:

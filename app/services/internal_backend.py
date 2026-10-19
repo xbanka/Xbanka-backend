@@ -146,6 +146,20 @@ class InternalAPIService(Service):
         return InternalAPIService._request("GET", "/internal/funding/credits", params=params)
 
     @staticmethod
+    def get_xbanka_accounts() -> dict:
+        return InternalAPIService._request("GET", "/internal/funding/xbanka-accounts")
+
+    @staticmethod
+    def create_xbanka_account(payload: dict) -> dict:
+        return InternalAPIService._request("POST", "/internal/funding/xbanka-accounts", json=payload)
+
+    @staticmethod
+    def update_xbanka_account(account_id: UUID, payload: dict) -> dict:
+        return InternalAPIService._request(
+            "PATCH", f"/internal/funding/xbanka-accounts/{account_id}", json=payload
+        )
+
+    @staticmethod
     def get_funding_intents(page: int = 1, limit: int = 10, **kwargs):
         params = {"page": page, "limit": limit, **kwargs}
         return InternalAPIService._request("GET", "/internal/funding/intents", params=params)
