@@ -9,6 +9,7 @@ from app.schemas.transactions import (
     FundingCreditRequest,
     FundingIntentCompleteRequest,
     FundingIntentRejectRequest,
+    AccountLookupRequest,
     TransactionCreateResponse,
     XbankaAccountCreateRequest,
     XbankaAccountUpdateRequest,
@@ -139,6 +140,31 @@ def credit_funding_account(
         return InternalAPIService.credit_funding_account(
             payload.model_dump(mode="json")
         )
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@transaction.get("/funding/banks", status_code=status.HTTP_200_OK)
+def fetch_funding_banks(
+    current_user: CurrentUser = Depends(require_permissions(VIEW_PAYMENTS)),
+):
+    try:
+        return InternalAPIService.get_funding_banks()
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@transaction.post("/funding/accounts/lookup", status_code=status.HTTP_200_OK)
+def lookup_funding_account(
+    payload: AccountLookupRequest,
+    current_user: CurrentUser = Depends(require_permissions(ADJUST_BALANCE)),
+):
+    try:
+        return InternalAPIService.lookup_funding_account(payload.model_dump(mode="json"))
     except HTTPException:
         raise
     except Exception as e:

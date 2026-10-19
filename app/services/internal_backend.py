@@ -146,6 +146,15 @@ class InternalAPIService(Service):
         return InternalAPIService._request("GET", "/internal/funding/credits", params=params)
 
     @staticmethod
+    def get_funding_banks() -> dict:
+        return InternalAPIService._request("GET", "/internal/funding/banks")
+
+    @staticmethod
+    def lookup_funding_account(payload: dict) -> dict:
+        """Resolves the account name for a bank code + account number."""
+        return InternalAPIService._request("POST", "/internal/funding/accounts/lookup", json=payload)
+
+    @staticmethod
     def get_xbanka_accounts() -> dict:
         return InternalAPIService._request("GET", "/internal/funding/xbanka-accounts")
 
