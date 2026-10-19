@@ -43,6 +43,11 @@ class FundingCreditRequest(BaseModel):
     attachmentUrls: List[str] = Field(default_factory=list)
 
 
+class AccountLookupRequest(BaseModel):
+    accountNumber: str = Field(pattern=r"^\d{10}$")
+    bankCode: str = Field(min_length=1)
+
+
 class XbankaAccountCreateRequest(BaseModel):
     bankName: str = Field(min_length=1)
     bankCode: str = Field(min_length=1)
