@@ -36,6 +36,7 @@ ENV/
 .DS_Store
 Thumbs.db
 
+temp_auto_push.bat
 # Pytest & Coverage
 .cache/
 .pytest_cache/
@@ -73,4 +74,4 @@ Claude.local.md
 
 PERMISSIONS.md
 
-docs/
+docs/branch_structure.json

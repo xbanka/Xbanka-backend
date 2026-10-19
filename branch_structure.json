@@ -1,0 +1,27 @@
+{
+  "default_branch": "main",
+  "branches": [
+    "chore/update-settings",
+    "feat/xbanka-funding-accounts",
+    "fix/aws-region",
+    "main",
+    "origin",
+    "staging"
+  ],
+  "parent": {
+    "chore/update-settings": "main",
+    "feat/xbanka-funding-accounts": "main",
+    "fix/aws-region": "main",
+    "main": null,
+    "origin": "main",
+    "staging": "main"
+  },
+  "order": [
+    "main",
+    "chore/update-settings",
+    "feat/xbanka-funding-accounts",
+    "fix/aws-region",
+    "origin",
+    "staging"
+  ]
+}
