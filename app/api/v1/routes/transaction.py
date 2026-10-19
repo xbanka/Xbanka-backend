@@ -10,6 +10,8 @@ from app.schemas.transactions import (
     FundingIntentCompleteRequest,
     FundingIntentRejectRequest,
     TransactionCreateResponse,
+    XbankaAccountCreateRequest,
+    XbankaAccountUpdateRequest,
 )
 from app.services.internal_backend import InternalAPIService
 from app.services.transaction import TransactionService
@@ -136,6 +138,48 @@ def credit_funding_account(
     try:
         return InternalAPIService.credit_funding_account(
             payload.model_dump(mode="json")
+        )
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@transaction.get("/funding/xbanka-accounts", status_code=status.HTTP_200_OK)
+def fetch_xbanka_accounts(
+    current_user: CurrentUser = Depends(require_permissions(VIEW_PAYMENTS)),
+):
+    try:
+        return InternalAPIService.get_xbanka_accounts()
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@transaction.post("/funding/xbanka-accounts", status_code=status.HTTP_200_OK)
+def create_xbanka_account(
+    payload: XbankaAccountCreateRequest,
+    current_user: CurrentUser = Depends(require_permissions(ADJUST_BALANCE)),
+):
+    try:
+        return InternalAPIService.create_xbanka_account(payload.model_dump(mode="json"))
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@transaction.patch("/funding/xbanka-accounts/{account_id}", status_code=status.HTTP_200_OK)
+def update_xbanka_account(
+    account_id: UUID,
+    payload: XbankaAccountUpdateRequest,
+    current_user: CurrentUser = Depends(require_permissions(ADJUST_BALANCE)),
+):
+    """Edit details, hide from customers (`isActive: false`) or make primary (`isPrimary: true`)."""
+    try:
+        return InternalAPIService.update_xbanka_account(
+            account_id, payload.model_dump(mode="json", exclude_unset=True)
         )
     except HTTPException:
         raise
