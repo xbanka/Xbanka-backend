@@ -213,6 +213,21 @@ def update_xbanka_account(
         raise HTTPException(status_code=500, detail=str(e))
 
 
+@transaction.delete("/funding/xbanka-accounts/{account_id}", status_code=status.HTTP_200_OK)
+def delete_xbanka_account(
+    account_id: UUID,
+    deleted_by: str = Query(..., alias="deletedBy", min_length=1, description="Email of the staff member deleting the account"),
+    current_user: CurrentUser = Depends(require_permissions(ADJUST_BALANCE)),
+):
+    """The primary account can't be deleted; make another account primary first."""
+    try:
+        return InternalAPIService.delete_xbanka_account(account_id, deleted_by)
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 @transaction.get("/funding/intents", status_code=status.HTTP_200_OK)
 def fetch_funding_intents(
     current_user: CurrentUser = Depends(require_permissions(VIEW_PAYMENTS)),
