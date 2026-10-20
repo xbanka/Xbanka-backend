@@ -169,6 +169,14 @@ class InternalAPIService(Service):
         )
 
     @staticmethod
+    def delete_xbanka_account(account_id: UUID, deleted_by: str) -> dict:
+        return InternalAPIService._request(
+            "DELETE",
+            f"/internal/funding/xbanka-accounts/{account_id}",
+            params={"deletedBy": deleted_by},
+        )
+
+    @staticmethod
     def get_funding_intents(page: int = 1, limit: int = 10, **kwargs):
         params = {"page": page, "limit": limit, **kwargs}
         return InternalAPIService._request("GET", "/internal/funding/intents", params=params)
