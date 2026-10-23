@@ -5,6 +5,11 @@ services:
     env_file:
       - .env.staging
     command: ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "5"
 
   db:
     env_file:

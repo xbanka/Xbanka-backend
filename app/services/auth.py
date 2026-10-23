@@ -224,10 +224,17 @@ class AuthService(Service):
 
             return new_access_token, new_refresh_token
 
-        except HTTPException:
+        except HTTPException as e:
+            logger.info(
+                "token refresh rejected",
+                extra={"account_type": account_type, "status": e.status_code},
+            )
             raise
 
         except Exception as e:
+            logger.exception(
+                "token refresh failed", extra={"account_type": account_type}
+            )
             raise HTTPException(
                 status_code=500,
                 detail=f"An error occurred refreshing access token: {str(e)}",
@@ -260,16 +267,32 @@ class AuthService(Service):
             )
 
         if not user or not Hasher.verify_password(password, user.hashed_password):
+            logger.warning(
+                "login failed: invalid credentials",
+                extra={
+                    "account_model": model.__name__,
+                    "user_id": str(user.id) if user else None,
+                    "user_found": user is not None,
+                },
+            )
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail="Invalid credentials",  # hide true error e.g invalid salt
             )
 
         if not user.verified:
+            logger.warning(
+                "login failed: user not verified",
+                extra={"account_model": model.__name__, "user_id": str(user.id)},
+            )
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail="User profile verification required",
             )
+
+        if model is Affiliate:
+            # ERP logins are logged by ERPService.log_login_attempt.
+            logger.info("affiliate login", extra={"user_id": str(user.id)})
 
         return user
 
@@ -352,10 +375,12 @@ class AuthService(Service):
         headers = {"Authorization": f"Bearer {PAYSTACK_SECRET_KEY}"}
 
         try:
-            banks_response = requests.get(banks_url, headers=headers)
+            banks_response = requests.get(banks_url, headers=headers, timeout=15)
             banks_data = banks_response.json()
         except RequestException as e:
-            logger.error(f"Error fetching banks list from Paystack: {str(e)}")
+            logger.error(
+                "Error fetching banks list from Paystack: %s", type(e).__name__
+            )
             raise HTTPException(
                 status_code=500, detail="Failed to fetch banks list"
             ) from e
@@ -383,10 +408,17 @@ class AuthService(Service):
         params = {"acc_no": request.account_number, "bank_code": bank_code}
 
         try:
-            verify_response = requests.get(resolve_url, headers=headers, params=params)
+            verify_response = requests.get(
+                resolve_url, headers=headers, params=params, timeout=15
+            )
             verify_data = verify_response.json()
         except RequestException as e:
-            logger.error(f"Error verifying account information with NUBAN: {str(e)}")
+            # Not str(e): the NUBAN secret is part of the request URL and
+            # requests puts the URL in its exception messages.
+            logger.error(
+                "Error verifying account information with NUBAN: %s",
+                type(e).__name__,
+            )
             raise HTTPException(
                 status_code=500, detail="Failed to verify account information"
             ) from e
@@ -451,7 +483,9 @@ class AuthService(Service):
             user.hashed_password = hashed_password
             db.commit()
             db.refresh(user)
+            logger.info("password updated", extra={"user_id": str(data.id)})
         except Exception as e:
+            logger.exception("password update failed")
             db.rollback()
             raise HTTPException(
                 status_code=500, detail=f"An error occurred updating password: {str(e)}"

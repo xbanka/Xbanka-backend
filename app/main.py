@@ -6,17 +6,27 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI, Request, status
 from fastapi.exceptions import RequestValidationError, ResponseValidationError
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.exception_handlers import (
+    http_exception_handler as default_http_exception_handler,
+)
 from fastapi.responses import JSONResponse
+from starlette.exceptions import HTTPException as StarletteHTTPException
 from starlette.middleware.sessions import SessionMiddleware
 
-from app.api.v1.routes import api_version_one
-# from app.api.v2.routes import api_version_two
-from app.services.websocket_manager import notification_manager
+from app.core.logging import redact, setup_logging
+from app.core.middleware import RequestLoggingMiddleware
 from app.utils.settings import settings
-
 
 SECRET_KEY = settings.SECRET_KEY
 ENVIRONMENT = settings.ENVIRONMENT
+
+# Configure logging before the rest of the app imports so module loggers
+# created at import time pick it up.
+setup_logging(ENVIRONMENT, settings.LOG_LEVEL)
+
+from app.api.v1.routes import api_version_one  # noqa: E402
+# from app.api.v2.routes import api_version_two
+from app.services.websocket_manager import notification_manager  # noqa: E402
 
 # @asynccontextmanager
 # async def lifespan(app: FastAPI):
@@ -30,38 +40,44 @@ ENVIRONMENT = settings.ENVIRONMENT
 #     # Shutdown
 #     pass
 
-sentry_sdk.init(
-    dsn="https://3b0caa4bd51b30c493e60d5a746c1e78@o4511098605862912.ingest.de.sentry.io/4511098608549968",
-    # Add data like request headers and IP for users,
-    # see https://docs.sentry.io/platforms/python/data-management/data-collected/ for more info
-    send_default_pii=True,
-    # Enable sending logs to Sentry
-    enable_logs=True,
-    # Set traces_sample_rate to 1.0 to capture 100%
-    # of transactions for tracing.
-    traces_sample_rate=1.0,
-    # Set profile_session_sample_rate to 1.0 to profile 100%
-    # of profile sessions.
-    profile_session_sample_rate=1.0,
-    # Set profile_lifecycle to "trace" to automatically
-    # run the profiler on when there is an active transaction
-    profile_lifecycle="trace",
-    environment=ENVIRONMENT,
-)
+logger = logging.getLogger(__name__)
+
+
+def _scrub_event(event, hint):
+    """Mask credentials in anything Sentry is about to send."""
+    return redact(event)
+
+
+if settings.SENTRY_DSN:
+    sentry_sdk.init(
+        dsn=settings.SENTRY_DSN,
+        # Request headers, cookies and IPs stay out of events.
+        send_default_pii=False,
+        enable_logs=True,
+        traces_sample_rate=settings.SENTRY_TRACES_SAMPLE_RATE,
+        profile_session_sample_rate=settings.SENTRY_TRACES_SAMPLE_RATE,
+        profile_lifecycle="trace",
+        environment=ENVIRONMENT,
+        before_send=_scrub_event,
+    )
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # notification_manager pushes are triggered from sync (threadpool) route
     # handlers, so it needs a handle on the loop to hop back onto it.
     notification_manager.set_loop(asyncio.get_running_loop())
+    logger.info(
+        "application startup",
+        extra={"environment": ENVIRONMENT, "sentry_enabled": bool(settings.SENTRY_DSN)},
+    )
     yield
+    logger.info("application shutdown")
 
 
 app = FastAPI(lifespan=lifespan)
 app.include_router(api_version_one)
 # app.include_router(api_version_two)
-
-logger = logging.getLogger(__name__)
 
 origins = [
     "http://localhost:3000",  # local dev FE
@@ -82,12 +98,58 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+# Added last so it is outermost and times the whole stack.
+app.add_middleware(RequestLoggingMiddleware)
+
+
+def _request_id(request: Request) -> str:
+    return getattr(request.state, "request_id", "-")
+
+
+@app.exception_handler(StarletteHTTPException)
+async def http_exception_handler(request: Request, exc: StarletteHTTPException):
+    if exc.status_code >= 500:
+        logger.error(
+            "http %s on %s %s: %s",
+            exc.status_code, request.method, request.url.path, exc.detail,
+        )
+    else:
+        logger.info(
+            "http %s on %s %s: %s",
+            exc.status_code, request.method, request.url.path, exc.detail,
+        )
+    return await default_http_exception_handler(request, exc)
+
+
+@app.exception_handler(Exception)
+async def unhandled_exception_handler(request: Request, exc: Exception):
+    request_id = _request_id(request)
+    logger.exception(
+        "unhandled exception on %s %s",
+        request.method, request.url.path,
+        extra={"request_id": request_id},
+    )
+    return JSONResponse(
+        status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+        content={"message": "Internal server error", "request_id": request_id},
+        headers={"X-Request-ID": request_id},
+    )
 
 
 @app.exception_handler(RequestValidationError)
 async def validation_exception_handler(request: Request, exc: RequestValidationError):
-    # Log the details for debugging purposes
-    print(f"Validation error on request {request.url}: {exc}")
+    # Log field locations and error types only; the submitted input can hold
+    # passwords and other secrets.
+    logger.warning(
+        "validation error on %s %s",
+        request.method, request.url.path,
+        extra={
+            "errors": [
+                {"loc": ".".join(str(p) for p in e["loc"]), "type": e["type"]}
+                for e in exc.errors()
+            ]
+        },
+    )
 
     # Customize the response content
     errors = []
@@ -118,7 +180,11 @@ async def response_validation_exception_handler(
         message = error["msg"]
         errors.append({"field": field, "message": message})
 
-    logger.exception("response validation error", extra={"errors": errors})
+    logger.exception(
+        "response validation error on %s %s",
+        request.method, request.url.path,
+        extra={"errors": errors},
+    )
 
     return JSONResponse(
         status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -133,7 +199,9 @@ def read_root():
     return {"message": "Welcome to XBanka API"}
 
 
-@app.get("/sentry-debug")
-def sentry():
-    div_by_zero = 1 / 0
-    return {"result": div_by_zero}
+if ENVIRONMENT.lower() not in ("production", "prod"):
+
+    @app.get("/sentry-debug")
+    def sentry():
+        div_by_zero = 1 / 0
+        return {"result": div_by_zero}
