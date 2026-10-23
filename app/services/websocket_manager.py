@@ -75,7 +75,7 @@ class NotificationConnectionManager:
             try:
                 await connection.send_json(message)
             except Exception:
-                logger.info("Dropping dead notification socket for user %s", user_id, exc_info=True)
+                logger.warning("Dropping dead notification socket for user %s", user_id, exc_info=True)
                 self.disconnect(user_id, connection)
 
     def send_to_user_threadsafe(self, user_id: str, message: dict) -> None:

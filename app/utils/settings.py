@@ -18,6 +18,12 @@ class Settings(BaseSettings):
 
     ALLOW_SUPER_ADMIN_BOOTSTRAP: bool = False
 
+    # Logging / error reporting. All defaulted so existing env files still boot.
+    # Sentry stays off until SENTRY_DSN is set.
+    LOG_LEVEL: str = "INFO"
+    SENTRY_DSN: str = ""
+    SENTRY_TRACES_SAMPLE_RATE: float = 0.1
+
     SECRET_KEY: str
     ALGORITHM: str
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
