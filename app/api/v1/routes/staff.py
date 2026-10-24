@@ -18,6 +18,7 @@ from app.schemas.erp.user import (
     UpdateStaffRequest,
 )
 from app.services.erp_user import ERPService
+from app.services.mfa import MFAService
 from app.utils.auth import require_account_type, require_super_admin, require_permissions
 from app.utils.schema import CurrentUser
 from app.utils.settings import settings
@@ -115,6 +116,17 @@ def remove_staff_member(
 ):
     ERPService.remove_staff_member(db, staff_id)
     return {"message": "Staff member removed successfully."}
+
+
+@staff.post("/{staff_id}/2fa/reset", status_code=status.HTTP_200_OK)
+def reset_staff_2fa(
+    staff_id: UUID,
+    db: Session = Depends(get_db),
+    current_user: CurrentUser = Depends(require_super_admin),
+):
+    """Clear a staff member's 2FA (lost device and recovery codes)."""
+    MFAService.admin_reset(db, ERPService.get_user_by_id(db, staff_id), current_user.user)
+    return {"message": "Two-factor authentication reset."}
 
 
 @staff.patch("/{staff_id}", status_code=status.HTTP_200_OK)
