@@ -1,7 +1,9 @@
 import uuid
 import secrets
+from datetime import datetime
 
-from sqlalchemy import Boolean, ForeignKey, String
+from sqlalchemy import Boolean, DateTime, ForeignKey, Integer, String
+from sqlalchemy import false as sa_false
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.models.base_model import BaseModel
@@ -36,6 +38,28 @@ class ERPUser(BaseModel):
     avatar_url: Mapped[str | None] = mapped_column(String(255), nullable=True)
 
     verified: Mapped[bool] = mapped_column(Boolean, nullable=False)
+
+    # Fernet-encrypted TOTP secret. Set at /2fa/setup but only enforced at login
+    # once totp_enabled flips true (after the first code is confirmed).
+    totp_secret: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    totp_enabled: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=False, server_default=sa_false()
+    )
+    # Last accepted 30s time step; a code is rejected unless its step is newer,
+    # so a code can't be replayed inside its validity window.
+    totp_last_used_step: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    mfa_failed_attempts: Mapped[int] = mapped_column(
+        Integer, nullable=False, default=0, server_default="0"
+    )
+    mfa_locked_until: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+    recovery_codes = relationship(
+        "ERPRecoveryCode",
+        back_populates="user",
+        cascade="all, delete-orphan",
+        passive_deletes=True,
+    )
 
     role_id: Mapped[uuid.UUID] = mapped_column(
         ForeignKey("roles.id"), nullable=False, index=True

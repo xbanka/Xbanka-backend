@@ -29,6 +29,13 @@ class Settings(BaseSettings):
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
     JWT_REFRESH_EXPIRY: int = 5
 
+    # Staff 2FA (TOTP). MFA_ENCRYPTION_KEY is a Fernet key
+    # (python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())")
+    # that encrypts TOTP secrets at rest. Defaulted so an env file that predates
+    # it still boots; until it is set, 2FA enrollment fails with a 500.
+    MFA_ENCRYPTION_KEY: str = ""
+    MFA_ISSUER: str = "Xbanka"
+
     PAYSTACK_SECRET_KEY: str
     NUBAN_SECRET_KEY: str
 

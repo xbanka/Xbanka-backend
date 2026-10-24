@@ -5,6 +5,7 @@ from .affiliate_tiers import AffiliateTier
 from .affiliate_visit import AffiliateVisit
 from .bank_details import BankDetails
 from .customer import Customer
+from .erp_recovery_code import ERPRecoveryCode
 from .erp_user import ERPUser
 from .login_log import LoginLog
 from .notification_preferences import NotificationPreference
@@ -29,6 +30,7 @@ __all__ = [
     "BankDetails",
     "AffiliateTier",
     "Customer",
+    "ERPRecoveryCode",
     "ERPUser",
     "LoginLog",
     "Notification",

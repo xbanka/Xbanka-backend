@@ -102,6 +102,31 @@ class AuthService(Service):
         return encoded_jwt
 
     @staticmethod
+    def create_mfa_token(data: dict, expires_delta: timedelta | None = None):
+        """Short-lived token proving the password step passed, redeemable only
+        at /login/2fa. Callers must not put account_type in `data`: its absence
+        is what makes get_current_user reject it as a session token."""
+        to_encode = data.copy()
+        expires = datetime.now() + (expires_delta or timedelta(minutes=5))
+        to_encode.update({"exp": expires, "type": "mfa_pending"})
+        return jwt.encode(to_encode, settings.SECRET_KEY, settings.ALGORITHM)
+
+    @staticmethod
+    def verify_mfa_token(token: str, credentials_exception) -> TokenData:
+        try:
+            payload = jwt.decode(
+                token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM]
+            )
+        except (JWTError, DecodeError, ExpiredSignatureError):
+            raise credentials_exception
+
+        user_id = payload.get("sub")
+        if not user_id or payload.get("type") != "mfa_pending":
+            raise credentials_exception
+
+        return TokenData(id=user_id)
+
+    @staticmethod
     def verify_magic_link(
         db: Session, model, magic_token: str, credentials_exception
     ) -> Affiliate:
@@ -168,6 +193,10 @@ class AuthService(Service):
 
             if token_type == "access":
                 raise HTTPException(detail="Access token not allowed", status_code=400)
+
+            # A pending-2FA token must not mint a session via /refresh.
+            if token_type == "mfa_pending":
+                raise credentials_exception
 
             token_data = TokenData(id=user_id)
             return token_data
@@ -311,7 +340,7 @@ class AuthService(Service):
             user_id = payload.get("sub")
             account_type = payload.get("account_type")
 
-            if user_id is None:
+            if user_id is None or payload.get("type") == "mfa_pending":
                 raise credentials_exception
 
             token_data = TokenData(id=user_id)
