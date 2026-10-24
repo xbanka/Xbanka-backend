@@ -22,6 +22,11 @@ from app.schemas.erp.user import (
     LoginBase,
     LoginResponse,
     LogoutResponse,
+    MFACodeRequest,
+    MFADisableRequest,
+    MFALoginRequest,
+    MFARecoveryCodesResponse,
+    MFASetupResponse,
     RegisterBase,
     RegisterResponse,
     ResetPasswordRequest,
@@ -29,6 +34,7 @@ from app.schemas.erp.user import (
 )
 from app.services.auth import AuthService
 from app.services.erp_user import ERPService
+from app.services.mfa import MFAService
 from app.utils.auth import require_account_type
 from app.utils.request import get_client_ip
 from app.utils.schema import CurrentUser
@@ -68,6 +74,14 @@ def login(
         )
         raise
 
+    if user.totp_enabled:
+        # Password is right but the login isn't complete: no session, and no
+        # SUCCESS log entry until /login/2fa passes.
+        return {
+            "mfa_required": True,
+            "mfa_token": AuthService.create_mfa_token(data={"sub": str(user.id)}),
+        }
+
     ERPService.log_login_attempt(
         db,
         attempted_email=create_request.email,
@@ -76,6 +90,10 @@ def login(
         login_status=LoginStatusEnum.SUCCESS,
     )
 
+    return _issue_session(response, user)
+
+
+def _issue_session(response: Response, user: ERPUser) -> dict:
     access_token = AuthService.create_access_token(
         data={"sub": str(user.id), "account_type": "erp"}
     )
@@ -104,6 +122,87 @@ def login(
     )
 
     return {"access_token": access_token, "token_type": "bearer"}
+
+
+@erp.post("/login/2fa", response_model=LoginResponse, status_code=status.HTTP_200_OK)
+def login_2fa(
+    mfa_request: MFALoginRequest,
+    request: Request,
+    response: Response,
+    db: Session = Depends(get_db),
+):
+    ip_address = get_client_ip(request)
+
+    token = AuthService.verify_mfa_token(
+        mfa_request.mfa_token,
+        HTTPException(status_code=401, detail="2FA session expired. Log in again."),
+    )
+    user = db.get(ERPUser, token.id)
+    if user is None or not user.totp_enabled:
+        raise HTTPException(
+            status_code=401, detail="2FA session expired. Log in again."
+        )
+
+    try:
+        MFAService.verify_second_factor(db, user, mfa_request.code)
+    except HTTPException as exc:
+        ERPService.log_login_attempt(
+            db,
+            attempted_email=user.email,
+            user_id=user.id,
+            ip_address=ip_address,
+            login_status=LoginStatusEnum.FAILED,
+            failure_reason=f"2FA: {exc.detail}",
+        )
+        raise
+
+    ERPService.log_login_attempt(
+        db,
+        attempted_email=user.email,
+        user_id=user.id,
+        ip_address=ip_address,
+        login_status=LoginStatusEnum.SUCCESS,
+    )
+
+    return _issue_session(response, user)
+
+
+@erp.post("/2fa/setup", response_model=MFASetupResponse)
+def setup_2fa(
+    db: Session = Depends(get_db),
+    current_user: CurrentUser = Depends(require_account_type("erp")),
+):
+    return MFAService.begin_setup(db, current_user.user)
+
+
+@erp.post("/2fa/enable", response_model=MFARecoveryCodesResponse)
+def enable_2fa(
+    body: MFACodeRequest,
+    db: Session = Depends(get_db),
+    current_user: CurrentUser = Depends(require_account_type("erp")),
+):
+    codes = MFAService.enable(db, current_user.user, body.code)
+    return {"recovery_codes": codes}
+
+
+@erp.post("/2fa/disable", response_model=LogoutResponse)
+def disable_2fa(
+    body: MFADisableRequest,
+    db: Session = Depends(get_db),
+    current_user: CurrentUser = Depends(require_account_type("erp")),
+):
+    MFAService.disable(db, current_user.user, body.password, body.code)
+    return {"success": True, "message": "Two-factor authentication disabled"}
+
+
+@erp.post("/2fa/recovery-codes/regenerate", response_model=MFARecoveryCodesResponse)
+def regenerate_recovery_codes(
+    body: MFACodeRequest,
+    db: Session = Depends(get_db),
+    current_user: CurrentUser = Depends(require_account_type("erp")),
+):
+    codes = MFAService.regenerate_recovery_codes(db, current_user.user, body.code)
+    return {"recovery_codes": codes}
 
 
 @erp.post(

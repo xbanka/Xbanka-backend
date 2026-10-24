@@ -52,6 +52,9 @@ class StaffBase(BaseModel):
 
 class ERPMeResponse(StaffBase):
     pending_role_change: Optional[PendingRoleChangeSummary] = None
+    # Whether the logged-in staff member has 2FA on; drives Enable vs Disable
+    # in Settings -> Security.
+    totp_enabled: bool = False
 
     @computed_field
     @property
@@ -161,8 +164,38 @@ class RegisterBase(BaseModel):
 class LoginResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
-    access_token: str
-    token_type: str
+    # When the account has 2FA on, /login returns mfa_required + mfa_token
+    # instead of a session; the client then calls /login/2fa.
+    access_token: str | None = None
+    token_type: str | None = None
+    mfa_required: bool = False
+    mfa_token: str | None = None
+
+
+class MFALoginRequest(BaseModel):
+    mfa_token: str
+    # 6-digit authenticator code, or a recovery code (XXXXX-XXXXX)
+    code: str
+
+
+class MFASetupResponse(BaseModel):
+    secret: str
+    # Render as a QR code client-side; the secret is there for manual entry.
+    otpauth_uri: str
+
+
+class MFACodeRequest(BaseModel):
+    code: str
+
+
+class MFADisableRequest(BaseModel):
+    password: str
+    code: str
+
+
+class MFARecoveryCodesResponse(BaseModel):
+    # Shown once; only hashes are stored.
+    recovery_codes: list[str]
 
 
 class RegisterResponse(BaseModel):
