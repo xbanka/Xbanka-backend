@@ -18,6 +18,8 @@ from app.models.transactions import Transaction
 from app.utils.s3_utils import upload_file, validate_file
 from app.utils.settings import settings
 
+logger = logging.getLogger(__name__)
+
 S3_BUCKET_TRANSACTIONS = settings.S3_BUCKET_TRANSACTIONS
 
 
@@ -88,8 +90,11 @@ class TransactionService(Service):
 
             return transaction
 
-        except ClientError as e:
-            logging.error(e)
+        except ClientError:
+            logger.exception(
+                "attachment upload to S3 failed",
+                extra={"transaction_id": str(transaction_id)},
+            )
             transaction.upload_status = UploadStatusEnum.failed
             db.commit()
 

@@ -1,4 +1,6 @@
+import logging
 import re
+import time
 from datetime import datetime, timezone
 from io import BytesIO
 from uuid import UUID
@@ -12,8 +14,11 @@ from openpyxl.utils import get_column_letter
 from app.core.base.services import Service
 from app.utils.settings import settings
 
+logger = logging.getLogger(__name__)
+
 INTERNAL_KEY = settings.INTERNAL_KEY
 BASE_URL = settings.INTERNAL_BASE_URL
+REQUEST_TIMEOUT_SECONDS = 30
 
 # Verbs a transaction's summary sentence reads with, keyed by its `type`.
 # Types without an entry fall back to a generic "made a <displayType>" phrasing.
@@ -51,12 +56,45 @@ class InternalAPIService(Service):
         if "params" in kwargs and kwargs["params"]:
             kwargs["params"] = {k: v for k, v in kwargs["params"].items() if v is not None}
             
-        response = requests.request(method, url, headers=headers, **kwargs)
+        kwargs.setdefault("timeout", REQUEST_TIMEOUT_SECONDS)
+
+        start = time.perf_counter()
+        try:
+            response = requests.request(method, url, headers=headers, **kwargs)
+        except requests.RequestException:
+            logger.exception(
+                "core backend request failed",
+                extra={"method": method, "endpoint": endpoint},
+            )
+            raise HTTPException(
+                status_code=502, detail="Could not reach the core backend"
+            )
+        duration_ms = round((time.perf_counter() - start) * 1000, 2)
+
         try:
             response.raise_for_status()
         except requests.HTTPError:
+            logger.warning(
+                "core backend returned an error",
+                extra={
+                    "method": method,
+                    "endpoint": endpoint,
+                    "status": response.status_code,
+                    "duration_ms": duration_ms,
+                    "response_body": response.text[:500],
+                },
+            )
             # keep the core backend's status code and message instead of a generic 500
             raise HTTPException(status_code=response.status_code, detail=response.text)
+        logger.info(
+            "core backend request ok",
+            extra={
+                "method": method,
+                "endpoint": endpoint,
+                "status": response.status_code,
+                "duration_ms": duration_ms,
+            },
+        )
         return response.json()
     
     @staticmethod
@@ -128,6 +166,7 @@ class InternalAPIService(Service):
         except HTTPException:
             raise
         except Exception as e:
+            logger.exception("failed to fetch user from core backend", extra={"user_id": str(id)})
             raise HTTPException(status_code=500, detail=str(e))
 
     @staticmethod

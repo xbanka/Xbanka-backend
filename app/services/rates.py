@@ -1,3 +1,5 @@
+import logging
+
 import requests
 from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
@@ -21,6 +23,9 @@ from app.utils.settings import settings
 
 INTERNAL_KEY = settings.INTERNAL_KEY
 
+logger = logging.getLogger(__name__)
+
+
 class RatesService(Service):
     @staticmethod
     def _fetch_current_state():
@@ -42,12 +47,18 @@ class RatesService(Service):
     def _fetch_all_assets():
         headers = {"x-internal-key": INTERNAL_KEY}
         response = requests.get(
-            "https://backend.xbankang.com/internal/wallets/crypto/accepts", headers=headers
+            "https://backend.xbankang.com/internal/wallets/crypto/accepts",
+            headers=headers,
+            timeout=30,
         )
         if response.status_code == 200:
             result = response.json()
             return result.get("data", [])
 
+        logger.error(
+            "failed to fetch crypto assets",
+            extra={"status": response.status_code, "response_body": response.text[:500]},
+        )
         return []
 
     @staticmethod
@@ -55,12 +66,17 @@ class RatesService(Service):
         headers = {"x-internal-key": INTERNAL_KEY}
         response = requests.get(
             "https://backend.xbankang.com/internal/wallets/crypto/segments",
-            headers=headers
+            headers=headers,
+            timeout=30,
         )
         if response.status_code == 200:
             result = response.json()
             return result.get("data", [])
 
+        logger.error(
+            "failed to fetch crypto segments",
+            extra={"status": response.status_code, "response_body": response.text[:500]},
+        )
         return []
 
     @staticmethod
@@ -348,11 +364,24 @@ class RatesService(Service):
             )
 
         if response.status_code != 200:
+            logger.error(
+                "failed to apply rate change",
+                extra={
+                    "proposal_type": str(proposal_type),
+                    "target_id": str(target_id),
+                    "status": response.status_code,
+                    "response_body": response.text[:500],
+                },
+            )
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail=f"Failed to apply proposal changes: {response.text}"
             )
 
+        logger.info(
+            "rate change applied",
+            extra={"proposal_type": str(proposal_type), "target_id": str(target_id)},
+        )
         return response.json()
 
     @staticmethod

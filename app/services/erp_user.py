@@ -104,17 +104,18 @@ class ERPService(Service):
             erp_user.verified = True
             db.commit()
 
-        except IntegrityError as e:
-            print(e)
+        except IntegrityError:
+            logger.exception("database integrity error")
             db.rollback()
             raise HTTPException(status_code=400, detail="Database integrity error")
         except SQLAlchemyError as e:
+            logger.exception("database error while saving")
             db.rollback()
             raise HTTPException(
                 status_code=500, detail=f"An error occurred saving entity: {e}"
             )
-        except Exception as e:
-            print(e)
+        except Exception:
+            logger.exception("unexpected error while saving")
             db.rollback()
             raise HTTPException(status_code=500, detail="An unknown error occurred")
 
@@ -269,6 +270,7 @@ class ERPService(Service):
             erp_user.hashed_password = Hasher.get_password_hash(new_password)
             db.commit()
         except SQLAlchemyError as e:
+            logger.exception("database error while saving")
             db.rollback()
             raise HTTPException(
                 status_code=500, detail=f"An error occurred saving entity: {e}"
@@ -764,17 +766,18 @@ class ERPService(Service):
             db.add(superadmin_user)
             db.commit()
             db.refresh(superadmin_user)
-        except IntegrityError as e:
-            print(e)
+        except IntegrityError:
+            logger.exception("database integrity error")
             db.rollback()
             raise HTTPException(status_code=400, detail="Database integrity error")
         except SQLAlchemyError as e:
+            logger.exception("database error while saving")
             db.rollback()
             raise HTTPException(
                 status_code=500, detail=f"An error occurred saving entity: {e}"
             )
-        except Exception as e:
-            print(e)
+        except Exception:
+            logger.exception("unexpected error while saving")
             db.rollback()
             raise HTTPException(status_code=500, detail="An unknown error occurred")
 
@@ -894,17 +897,18 @@ class ERPService(Service):
 
             db.commit()
 
-        except IntegrityError as e:
-            print(e)
+        except IntegrityError:
+            logger.exception("database integrity error")
             db.rollback()
             raise HTTPException(status_code=400, detail="Database integrity error")
         except SQLAlchemyError as e:
+            logger.exception("database error while saving")
             db.rollback()
             raise HTTPException(
                 status_code=500, detail=f"An error occurred saving entity: {e}"
             )
-        except Exception as e:
-            print(e)
+        except Exception:
+            logger.exception("unexpected error while saving")
             db.rollback()
             raise HTTPException(status_code=500, detail="An unknown error occurred")
 
@@ -1015,17 +1019,18 @@ class ERPService(Service):
         try:
             db.commit()
             db.refresh(staff_user)
-        except IntegrityError as e:
-            print(e)
+        except IntegrityError:
+            logger.exception("database integrity error")
             db.rollback()
             raise HTTPException(status_code=400, detail="Database integrity error")
         except SQLAlchemyError as e:
+            logger.exception("database error while saving")
             db.rollback()
             raise HTTPException(
                 status_code=500, detail=f"An error occurred saving entity: {e}"
             )
-        except Exception as e:
-            print(e)
+        except Exception:
+            logger.exception("unexpected error while saving")
             db.rollback()
             raise HTTPException(status_code=500, detail="An unknown error occurred")
 
@@ -1193,17 +1198,18 @@ class ERPService(Service):
             db.commit()
             db.refresh(staff_user)
 
-        except IntegrityError as e:
-            print(e)
+        except IntegrityError:
+            logger.exception("database integrity error")
             db.rollback()
             raise HTTPException(status_code=400, detail="Database integrity error")
         except SQLAlchemyError as e:
+            logger.exception("database error while saving")
             db.rollback()
             raise HTTPException(
                 status_code=500, detail=f"An error occurred saving entity: {e}"
             )
-        except Exception as e:
-            print(e)
+        except Exception:
+            logger.exception("unexpected error while saving")
             db.rollback()
             raise HTTPException(status_code=500, detail="An unknown error occurred")
 
@@ -1294,11 +1300,12 @@ class ERPService(Service):
             db.refresh(role_change)
             db.refresh(staff_user)
 
-        except IntegrityError as e:
-            print(e)
+        except IntegrityError:
+            logger.exception("database integrity error")
             db.rollback()
             raise HTTPException(status_code=400, detail="Database integrity error")
         except SQLAlchemyError as e:
+            logger.exception("database error while saving")
             db.rollback()
             raise HTTPException(
                 status_code=500, detail=f"An error occurred saving entity: {e}"
@@ -1358,6 +1365,16 @@ class ERPService(Service):
         login_status: LoginStatusEnum,
         failure_reason: Optional[str] = None,
     ) -> None:
+        logger.log(
+            logging.INFO if login_status == LoginStatusEnum.SUCCESS else logging.WARNING,
+            "erp login %s",
+            getattr(login_status, "value", login_status),
+            extra={
+                "user_id": str(user_id) if user_id else None,
+                "failure_reason": failure_reason,
+                "client_ip": ip_address,
+            },
+        )
         db.add(
             LoginLog(
                 attempted_email=attempted_email,
@@ -1409,8 +1426,8 @@ class ERPService(Service):
 
             return payout
 
-        except ClientError as e:
-            logging.error(e)
+        except ClientError:
+            logger.exception("payout attachment upload to S3 failed")
             payout.upload_status = UploadStatusEnum.failed
             db.commit()
 
