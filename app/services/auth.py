@@ -340,7 +340,9 @@ class AuthService(Service):
             user_id = payload.get("sub")
             account_type = payload.get("account_type")
 
-            if user_id is None or payload.get("type") == "mfa_pending":
+            # Only access tokens are sessions. Refresh and mfa_pending tokens
+            # carry the same sub (refresh also account_type) and must not pass.
+            if user_id is None or payload.get("type") != "access":
                 raise credentials_exception
 
             token_data = TokenData(id=user_id)
@@ -381,7 +383,7 @@ class AuthService(Service):
             payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
             user_id = payload.get("sub")
             account_type = payload.get("account_type")
-            if user_id is None:
+            if user_id is None or payload.get("type") != "access":
                 raise InvalidTokenError
             token_data = TokenData(id=user_id)
         except (InvalidTokenError, ExpiredSignatureError, DecodeError):

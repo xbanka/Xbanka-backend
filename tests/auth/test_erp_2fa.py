@@ -180,6 +180,20 @@ def test_mfa_token_is_not_a_session(test_client, staff):
     assert test_client.post(f"{BASE}/refresh").status_code == 401
 
 
+def test_me_reports_totp_enabled(test_client, staff):
+    assert test_client.get("/api/erp/me", headers=_headers(staff)).json()["totp_enabled"] is False
+    _enroll(test_client, staff)
+    assert test_client.get("/api/erp/me", headers=_headers(staff)).json()["totp_enabled"] is True
+
+
+def test_refresh_token_is_not_a_session(test_client, staff):
+    refresh = AuthService.create_refresh_token(
+        data={"sub": str(staff.id), "account_type": "erp"}
+    )
+    res = test_client.get("/api/erp/me", headers={"Authorization": f"Bearer {refresh}"})
+    assert res.status_code == 401
+
+
 def test_login_2fa_rejects_access_token_as_mfa_token(test_client, staff):
     secret, _ = _enroll(test_client, staff)
     access = AuthService.create_access_token(

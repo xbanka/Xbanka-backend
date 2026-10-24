@@ -52,6 +52,9 @@ class StaffBase(BaseModel):
 
 class ERPMeResponse(StaffBase):
     pending_role_change: Optional[PendingRoleChangeSummary] = None
+    # Whether the logged-in staff member has 2FA on; drives Enable vs Disable
+    # in Settings -> Security.
+    totp_enabled: bool = False
 
     @computed_field
     @property
