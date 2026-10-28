@@ -2,6 +2,7 @@ from unittest.mock import MagicMock
 from uuid import UUID, uuid4
 
 import pytest
+import requests
 
 from app.core.enums import Permission
 from app.core.hash import Hasher
@@ -19,16 +20,27 @@ def _mock_response(status_code=200, json_data=None):
     response = MagicMock()
     response.status_code = status_code
     response.json.return_value = json_data if json_data is not None else {}
+    response.text = "error"
+    if status_code >= 400:
+        response.raise_for_status.side_effect = requests.HTTPError(str(status_code))
     return response
 
 
 @pytest.fixture(autouse=True)
 def mock_rates_state_fetch(mocker):
     """Building a proposal snapshot always fetches current assets/segments from
-    the internal rates API first; stub that out so no test needs network."""
+    the internal rates API first; stub that out so no test needs network.
+
+    InternalAPIService funnels every call through requests.request, so route it
+    to requests.get / requests.put looked up at call time. That lets each test
+    patch just the verb it cares about."""
     mocker.patch(
-        "app.services.rates.requests.get",
+        "requests.get",
         return_value=_mock_response(200, {"data": []}),
+    )
+    mocker.patch(
+        "app.services.internal_backend.requests.request",
+        side_effect=lambda method, url, **kwargs: getattr(requests, method.lower())(url, **kwargs),
     )
 
 
@@ -96,7 +108,7 @@ def manager_with_override(db_session, override_permission) -> ERPUser:
 def test_update_crypto_rate_without_override_creates_pending_proposal(
     mocker, test_client, db_session, manager_without_override
 ):
-    mock_put = mocker.patch("app.services.rates.requests.put")
+    mock_put = mocker.patch("requests.put")
 
     response = test_client.put(
         f"/api/rates/crypto/{uuid4()}",
@@ -118,7 +130,7 @@ def test_update_crypto_rate_with_override_applies_immediately(
     mocker, test_client, db_session, manager_with_override
 ):
     mock_put = mocker.patch(
-        "app.services.rates.requests.put", return_value=_mock_response(200, {"ok": True})
+        "requests.put", return_value=_mock_response(200, {"ok": True})
     )
 
     response = test_client.put(
@@ -141,7 +153,7 @@ def test_super_admin_bypasses_proposal_flow_without_explicit_permission(
     mocker, test_client, verified_superadmin
 ):
     mock_put = mocker.patch(
-        "app.services.rates.requests.put", return_value=_mock_response(200, {"ok": True})
+        "requests.put", return_value=_mock_response(200, {"ok": True})
     )
 
     response = test_client.put(
@@ -153,6 +165,46 @@ def test_super_admin_bypasses_proposal_flow_without_explicit_permission(
     assert response.status_code == 200
     assert response.json()["message"] == "Rate change applied successfully."
     mock_put.assert_called_once()
+
+
+def test_update_crypto_rate_fails_without_proposal_when_state_fetch_fails(
+    mocker, test_client, db_session, manager_without_override
+):
+    mocker.patch("requests.get", return_value=_mock_response(500))
+
+    response = test_client.put(
+        f"/api/rates/crypto/{uuid4()}",
+        json={"buyFeeValue": 1.5, "sellFeeValue": 2.0},
+        headers=_headers(manager_without_override),
+    )
+
+    assert response.status_code == 500
+    assert db_session.query(RateApprovalRequest).count() == 0
+
+
+def test_update_crypto_rate_core_backend_unreachable_returns_502(
+    mocker, test_client, db_session, manager_without_override
+):
+    mocker.patch("requests.get", side_effect=requests.ConnectionError("down"))
+
+    response = test_client.put(
+        f"/api/rates/crypto/{uuid4()}",
+        json={"buyFeeValue": 1.5},
+        headers=_headers(manager_without_override),
+    )
+
+    assert response.status_code == 502
+    assert db_session.query(RateApprovalRequest).count() == 0
+
+
+def test_get_all_exchange_rates_surfaces_core_backend_error(
+    mocker, test_client, manager_without_override
+):
+    mocker.patch("requests.get", return_value=_mock_response(401))
+
+    response = test_client.get("/api/rates/crypto/all", headers=_headers(manager_without_override))
+
+    assert response.status_code == 401
 
 
 # ---------------------------------------------------------------------------
@@ -180,7 +232,7 @@ def _segment_payload(segment_id):
 def test_bulk_update_segments_without_override_creates_proposal(
     mocker, test_client, db_session, manager_without_override
 ):
-    mock_put = mocker.patch("app.services.rates.requests.put")
+    mock_put = mocker.patch("requests.put")
 
     response = test_client.put(
         "/api/rates/segments/bulk",
@@ -198,7 +250,7 @@ def test_bulk_update_segments_with_override_applies_immediately(
     mocker, test_client, db_session, manager_with_override
 ):
     mock_put = mocker.patch(
-        "app.services.rates.requests.put", return_value=_mock_response(200, {"ok": True})
+        "requests.put", return_value=_mock_response(200, {"ok": True})
     )
 
     response = test_client.put(
@@ -222,7 +274,7 @@ def test_bulk_update_segments_with_override_applies_immediately(
 def test_bulk_assign_to_segments_without_override_creates_proposal(
     mocker, test_client, db_session, manager_without_override
 ):
-    mock_put = mocker.patch("app.services.rates.requests.put")
+    mock_put = mocker.patch("requests.put")
 
     response = test_client.put(
         f"/api/rates/segments/{uuid4()}/bulk-assign",
@@ -240,7 +292,7 @@ def test_bulk_assign_to_segments_with_override_applies_immediately(
     mocker, test_client, db_session, manager_with_override
 ):
     mock_put = mocker.patch(
-        "app.services.rates.requests.put", return_value=_mock_response(200, {"ok": True})
+        "requests.put", return_value=_mock_response(200, {"ok": True})
     )
 
     response = test_client.put(
@@ -264,7 +316,7 @@ def test_bulk_assign_to_segments_with_override_applies_immediately(
 def test_approve_proposal_applies_change_and_logs(
     mocker, test_client, db_session, manager_without_override, verified_superadmin
 ):
-    mocker.patch("app.services.rates.requests.put")  # not called during proposal creation
+    mocker.patch("requests.put")  # not called during proposal creation
     create_response = test_client.put(
         f"/api/rates/crypto/{uuid4()}",
         json={"buyFeeValue": 3.0},
@@ -273,7 +325,7 @@ def test_approve_proposal_applies_change_and_logs(
     proposal_id = str(db_session.query(RateApprovalRequest).one().id)
 
     mock_put = mocker.patch(
-        "app.services.rates.requests.put", return_value=_mock_response(200, {"applied": True})
+        "requests.put", return_value=_mock_response(200, {"applied": True})
     )
     approve_response = test_client.post(
         f"/api/rates/proposals/{proposal_id}/approve",
@@ -291,7 +343,7 @@ def test_approve_proposal_applies_change_and_logs(
 def test_approve_already_processed_proposal_rejected(
     mocker, test_client, db_session, manager_without_override, verified_superadmin
 ):
-    mocker.patch("app.services.rates.requests.put")
+    mocker.patch("requests.put")
     create_response = test_client.put(
         f"/api/rates/crypto/{uuid4()}",
         json={"buyFeeValue": 3.0},
@@ -315,7 +367,7 @@ def test_approve_already_processed_proposal_rejected(
 def test_reject_proposal(
     mocker, test_client, db_session, manager_without_override, verified_superadmin
 ):
-    mocker.patch("app.services.rates.requests.put")
+    mocker.patch("requests.put")
     create_response = test_client.put(
         f"/api/rates/crypto/{uuid4()}",
         json={"buyFeeValue": 3.0},
@@ -341,7 +393,7 @@ def test_reject_proposal(
 def test_approve_proposal_notifies_requester_only(
     mocker, test_client, db_session, manager_without_override, verified_superadmin
 ):
-    mocker.patch("app.services.rates.requests.put")
+    mocker.patch("requests.put")
     create_response = test_client.put(
         f"/api/rates/crypto/{uuid4()}",
         json={"buyFeeValue": 3.0},
@@ -351,7 +403,7 @@ def test_approve_proposal_notifies_requester_only(
 
     mock_notify = mocker.patch("app.services.rates.ERPService.new_notification")
     mocker.patch(
-        "app.services.rates.requests.put", return_value=_mock_response(200, {"applied": True})
+        "requests.put", return_value=_mock_response(200, {"applied": True})
     )
 
     response = test_client.post(
@@ -368,7 +420,7 @@ def test_approve_proposal_notifies_requester_only(
 def test_reject_proposal_notifies_requester_only(
     mocker, test_client, db_session, manager_without_override, verified_superadmin
 ):
-    mocker.patch("app.services.rates.requests.put")
+    mocker.patch("requests.put")
     create_response = test_client.put(
         f"/api/rates/crypto/{uuid4()}",
         json={"buyFeeValue": 3.0},
@@ -395,7 +447,7 @@ def test_approve_own_proposal_sends_no_self_notification(
     """The approve route only gates on account type, so a requester who is
     also an approver can process their own proposal. They shouldn't get a
     notification about their own action."""
-    mocker.patch("app.services.rates.requests.put")
+    mocker.patch("requests.put")
     create_response = test_client.put(
         f"/api/rates/crypto/{uuid4()}",
         json={"buyFeeValue": 3.0},
@@ -405,7 +457,7 @@ def test_approve_own_proposal_sends_no_self_notification(
 
     mock_notify = mocker.patch("app.services.rates.ERPService.new_notification")
     mocker.patch(
-        "app.services.rates.requests.put", return_value=_mock_response(200, {"applied": True})
+        "requests.put", return_value=_mock_response(200, {"applied": True})
     )
 
     response = test_client.post(
@@ -420,7 +472,7 @@ def test_approve_own_proposal_sends_no_self_notification(
 def test_reject_own_proposal_sends_no_self_notification(
     mocker, test_client, db_session, manager_without_override
 ):
-    mocker.patch("app.services.rates.requests.put")
+    mocker.patch("requests.put")
     create_response = test_client.put(
         f"/api/rates/crypto/{uuid4()}",
         json={"buyFeeValue": 3.0},
@@ -463,7 +515,7 @@ def reviewer(db_session, approve_permission) -> ERPUser:
 def test_approve_proposal_resolves_other_reviewers_notifications(
     mocker, test_client, db_session, manager_without_override, reviewer, verified_superadmin
 ):
-    mocker.patch("app.services.rates.requests.put")
+    mocker.patch("requests.put")
     create_response = test_client.put(
         f"/api/rates/crypto/{uuid4()}",
         json={"buyFeeValue": 3.0},
@@ -479,7 +531,7 @@ def test_approve_proposal_resolves_other_reviewers_notifications(
     assert reviewer_notif.status == "ACTIVE"
 
     mocker.patch(
-        "app.services.rates.requests.put", return_value=_mock_response(200, {"applied": True})
+        "requests.put", return_value=_mock_response(200, {"applied": True})
     )
     approve_response = test_client.post(
         f"/api/rates/proposals/{proposal_id}/approve",
@@ -503,7 +555,7 @@ def test_approve_proposal_resolves_other_reviewers_notifications(
 def test_reject_proposal_resolves_other_reviewers_notifications(
     mocker, test_client, db_session, manager_without_override, reviewer, verified_superadmin
 ):
-    mocker.patch("app.services.rates.requests.put")
+    mocker.patch("requests.put")
     create_response = test_client.put(
         f"/api/rates/crypto/{uuid4()}",
         json={"buyFeeValue": 3.0},
@@ -539,7 +591,7 @@ def test_reject_proposal_resolves_other_reviewers_notifications(
 def test_approve_proposal_does_not_resolve_notifications_for_other_proposals(
     mocker, test_client, db_session, manager_without_override, reviewer, verified_superadmin
 ):
-    mocker.patch("app.services.rates.requests.put")
+    mocker.patch("requests.put")
     first_response = test_client.put(
         f"/api/rates/crypto/{uuid4()}",
         json={"buyFeeValue": 3.0},
@@ -560,7 +612,7 @@ def test_approve_proposal_does_not_resolve_notifications_for_other_proposals(
     first_id, second_id = proposals[0].id, proposals[1].id
 
     mocker.patch(
-        "app.services.rates.requests.put", return_value=_mock_response(200, {"applied": True})
+        "requests.put", return_value=_mock_response(200, {"applied": True})
     )
     response = test_client.post(
         f"/api/rates/proposals/{first_id}/approve",
@@ -588,7 +640,7 @@ def test_approve_proposal_does_not_resolve_notifications_for_other_proposals(
 def test_get_proposal_by_id_returns_proposal(
     mocker, test_client, db_session, manager_without_override
 ):
-    mocker.patch("app.services.rates.requests.put")
+    mocker.patch("requests.put")
     create_response = test_client.put(
         f"/api/rates/crypto/{uuid4()}",
         json={"buyFeeValue": 3.0},
@@ -697,7 +749,7 @@ def test_bulk_assign_to_segments_sends_one_notification_per_proposal(
 def test_update_crypto_rate_notification_references_created_proposal(
     mocker, test_client, db_session, manager_without_override
 ):
-    mocker.patch("app.services.rates.requests.put")
+    mocker.patch("requests.put")
     mock_notify = mocker.patch("app.services.rates.ERPService.notify_permission_holders")
 
     rate_id = uuid4()

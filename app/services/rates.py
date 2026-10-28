@@ -1,6 +1,5 @@
 import logging
 
-import requests
 from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
 from uuid import UUID
@@ -18,10 +17,8 @@ from app.models.role import SUPER_ADMIN
 from app.schemas.erp.rates import AffectedAssetItem, AssetsRequest, AssignAssetsToSegmentRequest, ProposalResponse, RequestUser, SegmentsBulkUpdateRequest
 from app.models.rate_approval_request import RateApprovalRequest
 from app.services.erp_user import ERPService
+from app.services.internal_backend import InternalAPIService
 from app.utils.schema import CurrentUser
-from app.utils.settings import settings
-
-INTERNAL_KEY = settings.INTERNAL_KEY
 
 logger = logging.getLogger(__name__)
 
@@ -45,39 +42,15 @@ class RatesService(Service):
 
     @staticmethod
     def _fetch_all_assets():
-        headers = {"x-internal-key": INTERNAL_KEY}
-        response = requests.get(
-            "https://backend.xbankang.com/internal/wallets/crypto/accepts",
-            headers=headers,
-            timeout=30,
-        )
-        if response.status_code == 200:
-            result = response.json()
-            return result.get("data", [])
-
-        logger.error(
-            "failed to fetch crypto assets",
-            extra={"status": response.status_code, "response_body": response.text[:500]},
-        )
-        return []
+        # raises on failure rather than returning [] — a proposal snapshot built
+        # from empty state would be frozen into the audit log with blank values
+        result = InternalAPIService._request("GET", "/internal/wallets/crypto/accepts")
+        return result.get("data", [])
 
     @staticmethod
     def _fetch_segments():
-        headers = {"x-internal-key": INTERNAL_KEY}
-        response = requests.get(
-            "https://backend.xbankang.com/internal/wallets/crypto/segments",
-            headers=headers,
-            timeout=30,
-        )
-        if response.status_code == 200:
-            result = response.json()
-            return result.get("data", [])
-
-        logger.error(
-            "failed to fetch crypto segments",
-            extra={"status": response.status_code, "response_body": response.text[:500]},
-        )
-        return []
+        result = InternalAPIService._request("GET", "/internal/wallets/crypto/segments")
+        return result.get("data", [])
 
     @staticmethod
     def _fetch_segment_assets(segment_id: UUID) -> list[dict]:
@@ -329,19 +302,13 @@ class RatesService(Service):
     def _apply_change(proposal_type: RateApprovalRequestTypeEnum, target_id, payload):
         """Push a change to the internal rates API. Shared by proposal approval and
         by the RATE_CHANGE_OVERRIDE direct-apply path."""
-        headers = {"x-internal-key": INTERNAL_KEY}
-
         if proposal_type == RateApprovalRequestTypeEnum.ASSET_UPDATE:
-            response = requests.put(
-                f"https://backend.xbankang.com/internal/wallets/crypto/accepts/{target_id}",
-                json=payload,
-                headers=headers
+            result = InternalAPIService._request(
+                "PUT", f"/internal/wallets/crypto/accepts/{target_id}", json=payload
             )
         elif proposal_type == RateApprovalRequestTypeEnum.SEGMENT_UPDATE:
-            response = requests.put(
-                "https://backend.xbankang.com/internal/wallets/crypto/segments/bulk",
-                json=payload,
-                headers=headers
+            result = InternalAPIService._request(
+                "PUT", "/internal/wallets/crypto/segments/bulk", json=payload
             )
         elif proposal_type == RateApprovalRequestTypeEnum.SEGMENT_ASSIGNMENT:
             if not isinstance(payload, dict):
@@ -349,13 +316,13 @@ class RatesService(Service):
                     status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                     detail="Expected payload to be of dictionary type"
                 )
-            response = requests.put(
-                f"https://backend.xbankang.com/internal/wallets/crypto/segments/{payload['segmentId']}/assets/bulk-assign",
+            result = InternalAPIService._request(
+                "PUT",
+                f"/internal/wallets/crypto/segments/{payload['segmentId']}/assets/bulk-assign",
                 json={
                     "assetIds": [str(target_id)],
                     "setupNote": payload["setupNote"]
                 },
-                headers=headers
             )
         else:
             raise HTTPException(
@@ -363,26 +330,11 @@ class RatesService(Service):
                 detail=f"Unknown proposal type: {proposal_type}"
             )
 
-        if response.status_code != 200:
-            logger.error(
-                "failed to apply rate change",
-                extra={
-                    "proposal_type": str(proposal_type),
-                    "target_id": str(target_id),
-                    "status": response.status_code,
-                    "response_body": response.text[:500],
-                },
-            )
-            raise HTTPException(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail=f"Failed to apply proposal changes: {response.text}"
-            )
-
         logger.info(
             "rate change applied",
             extra={"proposal_type": str(proposal_type), "target_id": str(target_id)},
         )
-        return response.json()
+        return result
 
     @staticmethod
     def _submit_change(
@@ -428,20 +380,14 @@ class RatesService(Service):
 
     @staticmethod
     def get_all_exchange_rates():
-        headers = {"x-internal-key": INTERNAL_KEY}
-        response = requests.get(
-            "https://backend.xbankang.com/internal/wallets/crypto/accepts", headers=headers
-        )
-        return response.json()
+        return InternalAPIService._request("GET", "/internal/wallets/crypto/accepts")
 
 
     @staticmethod
     def post_crypto_rate(db: Session, request: AssetsRequest):
-        response = requests.post(
-            "https://backend.xbankang.com/internal/wallets/crypto/accepts", json=request.model_dump(mode="json"),
-            headers={"x-internal-key": INTERNAL_KEY}
+        return InternalAPIService._request(
+            "POST", "/internal/wallets/crypto/accepts", json=request.model_dump(mode="json")
         )
-        return response.json()
 
 
     @staticmethod
@@ -476,11 +422,7 @@ class RatesService(Service):
 
     @staticmethod
     def get_all_segments():
-        response = requests.get(
-            "https://backend.xbankang.com/internal/wallets/crypto/segments",
-            headers={"x-internal-key": INTERNAL_KEY}
-        )
-        return response.json()
+        return InternalAPIService._request("GET", "/internal/wallets/crypto/segments")
 
     @staticmethod
     def bulk_update_segments(
@@ -555,15 +497,14 @@ class RatesService(Service):
 
     @staticmethod
     def assign_crypto_to_segment(crypto_id: UUID, segment_id: UUID, override_segment: bool):
-        response = requests.put(
-            f"https://backend.xbankang.com/internal/wallets/crypto/accepts/{crypto_id}",
+        return InternalAPIService._request(
+            "PUT",
+            f"/internal/wallets/crypto/accepts/{crypto_id}",
             json={
-                "segmentId": segment_id,
+                "segmentId": str(segment_id),
                 "overrideSegment": override_segment
             },
-            headers={"x-internal-key": INTERNAL_KEY}
         )
-        return response.json()
 
 
     @staticmethod
