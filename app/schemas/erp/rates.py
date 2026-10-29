@@ -68,6 +68,17 @@ class SegmentRequest(BaseModel):
     sellFeeType: str = Field(..., description="The type of sell fee (e.g., percentage, fixed)")
     sellSpread: float = Field(..., description="The value of the sell spread")
 
+class SegmentPatchRequest(BaseModel):
+    """Partial update of one segment. `name` is intentionally absent: it is not editable upstream."""
+    model_config = ConfigDict(from_attributes=True)
+
+    isActive: Optional[bool] = Field(None, description="Whether the segment is active or not")
+    buyFeeType: Optional[str] = Field(None, description="The type of buy fee (e.g., percentage, fixed)")
+    buySpread: Optional[float] = Field(None, description="The value of the buy spread")
+    sellFeeType: Optional[str] = Field(None, description="The type of sell fee (e.g., percentage, fixed)")
+    sellSpread: Optional[float] = Field(None, description="The value of the sell spread")
+    setupNote: str = Field(..., description="Note or reason for this segment change")
+
 class SegmentsBulkUpdateRequest(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
