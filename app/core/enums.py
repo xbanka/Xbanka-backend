@@ -282,7 +282,7 @@ class EndpointPermission(str, enum.Enum):
     # Rates — app/api/v1/routes/rates.py
     RATES_VIEW = "rates:view"  # GET /rates/crypto/all, GET /rates/segments/all
     RATES_CREATE_ASSET = "rates:create_asset"  # POST /rates/crypto (direct create, no approval step)
-    RATES_PROPOSE_CHANGES = "rates:propose_changes"  # PUT /rates/crypto/{rate_id}, PUT /rates/segments/bulk, PUT /rates/segments/{segment_id}/bulk-assign
+    RATES_PROPOSE_CHANGES = "rates:propose_changes"  # PUT /rates/crypto/{rate_id}, PUT /rates/segments/bulk, PATCH /rates/segments/{segment_id}, PUT /rates/segments/{segment_id}/bulk-assign
     RATES_VIEW_PROPOSALS = "rates:view_proposals"  # GET /rates/proposals/raw, GET /rates/proposals
     RATES_APPROVE_PROPOSAL = "rates:approve_proposal"  # POST /rates/proposals/{proposal_id}/approve
     RATES_REJECT_PROPOSAL = "rates:reject_proposal"  # POST /rates/proposals/{proposal_id}/reject
