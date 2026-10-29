@@ -14,13 +14,15 @@ from app.core.enums import (
 )
 from app.models.rate_change_log import RateChangeLog
 from app.models.role import SUPER_ADMIN
-from app.schemas.erp.rates import AffectedAssetItem, AssetsRequest, AssignAssetsToSegmentRequest, ProposalResponse, RequestUser, SegmentsBulkUpdateRequest
+from app.schemas.erp.rates import AffectedAssetItem, AssetsRequest, AssignAssetsToSegmentRequest, ProposalResponse, RequestUser, SegmentPatchRequest, SegmentsBulkUpdateRequest
 from app.models.rate_approval_request import RateApprovalRequest
 from app.services.erp_user import ERPService
 from app.services.internal_backend import InternalAPIService
 from app.utils.schema import CurrentUser
 
 logger = logging.getLogger(__name__)
+
+SEGMENT_EDITABLE_FIELDS = {"isActive", "buyFeeType", "buySpread", "sellFeeType", "sellSpread"}
 
 
 class RatesService(Service):
@@ -299,16 +301,29 @@ class RatesService(Service):
         )
 
     @staticmethod
-    def _apply_change(proposal_type: RateApprovalRequestTypeEnum, target_id, payload):
+    def _apply_change(
+        proposal_type: RateApprovalRequestTypeEnum, target_id, payload, current_user: CurrentUser
+    ):
         """Push a change to the internal rates API. Shared by proposal approval and
-        by the RATE_CHANGE_OVERRIDE direct-apply path."""
+        by the RATE_CHANGE_OVERRIDE direct-apply path. current_user is whoever is
+        applying the change (the approver, or the override user), matching performed_by
+        on the audit log."""
         if proposal_type == RateApprovalRequestTypeEnum.ASSET_UPDATE:
             result = InternalAPIService._request(
                 "PUT", f"/internal/wallets/crypto/accepts/{target_id}", json=payload
             )
         elif proposal_type == RateApprovalRequestTypeEnum.SEGMENT_UPDATE:
+            # a SEGMENT_UPDATE proposal always carries exactly one segment. `name` is
+            # not editable upstream, so only the editable fields are forwarded.
+            segment = payload["segments"][0]
             result = InternalAPIService._request(
-                "PUT", "/internal/wallets/crypto/segments/bulk", json=payload
+                "PUT",
+                f"/internal/wallets/crypto/segments/{target_id}",
+                json={
+                    **{k: v for k, v in segment.items() if k in SEGMENT_EDITABLE_FIELDS},
+                    "setupNote": payload["setupNote"],
+                    "adminId": str(current_user.user.id),
+                },
             )
         elif proposal_type == RateApprovalRequestTypeEnum.SEGMENT_ASSIGNMENT:
             if not isinstance(payload, dict):
@@ -360,7 +375,7 @@ class RatesService(Service):
         )
 
         if override:
-            RatesService._apply_change(proposal_type, target_id, payload)
+            RatesService._apply_change(proposal_type, target_id, payload, current_user)
             proposal.status = RatesApprovalStatusEnum.APPROVED
             RatesService.create_log(db, proposal, current_user)
             db.commit()
@@ -458,6 +473,53 @@ class RatesService(Service):
         }
 
     @staticmethod
+    def update_segment(
+        db: Session,
+        segment_id: UUID,
+        request: SegmentPatchRequest,
+        current_user: CurrentUser,
+    ):
+        changes = request.model_dump(mode="json", exclude_none=True, exclude={"setupNote"})
+        if not changes:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="No segment fields provided to update"
+            )
+
+        current_state = RatesService._fetch_current_state()
+        segment = current_state["segments"].get(str(segment_id))
+        if not segment:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Segment with id '{segment_id}' not found."
+            )
+
+        override = RatesService._can_override_proposal_flow(db, current_user)
+
+        RatesService._submit_change(
+            db,
+            segment_id,
+            RateApprovalRequestTypeEnum.SEGMENT_UPDATE,
+            {
+                "setupNote": request.setupNote,
+                "segments": [{"id": str(segment_id), **changes}]
+            },
+            current_user,
+            override,
+            f"Segment update proposal submitted for review: {segment.get('name')}",
+            current_state
+        )
+
+        if override:
+            return {
+                "message": "Segment changes applied successfully.",
+            }
+
+        return {
+            "message": "Segment change proposal submitted successfully.",
+        }
+
+    @staticmethod
     def bulk_assign_to_segments(
         db: Session,
         segment_id: UUID,
@@ -522,7 +584,7 @@ class RatesService(Service):
                 detail="Proposal has already been processed"
             )
 
-        RatesService._apply_change(proposal.type, proposal.target_id, proposal.payload)
+        RatesService._apply_change(proposal.type, proposal.target_id, proposal.payload, current_user)
 
         # Implement logic to approve the proposal
         proposal.status = RatesApprovalStatusEnum.APPROVED

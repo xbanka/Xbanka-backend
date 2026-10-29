@@ -8,6 +8,7 @@ from app.schemas.erp.rates import (
     BulkAssetsResponse,
     BulkSegmentsResponse,
     AssetsRequest,
+    SegmentPatchRequest,
     SegmentsBulkUpdateRequest,
 )
 from app.services.rates import RatesService
@@ -62,6 +63,16 @@ def bulk_update_segments(
     current_user: CurrentUser = Depends(require_account_type("erp"))
 ):
     return RatesService.bulk_update_segments(db, current_user, request)
+
+
+@rates.patch("/segments/{segment_id}")
+def update_segment(
+    segment_id: UUID,
+    request: SegmentPatchRequest,
+    db: Session = Depends(get_db),
+    current_user: CurrentUser = Depends(require_account_type("erp"))
+):
+    return RatesService.update_segment(db, segment_id, request, current_user)
 
 
 @rates.put("/segments/{segment_id}/bulk-assign",
