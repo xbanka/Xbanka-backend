@@ -394,8 +394,31 @@ class RatesService(Service):
         return proposal
 
     @staticmethod
-    def get_all_exchange_rates():
-        return InternalAPIService._request("GET", "/internal/wallets/crypto/accepts")
+    def get_all_exchange_rates(
+        segment_ids: list[str] | None = None,
+        segment_names: list[str] | None = None,
+    ):
+        """Values are forwarded exactly as received (repeated and/or comma-separated);
+        the internal API does the splitting, trimming and matching. segment_ids are
+        only checked for UUID shape first so a typo is a 422, not a silent empty result."""
+        for raw in segment_ids or []:
+            for value in raw.split(","):
+                value = value.strip()
+                if not value:
+                    continue
+                try:
+                    UUID(value)
+                except ValueError:
+                    raise HTTPException(
+                        status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                        detail=f"Invalid segmentId '{value}': must be a UUID"
+                    )
+
+        return InternalAPIService._request(
+            "GET",
+            "/internal/wallets/crypto/accepts",
+            params={"segmentId": segment_ids, "segmentName": segment_names},
+        )
 
 
     @staticmethod

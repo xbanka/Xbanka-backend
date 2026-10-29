@@ -1,6 +1,7 @@
+from typing import List, Optional
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, status
+from fastapi import APIRouter, Depends, Query, status
 from sqlalchemy.orm import Session
 from app.db.database import get_db
 from app.schemas.erp.rates import (
@@ -19,8 +20,20 @@ from app.utils.schema import CurrentUser
 rates = APIRouter(prefix="/rates", tags=["Rates"])
 
 @rates.get("/crypto/all", response_model=BulkAssetsResponse)
-def get_crypto_rates(current_user: CurrentUser = Depends(require_account_type("erp"))):
-    return RatesService.get_all_exchange_rates()
+def get_crypto_rates(
+    segment_id: Optional[List[str]] = Query(
+        None,
+        alias="segmentId",
+        description="Segment UUID(s) to filter by. Repeat the param or comma-separate.",
+    ),
+    segment_name: Optional[List[str]] = Query(
+        None,
+        alias="segmentName",
+        description="Segment name(s), case-insensitive, whole name. Repeat the param or comma-separate.",
+    ),
+    current_user: CurrentUser = Depends(require_account_type("erp")),
+):
+    return RatesService.get_all_exchange_rates(segment_id, segment_name)
 
 
 @rates.post("/crypto")
