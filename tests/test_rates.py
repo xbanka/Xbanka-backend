@@ -207,6 +207,130 @@ def test_get_all_exchange_rates_surfaces_core_backend_error(
     assert response.status_code == 401
 
 
+# get_all_exchange_rates segment filters (GET /rates/crypto/all)
+
+SEGMENT_A = "a3d9b2f1-6c44-4e0a-b1d7-90e5c8f2a411"
+SEGMENT_B = "b4e0c3a2-7d55-4f1b-82e8-01f6d9a3b522"
+SEGMENT_C = "c5f1d4b3-8e66-402c-93f9-12a7eab4c633"
+
+
+def _accepted_crypto(segment_id=SEGMENT_A, segment_name="Alt coins"):
+    return {
+        "id": "5c1f4d0e-8a7b-4c52-9d3e-2b6f1a9e7c10",
+        "currency": "SOL",
+        "name": "Solana",
+        "isActive": True,
+        "buyFeeType": "PERCENTAGE",
+        "buyFeeValue": 0,
+        "sellFeeType": "PERCENTAGE",
+        "sellFeeValue": 0,
+        "overrideSegment": False,
+        "segmentId": segment_id,
+        "obiexRate": 0,
+        "obiexValueSellRate": 0,
+        "obiexValueBuyRate": 0,
+        "createdAt": "2026-01-12T09:30:00.000Z",
+        "updatedAt": "2026-10-20T14:05:11.000Z",
+        "segment": {
+            "id": segment_id,
+            "name": segment_name,
+            "isActive": True,
+            "buyFeeType": "PERCENTAGE",
+            "buySpread": 1.5,
+            "sellFeeType": "PERCENTAGE",
+            "sellSpread": 1.5,
+            "createdAt": "2026-01-10T08:00:00.000Z",
+            "updatedAt": "2026-10-01T10:00:00.000Z",
+        },
+    }
+
+
+def test_get_all_exchange_rates_without_filters_sends_no_query_params(
+    mocker, test_client, manager_without_override
+):
+    get = mocker.patch(
+        "requests.get",
+        return_value=_mock_response(
+            200, {"message": "Request successful", "details": "", "errorGroup": "", "data": []}
+        ),
+    )
+
+    response = test_client.get("/api/rates/crypto/all", headers=_headers(manager_without_override))
+
+    assert response.status_code == 200
+    assert get.call_args.kwargs["params"] == {}
+
+
+def test_get_all_exchange_rates_forwards_segment_filters_as_received(
+    mocker, test_client, manager_without_override
+):
+    get = mocker.patch(
+        "requests.get",
+        return_value=_mock_response(
+            200,
+            {
+                "message": "Request successful",
+                "details": "",
+                "errorGroup": "",
+                "data": [_accepted_crypto()],
+            },
+        ),
+    )
+
+    response = test_client.get(
+        "/api/rates/crypto/all",
+        params=[
+            ("segmentId", SEGMENT_A),
+            ("segmentId", f"{SEGMENT_B}, {SEGMENT_C},"),
+            ("segmentName", "Alt coins,Stablecoins"),
+        ],
+        headers=_headers(manager_without_override),
+    )
+
+    assert response.status_code == 200
+    assert response.json()["data"][0]["segment"]["name"] == "Alt coins"
+    assert get.call_args.kwargs["params"] == {
+        "segmentId": [SEGMENT_A, f"{SEGMENT_B}, {SEGMENT_C},"],
+        "segmentName": ["Alt coins,Stablecoins"],
+    }
+
+
+def test_get_all_exchange_rates_rejects_invalid_segment_id_without_calling_upstream(
+    mocker, test_client, manager_without_override
+):
+    get = mocker.patch("requests.get", return_value=_mock_response(200, {"data": []}))
+
+    response = test_client.get(
+        "/api/rates/crypto/all",
+        params={"segmentId": f"{SEGMENT_A},not-a-uuid"},
+        headers=_headers(manager_without_override),
+    )
+
+    assert response.status_code == 422
+    assert "not-a-uuid" in response.json()["detail"]
+    get.assert_not_called()
+
+
+def test_get_all_exchange_rates_no_match_returns_empty_data(
+    mocker, test_client, manager_without_override
+):
+    mocker.patch(
+        "requests.get",
+        return_value=_mock_response(
+            200, {"message": "Request successful", "details": "", "errorGroup": "", "data": []}
+        ),
+    )
+
+    response = test_client.get(
+        "/api/rates/crypto/all",
+        params={"segmentName": "Nope"},
+        headers=_headers(manager_without_override),
+    )
+
+    assert response.status_code == 200
+    assert response.json()["data"] == []
+
+
 # ---------------------------------------------------------------------------
 # bulk_update_segments (PUT /rates/segments/bulk)
 # ---------------------------------------------------------------------------
