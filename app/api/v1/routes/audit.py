@@ -4,9 +4,19 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, Query, status
 from sqlalchemy.orm import Session
 
-from app.core.enums import LoginStatusEnum, Permission as PermissionEnum, RoleChangeStatusEnum
+from app.core.enums import (
+    FundingIntentActionEnum,
+    FundingIntentLogStatusEnum,
+    LoginStatusEnum,
+    Permission as PermissionEnum,
+    RoleChangeStatusEnum,
+)
 from app.db.database import get_db
-from app.schemas.erp.audit import LoginLogResponse, RoleChangeResponse
+from app.schemas.erp.audit import (
+    FundingIntentLogResponse,
+    LoginLogResponse,
+    RoleChangeResponse,
+)
 from app.services.erp_user import ERPService
 from app.utils.auth import require_account_type, require_permissions
 from app.utils.schema import CurrentUser
@@ -56,6 +66,28 @@ def confirm_role_change(
 ):
     role_change = ERPService.confirm_role_change(db, role_change_id, current_user.user)
     return {"message": "Role change confirmed.", "status": role_change.status}
+
+
+@audit.get("/funding-intents", response_model=List[FundingIntentLogResponse])
+def get_funding_intent_logs(
+    action: Optional[FundingIntentActionEnum] = Query(None),
+    status_filter: Optional[FundingIntentLogStatusEnum] = Query(None, alias="status"),
+    search: Optional[str] = Query(
+        None, description="Staff name or code, bank reference, or transaction id"
+    ),
+    page: int = Query(1, ge=1),
+    limit: int = Query(10, ge=1, le=100),
+    db: Session = Depends(get_db),
+    current_user: CurrentUser = Depends(require_permissions(VIEW_AUDIT_LOGS)),
+):
+    return ERPService.get_funding_intent_logs(
+        db,
+        action=action,
+        status=status_filter,
+        search=search,
+        page=page,
+        limit=limit,
+    )
 
 
 @audit.get("/logins", response_model=List[LoginLogResponse])
