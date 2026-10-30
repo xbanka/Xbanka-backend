@@ -7,6 +7,7 @@ from .bank_details import BankDetails
 from .customer import Customer
 from .erp_recovery_code import ERPRecoveryCode
 from .erp_user import ERPUser
+from .funding_intent_log import FundingIntentLog
 from .login_log import LoginLog
 from .notification_preferences import NotificationPreference
 from .notification_settings import NotificationSettings
@@ -32,6 +33,7 @@ __all__ = [
     "Customer",
     "ERPRecoveryCode",
     "ERPUser",
+    "FundingIntentLog",
     "LoginLog",
     "Notification",
     "NotificationPreference",

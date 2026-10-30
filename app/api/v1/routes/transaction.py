@@ -1,9 +1,23 @@
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, File, HTTPException, Query, Response, UploadFile, status
+from fastapi import (
+    APIRouter,
+    Depends,
+    File,
+    HTTPException,
+    Query,
+    Request,
+    Response,
+    UploadFile,
+    status,
+)
 from sqlalchemy.orm import Session
 
-from app.core.enums import Permission
+from app.core.enums import (
+    FundingIntentActionEnum,
+    FundingIntentLogStatusEnum,
+    Permission,
+)
 from app.db.database import get_db
 from app.schemas.transactions import (
     FundingCreditRequest,
@@ -14,9 +28,11 @@ from app.schemas.transactions import (
     XbankaAccountCreateRequest,
     XbankaAccountUpdateRequest,
 )
+from app.services.erp_user import ERPService
 from app.services.internal_backend import InternalAPIService
 from app.services.transaction import TransactionService
 from app.utils.auth import require_account_type, require_permissions
+from app.utils.request import get_client_ip
 from app.utils.schema import CurrentUser
 
 transaction = APIRouter(prefix="/transactions", tags=["Transactions"])
@@ -27,6 +43,27 @@ VIEW_TRANSACTIONS = Permission.VIEW_TRANSACTIONS
 EXPORT_TRANSACTIONS = Permission.EXPORT_TRANSACTIONS
 ADJUST_BALANCE = Permission.ADJUST_BALANCE
 VIEW_PAYMENTS = Permission.VIEW_PAYMENTS
+
+
+def _is_duplicate(result) -> bool:
+    """Whether the core backend answered a retried completion without acting again."""
+    if not isinstance(result, dict):
+        return False
+    data = result.get("data")
+    return bool(
+        result.get("duplicate") or (isinstance(data, dict) and data.get("duplicate"))
+    )
+
+
+def _log_funding_intent_failure(db: Session, audit: dict, status_code: int, detail) -> None:
+    """Audit an attempt the core backend refused, keeping its status and message."""
+    ERPService.log_funding_intent_action(
+        db,
+        **audit,
+        status=FundingIntentLogStatusEnum.FAILED,
+        failure_reason=f"{status_code}: {detail}"[:500],
+    )
+
 
 @transaction.get(
     "/all", status_code=status.HTTP_200_OK
@@ -260,32 +297,66 @@ def fetch_funding_intents(
 def complete_funding_intent(
     transaction_id: UUID,
     payload: FundingIntentCompleteRequest,
+    request: Request,
+    db: Session = Depends(get_db),
     current_user: CurrentUser = Depends(require_permissions(ADJUST_BALANCE)),
 ):
+    audit = dict(
+        staff_id=current_user.user.id,
+        transaction_id=transaction_id,
+        action=FundingIntentActionEnum.COMPLETED,
+        ip_address=get_client_ip(request),
+        bank_reference=payload.bankReference,
+        override_amount=payload.amount,
+        funding_account_id=payload.fundingAccountId,
+        attachment_urls=payload.attachmentUrls,
+        reason=payload.overrideReason,
+    )
     try:
-        return InternalAPIService.complete_funding_intent(
+        result = InternalAPIService.complete_funding_intent(
             transaction_id, payload.model_dump(mode="json", exclude_none=True)
         )
-    except HTTPException:
+    except HTTPException as e:
+        _log_funding_intent_failure(db, audit, e.status_code, e.detail)
         raise
     except Exception as e:
+        _log_funding_intent_failure(db, audit, 500, e)
         raise HTTPException(status_code=500, detail=str(e))
+
+    # A retried request comes back as `duplicate: true` and was audited the first time.
+    if not _is_duplicate(result):
+        ERPService.log_funding_intent_action(db, **audit)
+    return result
 
 
 @transaction.post("/funding/intents/{transaction_id}/reject", status_code=status.HTTP_200_OK)
 def reject_funding_intent(
     transaction_id: UUID,
     payload: FundingIntentRejectRequest,
+    request: Request,
+    db: Session = Depends(get_db),
     current_user: CurrentUser = Depends(require_permissions(ADJUST_BALANCE)),
 ):
+    audit = dict(
+        staff_id=current_user.user.id,
+        transaction_id=transaction_id,
+        action=FundingIntentActionEnum.REJECTED,
+        ip_address=get_client_ip(request),
+        reason=payload.reason,
+    )
     try:
-        return InternalAPIService.reject_funding_intent(
+        result = InternalAPIService.reject_funding_intent(
             transaction_id, payload.model_dump(mode="json")
         )
-    except HTTPException:
+    except HTTPException as e:
+        _log_funding_intent_failure(db, audit, e.status_code, e.detail)
         raise
     except Exception as e:
+        _log_funding_intent_failure(db, audit, 500, e)
         raise HTTPException(status_code=500, detail=str(e))
+
+    ERPService.log_funding_intent_action(db, **audit)
+    return result
 
 
 @transaction.post("/funding/attachments", status_code=status.HTTP_200_OK)

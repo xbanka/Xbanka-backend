@@ -1,10 +1,16 @@
 from datetime import datetime
-from typing import Optional
+from decimal import Decimal
+from typing import List, Optional
 from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict
 
-from app.core.enums import LoginStatusEnum, RoleChangeStatusEnum
+from app.core.enums import (
+    FundingIntentActionEnum,
+    FundingIntentLogStatusEnum,
+    LoginStatusEnum,
+    RoleChangeStatusEnum,
+)
 
 
 class StaffSummary(BaseModel):
@@ -42,6 +48,24 @@ class LoginLogResponse(BaseModel):
     ip_address: Optional[str]
     failure_reason: Optional[str]
     status: LoginStatusEnum
+
+
+class FundingIntentLogResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: UUID
+    created_at: datetime
+    staff: StaffSummary
+    transaction_id: UUID
+    action: FundingIntentActionEnum
+    status: FundingIntentLogStatusEnum
+    failure_reason: Optional[str]
+    bank_reference: Optional[str]
+    override_amount: Optional[Decimal]
+    funding_account_id: Optional[UUID]
+    attachment_urls: Optional[List[str]]
+    reason: Optional[str]
+    ip_address: Optional[str]
 
 
 class PendingRoleChangeSummary(BaseModel):

@@ -9,12 +9,14 @@ from botocore.exceptions import BotoCoreError, ClientError
 from fastapi import HTTPException, UploadFile, status
 from fastapi.encoders import jsonable_encoder
 from psycopg2 import IntegrityError
-from sqlalchemy import and_, func, or_, select
+from sqlalchemy import String, and_, cast, func, or_, select
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session, joinedload
 
 from app.core.base.services import Service
 from app.core.enums import (
+    FundingIntentActionEnum,
+    FundingIntentLogStatusEnum,
     LoginStatusEnum,
     NotificationActionTypeEnum,
     NotificationCategoryEnum,
@@ -28,6 +30,7 @@ from app.core.enums import (
 from app.core.hash import Hasher
 from app.models.affiliate import Affiliate
 from app.models.erp_user import STAFF_CODE_ALPHABET, ERPUser
+from app.models.funding_intent_log import FundingIntentLog
 from app.models.login_log import LoginLog
 from app.models.notification_preferences import (
     DEFAULT_NOTIFICATION_PREFERENCES,
@@ -1406,6 +1409,86 @@ class ERPService(Service):
         )
         return db.execute(stmt).scalars().all()
 
+    @staticmethod
+    def log_funding_intent_action(
+        db: Session,
+        *,
+        staff_id: UUID,
+        transaction_id: UUID,
+        action: FundingIntentActionEnum,
+        ip_address: Optional[str],
+        bank_reference: Optional[str] = None,
+        override_amount: Optional[Decimal] = None,
+        funding_account_id: Optional[UUID] = None,
+        attachment_urls: Optional[List[str]] = None,
+        reason: Optional[str] = None,
+        status: FundingIntentLogStatusEnum = FundingIntentLogStatusEnum.SUCCESS,
+        failure_reason: Optional[str] = None,
+    ) -> None:
+        """Record a complete/reject attempt after the core backend has answered.
+        On success the money has already moved, and on failure the caller is about
+        to get the core backend's error, so a failure to write the audit row is
+        logged loudly but never surfaced: a 500 would mask the real outcome and
+        invite a retry."""
+        try:
+            db.add(
+                FundingIntentLog(
+                    staff_id=staff_id,
+                    transaction_id=transaction_id,
+                    action=action,
+                    status=status,
+                    failure_reason=failure_reason,
+                    ip_address=ip_address,
+                    bank_reference=bank_reference,
+                    override_amount=override_amount,
+                    funding_account_id=funding_account_id,
+                    attachment_urls=attachment_urls or None,
+                    reason=reason,
+                )
+            )
+            db.commit()
+        except SQLAlchemyError:
+            db.rollback()
+            logger.exception(
+                "Failed to write funding intent audit log",
+                extra={
+                    "staff_id": str(staff_id),
+                    "transaction_id": str(transaction_id),
+                    "action": action.value,
+                },
+            )
+
+    @staticmethod
+    def get_funding_intent_logs(
+        db: Session,
+        action: Optional[FundingIntentActionEnum] = None,
+        status: Optional[FundingIntentLogStatusEnum] = None,
+        search: Optional[str] = None,
+        page: int = 1,
+        limit: int = 10,
+    ):
+        stmt = select(FundingIntentLog).options(joinedload(FundingIntentLog.staff))
+        if action is not None:
+            stmt = stmt.where(FundingIntentLog.action == action)
+        if status is not None:
+            stmt = stmt.where(FundingIntentLog.status == status)
+        if search:
+            like = f"%{search}%"
+            stmt = stmt.join(ERPUser, FundingIntentLog.staff_id == ERPUser.id).where(
+                or_(
+                    ERPUser.first_name.ilike(like),
+                    ERPUser.last_name.ilike(like),
+                    ERPUser.staff_code.ilike(like),
+                    FundingIntentLog.bank_reference.ilike(like),
+                    cast(FundingIntentLog.transaction_id, String).ilike(like),
+                )
+            )
+        stmt = (
+            stmt.order_by(FundingIntentLog.created_at.desc())
+            .offset((page - 1) * limit)
+            .limit(limit)
+        )
+        return db.execute(stmt).scalars().all()
 
     @staticmethod
     def upload_attachment(db: Session, payout_id: UUID, attachment: UploadFile):
