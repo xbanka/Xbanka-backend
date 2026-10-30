@@ -47,7 +47,7 @@ class RatesService(Service):
         # raises on failure rather than returning [] — a proposal snapshot built
         # from empty state would be frozen into the audit log with blank values
         result = InternalAPIService._request("GET", "/internal/wallets/crypto/accepts")
-        return result.get("data", [])
+        return (result.get("data") or {}).get("items", [])
 
     @staticmethod
     def _fetch_segments():
