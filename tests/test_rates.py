@@ -229,6 +229,7 @@ def _accepted_crypto(segment_id=SEGMENT_A, segment_name="Alt coins"):
         "obiexRate": 0,
         "obiexValueSellRate": 0,
         "obiexValueBuyRate": 0,
+        "spreadUpdated": False,
         "createdAt": "2026-01-12T09:30:00.000Z",
         "updatedAt": "2026-10-20T14:05:11.000Z",
         "segment": {
@@ -245,14 +246,44 @@ def _accepted_crypto(segment_id=SEGMENT_A, segment_name="Alt coins"):
     }
 
 
+def _assets_payload(items):
+    return {
+        "message": "Request successful",
+        "details": "",
+        "errorGroup": "",
+        "data": {"initial": True, "items": items},
+    }
+
+
+def test_proposal_snapshot_reads_assets_from_paginated_upstream_shape(
+    mocker, test_client, db_session, manager_without_override
+):
+    asset = _accepted_crypto()
+    mocker.patch(
+        "requests.get",
+        side_effect=lambda url, **kwargs: _mock_response(
+            200,
+            _assets_payload([asset]) if url.endswith("/accepts") else {"data": []},
+        ),
+    )
+
+    response = test_client.put(
+        f"/api/rates/crypto/{asset['id']}",
+        json={"buyFeeValue": 3.0},
+        headers=_headers(manager_without_override),
+    )
+
+    assert response.status_code == 200
+    proposal = db_session.query(RateApprovalRequest).one()
+    assert proposal.target_label == "Solana"
+
+
 def test_get_all_exchange_rates_without_filters_sends_no_query_params(
     mocker, test_client, manager_without_override
 ):
     get = mocker.patch(
         "requests.get",
-        return_value=_mock_response(
-            200, {"message": "Request successful", "details": "", "errorGroup": "", "data": []}
-        ),
+        return_value=_mock_response(200, _assets_payload([])),
     )
 
     response = test_client.get("/api/rates/crypto/all", headers=_headers(manager_without_override))
@@ -266,15 +297,7 @@ def test_get_all_exchange_rates_forwards_segment_filters_as_received(
 ):
     get = mocker.patch(
         "requests.get",
-        return_value=_mock_response(
-            200,
-            {
-                "message": "Request successful",
-                "details": "",
-                "errorGroup": "",
-                "data": [_accepted_crypto()],
-            },
-        ),
+        return_value=_mock_response(200, _assets_payload([_accepted_crypto()])),
     )
 
     response = test_client.get(
@@ -288,7 +311,8 @@ def test_get_all_exchange_rates_forwards_segment_filters_as_received(
     )
 
     assert response.status_code == 200
-    assert response.json()["data"][0]["segment"]["name"] == "Alt coins"
+    assert response.json()["data"]["items"][0]["segment"]["name"] == "Alt coins"
+    assert response.json()["data"]["items"][0]["spreadUpdated"] is False
     assert get.call_args.kwargs["params"] == {
         "segmentId": [SEGMENT_A, f"{SEGMENT_B}, {SEGMENT_C},"],
         "segmentName": ["Alt coins,Stablecoins"],
@@ -316,9 +340,7 @@ def test_get_all_exchange_rates_no_match_returns_empty_data(
 ):
     mocker.patch(
         "requests.get",
-        return_value=_mock_response(
-            200, {"message": "Request successful", "details": "", "errorGroup": "", "data": []}
-        ),
+        return_value=_mock_response(200, _assets_payload([])),
     )
 
     response = test_client.get(
@@ -328,7 +350,7 @@ def test_get_all_exchange_rates_no_match_returns_empty_data(
     )
 
     assert response.status_code == 200
-    assert response.json()["data"] == []
+    assert response.json()["data"]["items"] == []
 
 
 # ---------------------------------------------------------------------------
