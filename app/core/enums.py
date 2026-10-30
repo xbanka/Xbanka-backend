@@ -328,6 +328,16 @@ class RoleChangeStatusEnum(str, enum.Enum):
     SUPERSEDED = "SUPERSEDED"
 
 
+class FundingIntentActionEnum(str, enum.Enum):
+    COMPLETED = "COMPLETED"
+    REJECTED = "REJECTED"
+
+
+class FundingIntentLogStatusEnum(str, enum.Enum):
+    SUCCESS = "SUCCESS"
+    FAILED = "FAILED"
+
+
 class NotificationCategoryEnum(str, enum.Enum):
     """The groupings staff can mute on the Settings - Notifications page.
 
