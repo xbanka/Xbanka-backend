@@ -108,6 +108,7 @@ class AssetSummary(BaseModel):
     sellFeeType: str
     sellFeeValue: float
     overrideSegment: bool = False
+    spreadUpdated: bool = False
     segmentId: UUID
     obiexRate: Optional[float] = None
     obiexValueSellRate: float
@@ -155,5 +156,11 @@ BulkUpdateSegmentsResponse = ApiResponse[SuccessData]
 class AssetResponse(AssetSummary):
     segment: SegmentSummary
 
-BulkAssetsResponse = ApiResponse[List[AssetResponse]]
+class AssetsPage(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    initial: bool
+    items: List[AssetResponse]
+
+BulkAssetsResponse = ApiResponse[AssetsPage]
 UpdateAssetResponse = ApiResponse[AssetSummary]
