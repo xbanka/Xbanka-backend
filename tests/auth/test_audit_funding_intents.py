@@ -72,7 +72,7 @@ def _listing(test_client, staff, **params):
         "/api/audit/funding-intents", params=params, headers=_headers(staff)
     )
     assert response.status_code == 200
-    return response.json()
+    return response.json()["data"]
 
 
 def test_completing_an_intent_is_audited_against_the_authenticated_staff(

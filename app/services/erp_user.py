@@ -1331,6 +1331,34 @@ class ERPService(Service):
         return role_change
 
     @staticmethod
+    def _paginate(
+        db: Session, stmt, *, loaders: Sequence, order_by: Sequence, page: int, limit: int
+    ) -> dict:
+        """One page of `stmt`, plus the counts a pager needs. `stmt` carries only
+        the filters and joins, so `total` is every row matching them rather than
+        just this page. `order_by` should end in a unique column: rows written in
+        the same transaction share a `created_at`, and without a tiebreaker they
+        could repeat or vanish across pages."""
+        total = db.scalar(select(func.count()).select_from(stmt.subquery())) or 0
+        rows = (
+            db.execute(
+                stmt.options(*loaders)
+                .order_by(*order_by)
+                .offset((page - 1) * limit)
+                .limit(limit)
+            )
+            .scalars()
+            .all()
+        )
+        return {
+            "page": page,
+            "limit": limit,
+            "total": total,
+            "pages": (total + limit - 1) // limit,
+            "data": rows,
+        }
+
+    @staticmethod
     def get_role_changes(
         db: Session,
         status: Optional[RoleChangeStatusEnum] = None,
@@ -1338,9 +1366,7 @@ class ERPService(Service):
         page: int = 1,
         limit: int = 10,
     ):
-        stmt = select(RoleChangeLog).options(
-            joinedload(RoleChangeLog.staff), joinedload(RoleChangeLog.requested_by)
-        )
+        stmt = select(RoleChangeLog)
         if status is not None:
             stmt = stmt.where(RoleChangeLog.status == status)
         if search:
@@ -1352,12 +1378,17 @@ class ERPService(Service):
                     ERPUser.staff_code.ilike(like),
                 )
             )
-        stmt = (
-            stmt.order_by(RoleChangeLog.created_at.desc())
-            .offset((page - 1) * limit)
-            .limit(limit)
+        return ERPService._paginate(
+            db,
+            stmt,
+            loaders=(
+                joinedload(RoleChangeLog.staff),
+                joinedload(RoleChangeLog.requested_by),
+            ),
+            order_by=(RoleChangeLog.created_at.desc(), RoleChangeLog.id.desc()),
+            page=page,
+            limit=limit,
         )
-        return db.execute(stmt).scalars().all()
 
     @staticmethod
     def log_login_attempt(
@@ -1397,17 +1428,19 @@ class ERPService(Service):
         page: int = 1,
         limit: int = 10,
     ):
-        stmt = select(LoginLog).options(joinedload(LoginLog.user))
+        stmt = select(LoginLog)
         if status is not None:
             stmt = stmt.where(LoginLog.status == status)
         if search:
             stmt = stmt.where(LoginLog.attempted_email.ilike(f"%{search}%"))
-        stmt = (
-            stmt.order_by(LoginLog.created_at.desc())
-            .offset((page - 1) * limit)
-            .limit(limit)
+        return ERPService._paginate(
+            db,
+            stmt,
+            loaders=(joinedload(LoginLog.user),),
+            order_by=(LoginLog.created_at.desc(), LoginLog.id.desc()),
+            page=page,
+            limit=limit,
         )
-        return db.execute(stmt).scalars().all()
 
     @staticmethod
     def log_funding_intent_action(
@@ -1467,7 +1500,7 @@ class ERPService(Service):
         page: int = 1,
         limit: int = 10,
     ):
-        stmt = select(FundingIntentLog).options(joinedload(FundingIntentLog.staff))
+        stmt = select(FundingIntentLog)
         if action is not None:
             stmt = stmt.where(FundingIntentLog.action == action)
         if status is not None:
@@ -1483,12 +1516,14 @@ class ERPService(Service):
                     cast(FundingIntentLog.transaction_id, String).ilike(like),
                 )
             )
-        stmt = (
-            stmt.order_by(FundingIntentLog.created_at.desc())
-            .offset((page - 1) * limit)
-            .limit(limit)
+        return ERPService._paginate(
+            db,
+            stmt,
+            loaders=(joinedload(FundingIntentLog.staff),),
+            order_by=(FundingIntentLog.created_at.desc(), FundingIntentLog.id.desc()),
+            page=page,
+            limit=limit,
         )
-        return db.execute(stmt).scalars().all()
 
     @staticmethod
     def upload_attachment(db: Session, payout_id: UUID, attachment: UploadFile):
