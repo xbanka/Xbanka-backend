@@ -1,6 +1,6 @@
 from datetime import datetime
 from decimal import Decimal
-from typing import List, Optional
+from typing import Generic, List, Optional, TypeVar
 from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict
@@ -11,6 +11,16 @@ from app.core.enums import (
     LoginStatusEnum,
     RoleChangeStatusEnum,
 )
+
+T = TypeVar("T")
+
+
+class Paginated(BaseModel, Generic[T]):
+    page: int
+    limit: int
+    total: int
+    pages: int
+    data: List[T]
 
 
 class StaffSummary(BaseModel):

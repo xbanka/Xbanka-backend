@@ -127,7 +127,7 @@ def test_new_proposal_supersedes_earlier_pending_ones(
     listing = test_client.get(
         "/api/audit/role-changes", headers=_headers(verified_superadmin)
     )
-    statuses = {r["id"]: r["status"] for r in listing.json()}
+    statuses = {r["id"]: r["status"] for r in listing.json()["data"]}
     assert statuses[first_id] == "SUPERSEDED"
     assert statuses[second_id] == "CONFIRMED"
 
@@ -240,7 +240,7 @@ def test_role_changes_list_reflects_pending_and_confirmed_status(
         "/api/audit/role-changes", headers=_headers(verified_superadmin)
     )
     assert listing.status_code == 200
-    row = next(r for r in listing.json() if r["id"] == role_change_id)
+    row = next(r for r in listing.json()["data"] if r["id"] == role_change_id)
     assert row["status"] == "PENDING"
     assert row["role_change"] == {"previous_role": "Viewer", "new_role": "Manager"}
     assert row["staff"]["staff_code"] == target.staff_code
@@ -253,5 +253,7 @@ def test_role_changes_list_reflects_pending_and_confirmed_status(
     listing_after = test_client.get(
         "/api/audit/role-changes", headers=_headers(verified_superadmin)
     )
-    row_after = next(r for r in listing_after.json() if r["id"] == role_change_id)
+    row_after = next(
+        r for r in listing_after.json()["data"] if r["id"] == role_change_id
+    )
     assert row_after["status"] == "CONFIRMED"
