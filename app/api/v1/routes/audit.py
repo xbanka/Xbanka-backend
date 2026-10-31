@@ -1,4 +1,4 @@
-from typing import List, Optional
+from typing import Optional
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, Query, status
@@ -15,6 +15,7 @@ from app.db.database import get_db
 from app.schemas.erp.audit import (
     FundingIntentLogResponse,
     LoginLogResponse,
+    Paginated,
     RoleChangeResponse,
 )
 from app.services.erp_user import ERPService
@@ -26,7 +27,7 @@ audit = APIRouter(prefix="/audit", tags=["Audit"])
 VIEW_AUDIT_LOGS = PermissionEnum.VIEW_AUDIT_LOGS
 
 
-@audit.get("/role-changes", response_model=List[RoleChangeResponse])
+@audit.get("/role-changes", response_model=Paginated[RoleChangeResponse])
 def get_role_changes(
     status_filter: Optional[RoleChangeStatusEnum] = Query(None, alias="status"),
     search: Optional[str] = Query(None),
@@ -35,10 +36,10 @@ def get_role_changes(
     db: Session = Depends(get_db),
     current_user: CurrentUser = Depends(require_permissions(VIEW_AUDIT_LOGS)),
 ):
-    role_changes = ERPService.get_role_changes(
+    result = ERPService.get_role_changes(
         db, status=status_filter, search=search, page=page, limit=limit
     )
-    return [
+    result["data"] = [
         {
             "id": rc.id,
             "created_at": rc.created_at,
@@ -51,8 +52,9 @@ def get_role_changes(
             "reason": rc.reason,
             "status": rc.status,
         }
-        for rc in role_changes
+        for rc in result["data"]
     ]
+    return result
 
 
 @audit.post(
@@ -68,7 +70,7 @@ def confirm_role_change(
     return {"message": "Role change confirmed.", "status": role_change.status}
 
 
-@audit.get("/funding-intents", response_model=List[FundingIntentLogResponse])
+@audit.get("/funding-intents", response_model=Paginated[FundingIntentLogResponse])
 def get_funding_intent_logs(
     action: Optional[FundingIntentActionEnum] = Query(None),
     status_filter: Optional[FundingIntentLogStatusEnum] = Query(None, alias="status"),
@@ -90,7 +92,7 @@ def get_funding_intent_logs(
     )
 
 
-@audit.get("/logins", response_model=List[LoginLogResponse])
+@audit.get("/logins", response_model=Paginated[LoginLogResponse])
 def get_login_logs(
     status_filter: Optional[LoginStatusEnum] = Query(None, alias="status"),
     search: Optional[str] = Query(None),
@@ -99,10 +101,10 @@ def get_login_logs(
     db: Session = Depends(get_db),
     current_user: CurrentUser = Depends(require_permissions(VIEW_AUDIT_LOGS)),
 ):
-    logs = ERPService.get_login_logs(
+    result = ERPService.get_login_logs(
         db, status=status_filter, search=search, page=page, limit=limit
     )
-    return [
+    result["data"] = [
         {
             "id": log.id,
             "created_at": log.created_at,
@@ -111,5 +113,6 @@ def get_login_logs(
             "failure_reason": log.failure_reason,
             "status": log.status,
         }
-        for log in logs
+        for log in result["data"]
     ]
+    return result
