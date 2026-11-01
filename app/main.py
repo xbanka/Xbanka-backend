@@ -55,8 +55,6 @@ if settings.SENTRY_DSN:
         send_default_pii=False,
         enable_logs=True,
         traces_sample_rate=settings.SENTRY_TRACES_SAMPLE_RATE,
-        profile_session_sample_rate=settings.SENTRY_TRACES_SAMPLE_RATE,
-        profile_lifecycle="trace",
         environment=ENVIRONMENT,
         before_send=_scrub_event,
     )
