@@ -18,7 +18,7 @@ down:
 # Staging
 # ------------------------
 staging-up:
-	docker compose \
+	SENTRY_RELEASE=$$(git rev-parse --short HEAD) docker compose \
 		--env-file .env.staging \
 		-p xbanka-staging \
 		-f $(BASE) \
@@ -37,7 +37,7 @@ staging-down:
 # Production
 # ------------------------
 prod-up:
-	docker compose \
+	SENTRY_RELEASE=$$(git rev-parse --short HEAD) docker compose \
 		--env-file .env.prod \
 		-p xbanka-prod \
 		-f $(BASE) \
