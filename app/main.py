@@ -203,7 +203,7 @@ def read_root():
 
 if ENVIRONMENT.lower() not in ("production", "prod"):
 
-    @app.get("/reso")
+    @app.get("/sentry-debug")
     def sentry():
         div_by_zero = 1 / 0
         return {"result": div_by_zero}
