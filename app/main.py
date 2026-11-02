@@ -45,6 +45,10 @@ logger = logging.getLogger(__name__)
 
 def _scrub_event(event, hint):
     """Mask credentials in anything Sentry is about to send."""
+    # The per-request log line for a 5xx repeats the exception event; it stays
+    # in the app logs but is not worth a second Sentry issue.
+    if event.get("logger") == "app.request":
+        return None
     return redact(event)
 
 

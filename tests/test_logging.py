@@ -4,7 +4,7 @@ import logging
 from fastapi.testclient import TestClient
 
 from app.core.logging import JsonFormatter, REDACTED, RedactionFilter, redact
-from app.main import app
+from app.main import _scrub_event, app
 
 
 def test_redact_masks_sensitive_dict_keys():
@@ -91,3 +91,11 @@ def test_unhandled_exception_returns_request_id_without_internals(caplog):
     assert body["request_id"] == "req-boom"
     assert "internal detail" not in response.text
     assert "internal detail" in caplog.text
+
+
+def test_sentry_drops_request_log_events_but_keeps_exceptions():
+    request_log = {"logger": "app.request", "message": "GET /x -> 500"}
+    exception = {"logger": "app.main", "message": "unhandled exception on GET /x"}
+
+    assert _scrub_event(request_log, {}) is None
+    assert _scrub_event(exception, {}) == exception
