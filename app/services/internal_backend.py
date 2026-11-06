@@ -244,6 +244,32 @@ class InternalAPIService(Service):
         )
 
     @staticmethod
+    def get_bill_margins() -> dict:
+        """The margin for every bill product (unconfigured products included)."""
+        return InternalAPIService._request("GET", "/internal/bills/margins")
+
+    @staticmethod
+    def create_bill_margin(payload: dict) -> dict:
+        """Adds a margin for a product that has none; 409 if one exists."""
+        return InternalAPIService._request("POST", "/internal/bills/margins", json=payload)
+
+    @staticmethod
+    def update_bill_margin(product: str, payload: dict) -> dict:
+        """Changes an existing margin; 404 if the product has none yet."""
+        return InternalAPIService._request(
+            "PUT", f"/internal/bills/margins/{product}", json=payload
+        )
+
+    @staticmethod
+    def get_bill_margin_history(product: str | None = None, page: int | None = None) -> dict:
+        """Who changed which margin, when and why (25 per page, newest first)."""
+        return InternalAPIService._request(
+            "GET",
+            "/internal/bills/margins/history",
+            params={"product": product, "page": page},
+        )
+
+    @staticmethod
     def get_all_transactions(page: int = 1, limit: int = 10, **kwargs):
         params = {"page": page, "limit": limit, **kwargs}
         return InternalAPIService._request("GET", "/internal/wallet/transactions/all", params=params)
