@@ -52,6 +52,19 @@ class ServiceTypeEnum(str, enum.Enum):
     bill_payments = "bill_payments"
 
 
+class BillProductEnum(str, enum.Enum):
+    AIRTIME = "AIRTIME"
+    DATA = "DATA"
+    ELECTRICITY = "ELECTRICITY"
+    CABLE_TV = "CABLE_TV"
+    BETTING = "BETTING"
+
+
+class BillMarginTypeEnum(str, enum.Enum):
+    PERCENTAGE = "PERCENTAGE"
+    FIXED = "FIXED"
+
+
 class CryptoPairEnum(str, enum.Enum):
     NGN_USDT = "NGN-USDT"
     USDT_NGN = "USDT-NGN"
