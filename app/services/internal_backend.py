@@ -245,17 +245,13 @@ class InternalAPIService(Service):
 
     @staticmethod
     def get_bill_margins() -> dict:
-        """The margin for every bill product (unconfigured products included)."""
+        """The margin for each product that can carry one."""
         return InternalAPIService._request("GET", "/internal/bills/margins")
 
     @staticmethod
-    def create_bill_margin(payload: dict) -> dict:
-        """Adds a margin for a product that has none; 409 if one exists."""
-        return InternalAPIService._request("POST", "/internal/bills/margins", json=payload)
-
-    @staticmethod
     def update_bill_margin(product: str, payload: dict) -> dict:
-        """Changes an existing margin; 404 if the product has none yet."""
+        """Changes a product's margin (starting from the default if never changed);
+        400 for AIRTIME/DATA or a no-op, 409 on a concurrent change."""
         return InternalAPIService._request(
             "PUT", f"/internal/bills/margins/{product}", json=payload
         )
