@@ -53,8 +53,7 @@ class ServiceTypeEnum(str, enum.Enum):
 
 
 class BillProductEnum(str, enum.Enum):
-    AIRTIME = "AIRTIME"
-    DATA = "DATA"
+    # Products that can carry a margin. AIRTIME and DATA never do.
     ELECTRICITY = "ELECTRICITY"
     CABLE_TV = "CABLE_TV"
     BETTING = "BETTING"
