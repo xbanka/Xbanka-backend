@@ -49,31 +49,32 @@ def test_requires_auth(test_client):
 
 
 def test_non_super_admin_is_forbidden(staff_client):
-    erp_client = staff_client
-    assert erp_client.get("/api/bills/margins").status_code == 403
-    assert erp_client.get("/api/bills/margins/history").status_code == 403
+    assert staff_client.get("/api/bills/margins").status_code == 403
+    assert staff_client.get("/api/bills/margins/history").status_code == 403
     assert (
-        erp_client.post(
-            "/api/bills/margins",
-            json={
-                "product": "DATA",
-                "marginType": "FIXED",
-                "marginValue": 10,
-                "reason": "Launch",
-            },
+        staff_client.put(
+            "/api/bills/margins/CABLE_TV", json={"isActive": False, "reason": "Pause"}
         ).status_code
         == 403
     )
-    assert (
-        erp_client.put(
-            "/api/bills/margins/DATA", json={"isActive": False, "reason": "Pause"}
-        ).status_code
-        == 403
+
+
+def test_create_route_is_gone(super_client):
+    response = super_client.post(
+        "/api/bills/margins",
+        json={
+            "product": "CABLE_TV",
+            "marginType": "FIXED",
+            "marginValue": 10,
+            "reason": "Launch",
+        },
     )
+
+    assert response.status_code == 405
 
 
 def test_get_margins(mocker, super_client):
-    payload = {"data": [{"product": "DATA", "configured": False}]}
+    payload = {"data": [{"product": "CABLE_TV", "sampleOn1000": 100}]}
     mocked = mocker.patch(f"{SERVICE}.get_bill_margins", return_value=payload)
 
     response = super_client.get("/api/bills/margins")
@@ -83,17 +84,15 @@ def test_get_margins(mocker, super_client):
     mocked.assert_called_once_with()
 
 
-def test_create_margin_uses_signed_in_email(mocker, super_client):
-    mocked = mocker.patch(f"{SERVICE}.create_bill_margin", return_value={"ok": True})
+def test_update_margin_uses_signed_in_email(mocker, super_client):
+    mocked = mocker.patch(f"{SERVICE}.update_bill_margin", return_value={"ok": True})
 
-    response = super_client.post(
-        "/api/bills/margins",
+    response = super_client.put(
+        "/api/bills/margins/CABLE_TV",
         json={
-            "product": "AIRTIME",
-            "marginType": "FIXED",
-            "marginValue": 15,
-            "isActive": True,
-            "reason": "Launch margin",
+            "marginType": "PERCENTAGE",
+            "marginValue": 3,
+            "reason": "Move to 3%",
             # a client-supplied changedBy must be ignored
             "changedBy": "someone.else@example.com",
         },
@@ -101,72 +100,27 @@ def test_create_margin_uses_signed_in_email(mocker, super_client):
 
     assert response.status_code == 200
     mocked.assert_called_once_with(
+        "CABLE_TV",
         {
-            "product": "AIRTIME",
-            "marginType": "FIXED",
-            "marginValue": 15.0,
-            "isActive": True,
-            "reason": "Launch margin",
-            "changedBy": "superadmin1@xbankang.com",
-        }
-    )
-
-
-def test_create_margin_defaults_inactive(mocker, super_client):
-    mocked = mocker.patch(f"{SERVICE}.create_bill_margin", return_value={})
-
-    super_client.post(
-        "/api/bills/margins",
-        json={
-            "product": "DATA",
             "marginType": "PERCENTAGE",
-            "marginValue": 3,
-            "reason": "Launch",
+            "marginValue": 3.0,
+            "reason": "Move to 3%",
+            "changedBy": "superadmin1@xbankang.com",
         },
     )
-
-    assert mocked.call_args.args[0]["isActive"] is False
-
-
-def test_create_margin_validation(mocker, super_client):
-    mocked = mocker.patch(f"{SERVICE}.create_bill_margin")
-    base = {"product": "DATA", "marginType": "PERCENTAGE", "marginValue": 3, "reason": "Launch"}
-
-    for override in (
-        {"product": "WATER"},
-        {"marginType": "FLAT"},
-        {"marginValue": -1},
-        {"marginValue": 101},
-        {"reason": "ab"},
-    ):
-        response = super_client.post("/api/bills/margins", json={**base, **override})
-        assert response.status_code == 422, override
-
-    mocked.assert_not_called()
-
-
-def test_fixed_margin_may_exceed_100(mocker, super_client):
-    mocker.patch(f"{SERVICE}.create_bill_margin", return_value={})
-
-    response = super_client.post(
-        "/api/bills/margins",
-        json={"product": "CABLE_TV", "marginType": "FIXED", "marginValue": 250, "reason": "Flat fee"},
-    )
-
-    assert response.status_code == 200
 
 
 def test_update_margin_sends_only_given_fields(mocker, super_client):
     mocked = mocker.patch(f"{SERVICE}.update_bill_margin", return_value={"ok": True})
 
     response = super_client.put(
-        "/api/bills/margins/DATA", json={"marginValue": 3, "reason": "Raise to 3%"}
+        "/api/bills/margins/ELECTRICITY", json={"marginValue": 150, "reason": "Raise fee"}
     )
 
     assert response.status_code == 200
     mocked.assert_called_once_with(
-        "DATA",
-        {"marginValue": 3.0, "reason": "Raise to 3%", "changedBy": "superadmin1@xbankang.com"},
+        "ELECTRICITY",
+        {"marginValue": 150.0, "reason": "Raise fee", "changedBy": "superadmin1@xbankang.com"},
     )
 
 
@@ -181,38 +135,54 @@ def test_update_margin_can_switch_off(mocker, super_client):
     assert mocked.call_args.args[1]["isActive"] is False
 
 
+def test_fixed_margin_may_exceed_100(mocker, super_client):
+    mocker.patch(f"{SERVICE}.update_bill_margin", return_value={})
+
+    response = super_client.put(
+        "/api/bills/margins/CABLE_TV",
+        json={"marginType": "FIXED", "marginValue": 250, "reason": "Flat fee"},
+    )
+
+    assert response.status_code == 200
+
+
 def test_update_margin_validation(mocker, super_client):
     mocked = mocker.patch(f"{SERVICE}.update_bill_margin")
+    url = "/api/bills/margins/CABLE_TV"
 
-    # nothing to change
-    assert (
-        super_client.put("/api/bills/margins/DATA", json={"reason": "No change"}).status_code
-        == 422
-    )
-    # unknown product
-    assert (
-        super_client.put(
-            "/api/bills/margins/WATER", json={"isActive": True, "reason": "Nope"}
-        ).status_code
-        == 422
-    )
-    # percentage above 100 when the type is sent too
-    assert (
-        super_client.put(
-            "/api/bills/margins/DATA",
-            json={"marginType": "PERCENTAGE", "marginValue": 120, "reason": "Too high"},
-        ).status_code
-        == 422
-    )
-    # short reason
-    assert (
-        super_client.put(
-            "/api/bills/margins/DATA", json={"isActive": True, "reason": "ab"}
-        ).status_code
-        == 422
-    )
+    for body in (
+        # nothing to change
+        {"reason": "No change"},
+        # bad margin type
+        {"marginType": "FLAT", "reason": "Bad type"},
+        # negative value
+        {"marginValue": -1, "reason": "Negative"},
+        # percentage above 100 when the type is sent too
+        {"marginType": "PERCENTAGE", "marginValue": 120, "reason": "Too high"},
+        # short reason
+        {"isActive": True, "reason": "ab"},
+        # missing reason
+        {"isActive": True},
+    ):
+        assert super_client.put(url, json=body).status_code == 422, body
 
     mocked.assert_not_called()
+
+
+@pytest.mark.parametrize("product", ["AIRTIME", "DATA", "WATER"])
+def test_products_without_margins_are_rejected(mocker, super_client, product):
+    update = mocker.patch(f"{SERVICE}.update_bill_margin")
+    history = mocker.patch(f"{SERVICE}.get_bill_margin_history")
+
+    put = super_client.put(
+        f"/api/bills/margins/{product}", json={"isActive": True, "reason": "Nope"}
+    )
+    get = super_client.get(f"/api/bills/margins/history?product={product}")
+
+    assert put.status_code == 422
+    assert get.status_code == 422
+    update.assert_not_called()
+    history.assert_not_called()
 
 
 def test_history_passes_filters(mocker, super_client):
@@ -220,32 +190,33 @@ def test_history_passes_filters(mocker, super_client):
         f"{SERVICE}.get_bill_margin_history", return_value={"items": [], "total": 0}
     )
 
-    response = super_client.get("/api/bills/margins/history?product=DATA&page=2")
+    response = super_client.get("/api/bills/margins/history?product=CABLE_TV&page=2")
 
     assert response.status_code == 200
-    mocked.assert_called_once_with(product="DATA", page=2)
+    mocked.assert_called_once_with(product="CABLE_TV", page=2)
 
 
-def test_history_rejects_unknown_product(mocker, super_client):
-    mocked = mocker.patch(f"{SERVICE}.get_bill_margin_history")
+def test_history_without_filters(mocker, super_client):
+    mocked = mocker.patch(f"{SERVICE}.get_bill_margin_history", return_value={})
 
-    assert super_client.get("/api/bills/margins/history?product=WATER").status_code == 422
-    mocked.assert_not_called()
+    assert super_client.get("/api/bills/margins/history").status_code == 200
+    mocked.assert_called_once_with(product=None, page=1)
 
 
 def test_core_errors_pass_through(mocker, super_client):
     mocker.patch(
         "requests.request",
-        return_value=_mock_response(409, text='{"message":"Margin already exists"}'),
+        return_value=_mock_response(
+            409, text='{"message":"Margin was changed by someone else"}'
+        ),
     )
 
-    response = super_client.post(
-        "/api/bills/margins",
-        json={"product": "DATA", "marginType": "FIXED", "marginValue": 5, "reason": "Again"},
+    response = super_client.put(
+        "/api/bills/margins/CABLE_TV", json={"isActive": False, "reason": "Pause"}
     )
 
     assert response.status_code == 409
-    assert "already exists" in response.json()["detail"]
+    assert "changed by someone else" in response.json()["detail"]
 
 
 def test_service_hits_core_endpoints(mocker):
@@ -256,13 +227,13 @@ def test_service_hits_core_endpoints(mocker):
     )
 
     InternalAPIService.get_bill_margins()
-    InternalAPIService.update_bill_margin("DATA", {"isActive": False})
+    InternalAPIService.update_bill_margin("CABLE_TV", {"isActive": False})
     InternalAPIService.get_bill_margin_history(product=None, page=1)
 
     calls = [(c.args[0], c.args[1].split("/internal", 1)[1]) for c in request.call_args_list]
     assert calls == [
         ("GET", "/bills/margins"),
-        ("PUT", "/bills/margins/DATA"),
+        ("PUT", "/bills/margins/CABLE_TV"),
         ("GET", "/bills/margins/history"),
     ]
     # None params are dropped, so an unfiltered history sends only the page
