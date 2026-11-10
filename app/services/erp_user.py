@@ -731,6 +731,22 @@ class ERPService(Service):
                 detail="Super Admin creation is disabled.",
             )
 
+        # Second gate behind the flag: this endpoint is unauthenticated, so a
+        # flag left on must not let anyone mint another Super Admin. Further
+        # ones come from update_staff_roles_permissions, which needs a Super
+        # Admin to grant the role.
+        existing_super_admin = db.scalar(
+            select(ERPUser.id)
+            .join(Role, Role.id == ERPUser.role_id)
+            .where(Role.name == SUPER_ADMIN)
+            .limit(1)
+        )
+        if existing_super_admin is not None:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail="A Super Admin already exists. Signup is closed.",
+            )
+
         if not is_valid_email(obj_in.email):
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid email address."
