@@ -194,6 +194,16 @@ class InternalAPIService(Service):
         return InternalAPIService._request("POST", "/internal/funding/accounts/lookup", json=payload)
 
     @staticmethod
+    def find_funding_account_owner(account_number: str, bank_code: str | None = None):
+        """Finds the customer(s) who registered `account_number` as a sending account.
+        An array, since one number can exist at several banks; empty if none."""
+        return InternalAPIService._request(
+            "GET",
+            "/internal/funding/lookup",
+            params={"accountNumber": account_number, "bankCode": bank_code},
+        )
+
+    @staticmethod
     def get_xbanka_accounts() -> dict:
         return InternalAPIService._request("GET", "/internal/funding/xbanka-accounts")
 
