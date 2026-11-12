@@ -195,6 +195,32 @@ def fetch_funding_banks(
         raise HTTPException(status_code=500, detail=str(e))
 
 
+@transaction.get("/funding/lookup", status_code=status.HTTP_200_OK)
+def find_funding_account_owner(
+    account_number: str = Query(
+        ...,
+        alias="accountNumber",
+        pattern=r"^\d{10}$",
+        description="Sender account number (10 digits) the customer registered in the app",
+    ),
+    bank_code: str = Query(
+        None,
+        alias="bankCode",
+        min_length=1,
+        description="Narrow to one bank when the same number exists at several",
+    ),
+    current_user: CurrentUser = Depends(require_permissions(ADJUST_BALANCE)),
+):
+    """Who registered this sending account? Returns an array (empty if no one did).
+    Use the `fundingAccountId` from the match for a direct credit."""
+    try:
+        return InternalAPIService.find_funding_account_owner(account_number, bank_code)
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 @transaction.post("/funding/accounts/lookup", status_code=status.HTTP_200_OK)
 def lookup_funding_account(
     payload: AccountLookupRequest,
