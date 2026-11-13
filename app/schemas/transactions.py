@@ -1,13 +1,15 @@
 from datetime import datetime
-from decimal import Decimal
+from decimal import ROUND_DOWN, Decimal, InvalidOperation
 from typing import Annotated, List, Literal, Optional, Union
 from uuid import UUID
 
 from pydantic import (
+    AfterValidator,
     BaseModel,
     ConfigDict,
     Field,
     Discriminator,
+    PlainSerializer,
     Tag,
     computed_field,
     model_validator,
@@ -15,6 +17,41 @@ from pydantic import (
 
 from app.core.enums import CryptoPairEnum, ServiceTypeEnum, TxnStatusEnum, UploadStatusEnum
 from app.schemas.customer import CustomerBrief, CustomerRead
+
+
+def _decimal_as_json_number(value: Decimal) -> Union[int, float]:
+    """pydantic's mode="json" turns Decimal into a string, but the core validates
+    these amounts with @IsNumber (no string coercion). Send a real JSON number:
+    an int when the value is whole (1000, not 1000.0), otherwise the float, whose
+    shortest repr round-trips cleanly (0.1 stays 0.1)."""
+    if value == value.to_integral_value():
+        return int(value)
+    return float(value)
+
+
+_CENT = Decimal("0.01")
+
+
+def _trim_to_two_places(value: Decimal) -> Decimal:
+    """The core allows at most 2 decimal places (@IsNumber maxDecimalPlaces: 2) and
+    a minimum of 0.01. Cut any overflow toward zero (never credit more than was
+    entered) and refuse an amount that trims to nothing, e.g. 0.001."""
+    try:
+        trimmed = value.quantize(_CENT, rounding=ROUND_DOWN)
+    except InvalidOperation:
+        raise ValueError("amount is too large")
+    if trimmed < _CENT:
+        raise ValueError("amount must be at least 0.01")
+    return trimmed
+
+
+# Validated and trimmed as an exact Decimal (no float math on input); only the
+# JSON dump turns it into a number.
+JsonNumberDecimal = Annotated[
+    Decimal,
+    AfterValidator(_trim_to_two_places),
+    PlainSerializer(_decimal_as_json_number, when_used="json"),
+]
 
 
 class TransactionMetaData(BaseModel):
@@ -37,7 +74,7 @@ class LogManualTransactionsRequest(BaseModel):
 
 class FundingCreditRequest(BaseModel):
     fundingAccountId: UUID
-    amount: Decimal = Field(gt=0)
+    amount: JsonNumberDecimal = Field(gt=0)
     reference: str
     creditedBy: str
     attachmentUrls: List[str] = Field(default_factory=list)
@@ -77,7 +114,7 @@ class FundingIntentCompleteRequest(BaseModel):
     bankReference: str = Field(min_length=1)
     creditedBy: str
     # defaults to the amount the customer declared; overrideReason is required with it
-    amount: Optional[Decimal] = Field(default=None, gt=0)
+    amount: Optional[JsonNumberDecimal] = Field(default=None, gt=0)
     overrideReason: Optional[str] = None
     fundingAccountId: Optional[UUID] = None
     attachmentUrls: List[str] = Field(default_factory=list)
