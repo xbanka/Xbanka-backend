@@ -32,15 +32,17 @@ def fetch_all_customers(
     status_filter: str = Query(None, alias="status", description="Filter by user status/step"),
     start_date: str = Query(None, alias="startDate", description="Start date (ISO)"),
     end_date: str = Query(None, alias="endDate", description="End date (ISO)"),
+    tier: int = Query(None, ge=0, description="Filter by KYC tier"),
 ):
     try:
         return InternalAPIService.get_all_users(
-            page=page, 
+            page=page,
             limit=limit,
             search=search,
             status=status_filter,
             startDate=start_date,
-            endDate=end_date
+            endDate=end_date,
+            tier=tier,
         )
     except HTTPException:
         raise
