@@ -71,6 +71,18 @@ def export_customers(
     )
 
 
+@customer.get("/kyc-tiers", status_code=status.HTTP_200_OK)
+def get_kyc_tiers(
+    current_user: CurrentUser = Depends(require_permissions(VIEW_CUSTOMERS)),
+):
+    try:
+        return InternalAPIService.get_kyc_tiers()
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 @customer.get(
     "/search", status_code=status.HTTP_200_OK
 )
