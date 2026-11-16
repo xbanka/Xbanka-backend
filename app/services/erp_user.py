@@ -803,7 +803,15 @@ class ERPService(Service):
         return superadmin_user
 
     @staticmethod
-    def get_all_staff(db: Session) -> Sequence[ERPUser]:
+    def get_all_staff(
+        db: Session,
+        name: Optional[str] = None,
+        email: Optional[str] = None,
+        role: Optional[str] = None,
+    ) -> Sequence[ERPUser]:
+        """All staff except Super Admins. `name` and `email` are case-insensitive
+        substring matches (`name` also matches the full "first last"); `role` is
+        a case-insensitive exact role name. Blank filters are ignored."""
         stmt = (
             select(ERPUser)
             .join(Role)
@@ -812,6 +820,19 @@ class ERPService(Service):
             )
             .order_by(ERPUser.created_at.desc())
         )
+
+        name = name.strip() if name else None
+        email = email.strip() if email else None
+        role = role.strip() if role else None
+
+        if name:
+            full_name = ERPUser.first_name + " " + ERPUser.last_name
+            stmt = stmt.where(full_name.icontains(name, autoescape=True))
+        if email:
+            stmt = stmt.where(ERPUser.email.icontains(email, autoescape=True))
+        if role:
+            stmt = stmt.where(func.lower(Role.name) == role.lower())
+
         staff_users = db.execute(stmt).scalars().all()
         return staff_users
 
