@@ -397,9 +397,13 @@ class RatesService(Service):
     def get_all_exchange_rates(
         segment_ids: list[str] | None = None,
         segment_names: list[str] | None = None,
+        currencies: list[str] | None = None,
+        names: list[str] | None = None,
+        search: str | None = None,
     ):
         """Values are forwarded exactly as received (repeated and/or comma-separated);
-        the internal API does the splitting, trimming and matching. segment_ids are
+        the internal API does the splitting, trimming, matching and combining of the
+        filters. `search` is a single free-text value and is never split. segment_ids are
         only checked for UUID shape first so a typo is a 422, not a silent empty result."""
         for raw in segment_ids or []:
             for value in raw.split(","):
@@ -417,7 +421,13 @@ class RatesService(Service):
         return InternalAPIService._request(
             "GET",
             "/internal/wallets/crypto/accepts",
-            params={"segmentId": segment_ids, "segmentName": segment_names},
+            params={
+                "segmentId": segment_ids,
+                "segmentName": segment_names,
+                "currency": currencies,
+                "name": names,
+                "search": search,
+            },
         )
 
 
