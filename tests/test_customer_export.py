@@ -88,7 +88,13 @@ def test_export_customers_success(mocker, super_client):
     assert rows[3][4] == "Inactive"
 
     mock_get_all_users.assert_called_once_with(
-        page=1, limit=500, search=None, status=None, startDate=None, endDate=None
+        page=1,
+        limit=500,
+        search=None,
+        status=None,
+        startDate=None,
+        endDate=None,
+        tier=None,
     )
 
 
@@ -105,6 +111,7 @@ def test_export_customers_passes_filters_through(mocker, super_client):
             "status": "ACTIVE",
             "startDate": "2026-01-01",
             "endDate": "2026-08-01",
+            "tier": 2,
         },
     )
 
@@ -116,6 +123,7 @@ def test_export_customers_passes_filters_through(mocker, super_client):
         status="ACTIVE",
         startDate="2026-01-01",
         endDate="2026-08-01",
+        tier=2,
     )
 
 

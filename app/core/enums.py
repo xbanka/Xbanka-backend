@@ -255,7 +255,7 @@ JOB_ROLE_PERMISSIONS = {
 # Endpoints that are gated purely by identity/account-type — "/me" routes,
 # login/register/refresh/verify/forgot-password/reset-password, webhooks,
 # and a staff member's own notifications — are intentionally excluded, since
-# they aren't role/permission-gated resources. v2 routes are out of scope.
+# they aren't role/permission-gated resources.
 #
 # This enum does not replace `Permission` and is not yet wired into any
 # route or into JOB_ROLE_PERMISSIONS.

@@ -25,7 +25,6 @@ ENVIRONMENT = settings.ENVIRONMENT
 setup_logging(ENVIRONMENT, settings.LOG_LEVEL)
 
 from app.api.v1.routes import api_version_one  # noqa: E402
-# from app.api.v2.routes import api_version_two
 from app.services.websocket_manager import notification_manager  # noqa: E402
 
 # @asynccontextmanager
@@ -79,7 +78,6 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(lifespan=lifespan)
 app.include_router(api_version_one)
-# app.include_router(api_version_two)
 
 origins = [
     "http://localhost:3000",  # local dev FE
