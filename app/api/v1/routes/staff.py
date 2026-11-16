@@ -39,11 +39,12 @@ ERP_FRONTEND_URL = settings.ERP_FRONTEND_URL
 def get_all_staff(
     db: Session = Depends(get_db),
     current_user: CurrentUser = Depends(require_permissions(VIEW_STAFF_LIST)),
-    name: str = Query(None, description="Search first, last or full name"),
-    email: str = Query(None, description="Search email"),
-    role: str = Query(None, description="Filter by role name"),
+    search: str = Query(
+        None, description="Search across name and email (case-insensitive, partial)"
+    ),
+    role: str = Query(None, description="Filter by role name (case-insensitive, exact)"),
 ):
-    staff_members = ERPService.get_all_staff(db, name=name, email=email, role=role)
+    staff_members = ERPService.get_all_staff(db, search=search, role=role)
     pending = ERPService.get_pending_role_changes(
         db, [member.id for member in staff_members]
     )
