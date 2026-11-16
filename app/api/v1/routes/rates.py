@@ -31,9 +31,23 @@ def get_crypto_rates(
         alias="segmentName",
         description="Segment name(s), case-insensitive, whole name. Repeat the param or comma-separate.",
     ),
+    currency: Optional[List[str]] = Query(
+        None,
+        description="Exact symbol(s), case-insensitive (`btc` finds BTC). Repeat the param or comma-separate.",
+    ),
+    name: Optional[List[str]] = Query(
+        None,
+        description="Exact crypto name(s), case-insensitive (`bitcoin` finds Bitcoin, not Bitcoin Cash). Repeat the param or comma-separate.",
+    ),
+    search: Optional[str] = Query(
+        None,
+        description="Part of the symbol or name, case-insensitive. One value, not split on commas. For search boxes.",
+    ),
     current_user: CurrentUser = Depends(require_account_type("erp")),
 ):
-    return RatesService.get_all_exchange_rates(segment_id, segment_name)
+    return RatesService.get_all_exchange_rates(
+        segment_id, segment_name, currency, name, search
+    )
 
 
 @rates.post("/crypto")

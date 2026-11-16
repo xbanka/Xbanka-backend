@@ -319,6 +319,35 @@ def test_get_all_exchange_rates_forwards_segment_filters_as_received(
     }
 
 
+def test_get_all_exchange_rates_forwards_currency_name_and_search_as_received(
+    mocker, test_client, manager_without_override
+):
+    get = mocker.patch(
+        "requests.get",
+        return_value=_mock_response(200, _assets_payload([_accepted_crypto()])),
+    )
+
+    response = test_client.get(
+        "/api/rates/crypto/all",
+        params=[
+            ("currency", "BTC,ETH"),
+            ("currency", "sol"),
+            ("name", "Bitcoin Cash"),
+            ("search", "bit, coin"),
+            ("segmentName", "Alt coins"),
+        ],
+        headers=_headers(manager_without_override),
+    )
+
+    assert response.status_code == 200
+    assert get.call_args.kwargs["params"] == {
+        "segmentName": ["Alt coins"],
+        "currency": ["BTC,ETH", "sol"],
+        "name": ["Bitcoin Cash"],
+        "search": "bit, coin",
+    }
+
+
 def test_get_all_exchange_rates_rejects_invalid_segment_id_without_calling_upstream(
     mocker, test_client, manager_without_override
 ):
