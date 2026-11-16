@@ -170,6 +170,11 @@ class InternalAPIService(Service):
             raise HTTPException(status_code=500, detail=str(e))
 
     @staticmethod
+    def get_kyc_tiers() -> dict:
+        """What each KYC tier requires, its daily limit and the actions it unlocks."""
+        return InternalAPIService._request("GET", "/internal/kyc/tiers")
+
+    @staticmethod
     def log_manual_transaction(payload) -> dict:
         """Proxies the log manual transaction request to the core backend."""
         return InternalAPIService._request("POST", "/internal/wallet/transactions/manual", json=payload)
