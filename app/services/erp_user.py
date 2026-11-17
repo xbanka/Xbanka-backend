@@ -805,13 +805,13 @@ class ERPService(Service):
     @staticmethod
     def get_all_staff(
         db: Session,
-        name: Optional[str] = None,
-        email: Optional[str] = None,
+        search: Optional[str] = None,
         role: Optional[str] = None,
     ) -> Sequence[ERPUser]:
-        """All staff except Super Admins. `name` and `email` are case-insensitive
-        substring matches (`name` also matches the full "first last"); `role` is
-        a case-insensitive exact role name. Blank filters are ignored."""
+        """All staff except Super Admins. `search` is a case-insensitive substring
+        match against the full name ("first last", so first and last names match
+        too) or the email; either matching is enough. `role` is a case-insensitive
+        exact role name and is ANDed with `search`. Blank values are ignored."""
         stmt = (
             select(ERPUser)
             .join(Role)
@@ -821,15 +821,17 @@ class ERPService(Service):
             .order_by(ERPUser.created_at.desc())
         )
 
-        name = name.strip() if name else None
-        email = email.strip() if email else None
+        search = search.strip() if search else None
         role = role.strip() if role else None
 
-        if name:
+        if search:
             full_name = ERPUser.first_name + " " + ERPUser.last_name
-            stmt = stmt.where(full_name.icontains(name, autoescape=True))
-        if email:
-            stmt = stmt.where(ERPUser.email.icontains(email, autoescape=True))
+            stmt = stmt.where(
+                or_(
+                    full_name.icontains(search, autoescape=True),
+                    ERPUser.email.icontains(search, autoescape=True),
+                )
+            )
         if role:
             stmt = stmt.where(func.lower(Role.name) == role.lower())
 
