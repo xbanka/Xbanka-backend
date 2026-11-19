@@ -1,4 +1,6 @@
-from fastapi import Depends, HTTPException, status
+import hmac
+
+from fastapi import Depends, Header, HTTPException, status
 from sqlalchemy.orm import Session
 
 from app.db.database import get_db
@@ -6,6 +8,24 @@ from app.models.role import SUPER_ADMIN
 from app.services.auth import AuthService
 from app.services.erp_user import ERPService
 from app.utils.schema import CurrentUser
+from app.utils.settings import settings
+
+
+def require_internal_key(x_internal_key: str | None = Header(default=None)) -> None:
+    """Guard for calls from the core backend, which has no staff login: it
+    proves itself with the shared `x-internal-key` (the same value the ERP
+    sends to the core). Compared in constant time; an unset key closes the
+    route instead of matching an empty header."""
+    expected = settings.INTERNAL_KEY or ""
+    if (
+        not expected
+        or not x_internal_key
+        or not hmac.compare_digest(x_internal_key.encode(), expected.encode())
+    ):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="You are not allowed to access this resource",
+        )
 
 
 def require_account_type(*allowed_types: str):

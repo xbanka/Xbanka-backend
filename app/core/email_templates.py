@@ -318,3 +318,59 @@ def staff_invite_email(signup_url: str) -> tuple[str, str]:
         notice=notice,
     )
     return html, text
+
+
+def funding_intent_declared_email(
+    *,
+    staff_first_name: str,
+    customer_name: str | None,
+    customer_xb_id: str | None,
+    amount: float,
+    reference: str,
+    review_url: str,
+) -> tuple[str, str]:
+    """(html, text) telling staff a customer says they have sent money.
+
+    Customer-supplied values (name, reference) are escaped in the HTML only;
+    the plain-text part is not markup.
+    """
+    who = " ".join(p for p in [customer_name, f"({customer_xb_id})" if customer_xb_id else None] if p) or "A customer"
+    amount_text = f"₦{amount:,.2f}"
+    heading = "A customer says they have sent money"
+    greeting = f"Hello {staff_first_name.strip()}," if staff_first_name.strip() else "Hello,"
+    html_paragraphs = [
+        f"{escape(who)} tapped &ldquo;I have sent the money&rdquo; for "
+        f"<strong>{escape(amount_text)}</strong> (reference {escape(reference)}).",
+        "Please check the bank account. Once the money has arrived, confirm the "
+        "transfer so the customer's wallet is credited.",
+    ]
+    text_paragraphs = [
+        f"{who} tapped \"I have sent the money\" for {amount_text} (reference {reference}).",
+        "Please check the bank account. Once the money has arrived, confirm the "
+        "transfer so the customer's wallet is credited.",
+    ]
+    notice = (
+        "You are receiving this because your role can confirm bank transfers. "
+        "If the money has not arrived, leave it pending or reject it."
+    )
+
+    html = _render(
+        title="Customer transfer to confirm",
+        preheader=f"{amount_text} declared, check the bank account.",
+        heading=heading,
+        greeting=greeting,
+        paragraphs=html_paragraphs,
+        cta_label="Review Transfer",
+        cta_url=review_url,
+        notice=notice,
+        product="Xbanka ERP",
+    )
+    text = _plaintext(
+        heading=heading,
+        greeting=greeting,
+        paragraphs=text_paragraphs,
+        cta_label="Review the transfer",
+        cta_url=review_url,
+        notice=notice,
+    )
+    return html, text

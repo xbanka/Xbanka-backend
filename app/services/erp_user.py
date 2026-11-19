@@ -560,6 +560,37 @@ class ERPService(Service):
         return list(db.scalars(stmt).all())
 
     @staticmethod
+    def get_users_with_any_permission(
+        db: Session, permission_names: Sequence[str]
+    ) -> List[ERPUser]:
+        """ERP users holding at least one of `permission_names`, each listed once."""
+        users: dict[UUID, ERPUser] = {}
+        for name in permission_names:
+            for user in ERPService.get_users_with_permission(db, name):
+                users.setdefault(user.id, user)
+        return list(users.values())
+
+    @staticmethod
+    def has_notification_for_reference(
+        db: Session,
+        reference_type: NotificationReferenceTypeEnum,
+        reference_id: UUID,
+    ) -> bool:
+        """Whether anyone was already notified about `reference_id`; lets a
+        caller that may be retried (the core backend) stay idempotent."""
+        return (
+            db.scalar(
+                select(Notification.id)
+                .where(
+                    Notification.reference_type == reference_type,
+                    Notification.reference_id == reference_id,
+                )
+                .limit(1)
+            )
+            is not None
+        )
+
+    @staticmethod
     def notify_permission_holders(
         db: Session,
         permission_name: str,
