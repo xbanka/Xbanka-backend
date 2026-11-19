@@ -1,3 +1,4 @@
+import logging
 from uuid import UUID
 
 from fastapi import (
@@ -16,6 +17,7 @@ from sqlalchemy.orm import Session
 from app.core.enums import (
     FundingIntentActionEnum,
     FundingIntentLogStatusEnum,
+    NotificationReferenceTypeEnum,
     Permission,
 )
 from app.db.database import get_db
@@ -35,6 +37,8 @@ from app.utils.auth import require_account_type, require_permissions
 from app.utils.request import get_client_ip
 from app.utils.schema import CurrentUser
 
+logger = logging.getLogger(__name__)
+
 transaction = APIRouter(prefix="/transactions", tags=["Transactions"])
 
 
@@ -43,6 +47,20 @@ VIEW_TRANSACTIONS = Permission.VIEW_TRANSACTIONS
 EXPORT_TRANSACTIONS = Permission.EXPORT_TRANSACTIONS
 ADJUST_BALANCE = Permission.ADJUST_BALANCE
 VIEW_PAYMENTS = Permission.VIEW_PAYMENTS
+
+
+def _resolve_funding_intent_alert(db: Session, transaction_id: UUID) -> None:
+    """Stop offering the "a transfer is waiting" notification once the intent is
+    settled. The settlement already happened in the core backend, so a failure
+    here is logged and must never turn a successful credit into an error."""
+    try:
+        ERPService.resolve_notifications_for_reference(
+            db, NotificationReferenceTypeEnum.FUNDING_INTENT, transaction_id
+        )
+    except Exception:
+        logger.exception(
+            "Could not resolve the funding intent notification for %s", transaction_id
+        )
 
 
 def _is_duplicate(result) -> bool:
@@ -352,6 +370,7 @@ def complete_funding_intent(
     # A retried request comes back as `duplicate: true` and was audited the first time.
     if not _is_duplicate(result):
         ERPService.log_funding_intent_action(db, **audit)
+    _resolve_funding_intent_alert(db, transaction_id)
     return result
 
 
@@ -382,6 +401,7 @@ def reject_funding_intent(
         raise HTTPException(status_code=500, detail=str(e))
 
     ERPService.log_funding_intent_action(db, **audit)
+    _resolve_funding_intent_alert(db, transaction_id)
     return result
 
 
