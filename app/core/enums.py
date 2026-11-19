@@ -332,6 +332,9 @@ class NotificationReferenceTypeEnum(str, enum.Enum):
     PAYOUT = "PAYOUT"
     RATE_PROPOSAL = "RATE_PROPOSAL"
     STAFF_ACCOUNT = "STAFF_ACCOUNT"
+    # A customer's declared bank transfer waiting for staff to confirm it.
+    # reference_id is the transaction id in the core backend.
+    FUNDING_INTENT = "FUNDING_INTENT"
 
 
 class RoleChangeStatusEnum(str, enum.Enum):

@@ -166,3 +166,37 @@ async def send_invite_email(
         html,
         text,
     )
+
+
+def queue_funding_intent_email(
+    recipient: str,
+    staff_first_name: str,
+    customer_name: str | None,
+    customer_xb_id: str | None,
+    amount: float,
+    reference: str,
+    background_tasks: BackgroundTasks,
+) -> None:
+    """Tell one staff member a customer declared a bank transfer.
+
+    Plain `def` (it only queues the send), because it is called from the sync
+    route handler that also writes the in-app notifications.
+    """
+    html, text = email_templates.funding_intent_declared_email(
+        staff_first_name=staff_first_name,
+        customer_name=customer_name,
+        customer_xb_id=customer_xb_id,
+        amount=amount,
+        reference=reference,
+        # The Funding Requests tab on the finance page (the ERP frontend reads
+        # ?tab=funding; see finance/page.tsx there).
+        review_url=f"{_resolve_frontend_url(EmailTypeEnum.erp).rstrip('/')}/finance?tab=funding",
+    )
+
+    background_tasks.add_task(
+        _dispatch,
+        f"Transfer to confirm: ₦{amount:,.2f}",
+        _recipients(recipient),
+        html,
+        text,
+    )
