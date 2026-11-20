@@ -1,3 +1,5 @@
+import logging
+
 from fastapi import (
     APIRouter,
     BackgroundTasks,
@@ -31,6 +33,8 @@ from app.schemas.user import (
 from app.services.affiliate import AffiliateService
 from app.services.auth import AuthService
 from app.utils.settings import settings
+
+logger = logging.getLogger(__name__)
 
 affiliate = APIRouter(prefix="/affiliates")
 
@@ -95,6 +99,7 @@ async def register(
     db: Session = Depends(get_db),
 ):
     user = AffiliateService.create(db, login_request)
+    logger.info("affiliate registered", extra={"user_id": str(user.id)})
 
     token = AuthService.create_magic_link_token(data={"sub": str(user.id)})
     url = f"{AFFILIATE_FRONTEND_URL}/affiliate/verify?token={token}"
@@ -166,6 +171,7 @@ def verify_magic_link(token: str, db: Session = Depends(get_db)):
 
     affiliate.verified = True
     db.commit()
+    logger.info("affiliate verified", extra={"user_id": str(affiliate.id)})
 
     return {"message": "Affiliate verified successfully"}
 
@@ -204,6 +210,8 @@ async def forgot_password(
             status_code=404, detail="User with this email does not exist"
         )
 
+    # The email is not logged: the user id identifies the account.
+    logger.info("affiliate password reset requested", extra={"user_id": str(user.id)})
     token = AuthService.create_password_reset_token(data={"sub": str(user.id)})
     url = f"{AFFILIATE_FRONTEND_URL}/affiliate/reset-password?token={token}"
 

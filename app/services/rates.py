@@ -285,6 +285,15 @@ class RatesService(Service):
         db.add(new_request)
         db.commit()
         db.refresh(new_request)
+        logger.info(
+            "rate proposal created",
+            extra={
+                "actor_id": str(current_user.user.id),
+                "proposal_id": str(new_request.id),
+                "proposal_type": str(type),
+                "target_id": str(target_id),
+            },
+        )
 
         return new_request
 
@@ -380,6 +389,13 @@ class RatesService(Service):
             RatesService.create_log(db, proposal, current_user)
             db.commit()
             db.refresh(proposal)
+            logger.info(
+                "rate proposal applied by override",
+                extra={
+                    "actor_id": str(current_user.user.id),
+                    "proposal_id": str(proposal.id),
+                },
+            )
             return proposal
 
         ERPService.notify_permission_holders(
@@ -626,6 +642,14 @@ class RatesService(Service):
 
         db.commit()
         db.refresh(proposal)
+        logger.info(
+            "rate proposal approved",
+            extra={
+                "actor_id": str(current_user.user.id),
+                "proposal_id": str(proposal.id),
+                "requested_by_id": str(proposal.requested_by_id),
+            },
+        )
 
         # Every other reviewer who was notified about this proposal now has a
         # stale action prompt; resolve them all so the frontend can disable
@@ -670,6 +694,14 @@ class RatesService(Service):
         # Implement logic to reject the proposal
         proposal.status = RatesApprovalStatusEnum.REJECTED
         db.commit()
+        logger.info(
+            "rate proposal rejected",
+            extra={
+                "actor_id": str(current_user.user.id),
+                "proposal_id": str(proposal_id),
+                "requested_by_id": str(proposal.requested_by_id),
+            },
+        )
 
         ERPService.resolve_notifications_for_reference(
             db, NotificationReferenceTypeEnum.RATE_PROPOSAL, proposal.id

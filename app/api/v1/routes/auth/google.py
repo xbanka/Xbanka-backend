@@ -1,3 +1,5 @@
+import logging
+
 from fastapi import APIRouter, Depends, Query, Request, Response
 from fastapi.responses import RedirectResponse
 from sqlalchemy.orm import Session
@@ -17,6 +19,8 @@ ACCESS_TOKEN_EXPIRE_MINUTES = settings.ACCESS_TOKEN_EXPIRE_MINUTES
 AFFILIATE_FRONTEND_URL = settings.AFFILIATE_FRONTEND_URL
 
 GOOGLE_AUTH_URL = "https://accounts.google.com/o/oauth2/auth"
+
+logger = logging.getLogger(__name__)
 
 google = APIRouter(prefix="/google")
 
@@ -53,9 +57,16 @@ async def auth_callback(
     email: str = user_info["email"]
 
     affiliate = AffiliateService.get_by_email(db, email)
-    if not affiliate:
+    created = affiliate is None
+    if created:
         # create a new affiliate record if one doesn't exist
         affiliate = AffiliateService.create_from_google_user(db, user_info)
+    # Ids only: the redirect below carries the access token, and the email is
+    # the customer's.
+    logger.info(
+        "affiliate signed in with google",
+        extra={"user_id": str(affiliate.id), "created": created},
+    )
 
     access_token = AuthService.create_access_token(
         data={"sub": str(affiliate.id), "account_type": "affiliate"}

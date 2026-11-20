@@ -1,3 +1,4 @@
+import logging
 from datetime import datetime, timezone
 
 from fastapi import (
@@ -40,6 +41,8 @@ from app.utils.request import get_client_ip
 from app.utils.schema import CurrentUser
 from app.utils.settings import settings
 
+logger = logging.getLogger(__name__)
+
 erp = APIRouter(prefix="/erp")
 
 ERP_FRONTEND_URL = settings.ERP_FRONTEND_URL
@@ -77,6 +80,10 @@ def login(
     if user.totp_enabled:
         # Password is right but the login isn't complete: no session, and no
         # SUCCESS log entry until /login/2fa passes.
+        logger.info(
+            "login needs 2fa",
+            extra={"user_id": str(user.id), "client_ip": ip_address},
+        )
         return {
             "mfa_required": True,
             "mfa_token": AuthService.create_mfa_token(data={"sub": str(user.id)}),
@@ -172,6 +179,7 @@ def setup_2fa(
     db: Session = Depends(get_db),
     current_user: CurrentUser = Depends(require_account_type("erp")),
 ):
+    logger.info("2fa setup started", extra={"user_id": str(current_user.user.id)})
     return MFAService.begin_setup(db, current_user.user)
 
 
@@ -202,6 +210,9 @@ def regenerate_recovery_codes(
     current_user: CurrentUser = Depends(require_account_type("erp")),
 ):
     codes = MFAService.regenerate_recovery_codes(db, current_user.user, body.code)
+    logger.info(
+        "2fa recovery codes regenerated", extra={"user_id": str(current_user.user.id)}
+    )
     return {"recovery_codes": codes}
 
 
@@ -213,6 +224,7 @@ async def register(
     db: Session = Depends(get_db),
 ):
     user = ERPService.create(db, login_request)
+    logger.info("staff account registered", extra={"user_id": str(user.id)})
 
     return {
         "message": "Your profile has been created.",
@@ -270,6 +282,7 @@ def verify_magic_link(token: str, db: Session = Depends(get_db)):
 
     erpuser.verified = True
     db.commit()
+    logger.info("staff account verified", extra={"user_id": str(erpuser.id)})
 
     return {"message": "Account verified successfully"}
 
@@ -298,6 +311,8 @@ async def forgot_password(
             status_code=404, detail="User with this email does not exist"
         )
 
+    # The email is not logged: the user id identifies the account.
+    logger.info("password reset requested", extra={"user_id": str(user.id)})
     token = AuthService.create_password_reset_token(data={"sub": str(user.id)})
     reset_url = f"{ERP_FRONTEND_URL}/reset-password?token={token}"
 
@@ -347,6 +362,7 @@ async def change_password(
         change_request.current_password,
         change_request.new_password,
     )
+    logger.info("password changed", extra={"user_id": str(current_user.user.id)})
 
     # Security alert: reaches the owner even if someone else changed it.
     await send_password_changed_email(

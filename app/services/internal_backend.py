@@ -86,7 +86,10 @@ class InternalAPIService(Service):
             )
             # keep the core backend's status code and message instead of a generic 500
             raise HTTPException(status_code=response.status_code, detail=response.text)
-        logger.info(
+        # Reads (list pages, export loops) are noise; calls that change something
+        # in the core backend stay at INFO so a write can be traced from this log.
+        logger.log(
+            logging.DEBUG if method.upper() == "GET" else logging.INFO,
             "core backend request ok",
             extra={
                 "method": method,

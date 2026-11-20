@@ -1,3 +1,4 @@
+import logging
 from typing import Union
 from uuid import UUID
 
@@ -22,6 +23,8 @@ from app.services.mfa import MFAService
 from app.utils.auth import require_account_type, require_super_admin, require_permissions
 from app.utils.schema import CurrentUser
 from app.utils.settings import settings
+
+logger = logging.getLogger(__name__)
 
 staff = APIRouter(prefix="/staff", tags=["Staff"])
 
@@ -76,6 +79,16 @@ async def invite_staff(
         role_name=request.role,
         selected_permissions=request.permissions,
     )
+    # The invitee's email is not logged; the new staff id identifies them.
+    logger.info(
+        "staff invited",
+        extra={
+            "actor_id": str(current_user.user.id),
+            "target_id": str(staff.id),
+            "role": request.role,
+            "permissions": [str(getattr(p, "value", p)) for p in request.permissions or []],
+        },
+    )
 
     url = f"{ERP_FRONTEND_URL}/signup?email={staff.email}"
 
@@ -119,6 +132,10 @@ def remove_staff_member(
     current_user: CurrentUser = Depends(require_super_admin)
 ):
     ERPService.remove_staff_member(db, staff_id)
+    logger.info(
+        "staff removed",
+        extra={"actor_id": str(current_user.user.id), "target_id": str(staff_id)},
+    )
     return {"message": "Staff member removed successfully."}
 
 
@@ -141,6 +158,15 @@ def update_staff_details(
     current_user: CurrentUser = Depends(require_permissions(EDIT_STAFF_ROLES)),
 ):
     staff = ERPService.update_staff_details(db, staff_id, update_request)
+    # Field names only: the values are names and contact details.
+    logger.info(
+        "staff details updated",
+        extra={
+            "actor_id": str(current_user.user.id),
+            "target_id": str(staff_id),
+            "fields": sorted(update_request.model_dump(exclude_unset=True)),
+        },
+    )
     return {"message": "Staff member details updated successfully.", "staff": staff}
 
 
@@ -158,12 +184,25 @@ def update_staff_roles_permissions(
     result = ERPService.update_staff_roles_permissions(
         db, staff_id, request.role, request.permissions, request.reason, current_user.user
     )
+    common = {"actor_id": str(current_user.user.id), "target_id": str(staff_id)}
     if isinstance(result, RoleChangeLog):
+        logger.info(
+            "staff role change proposed",
+            extra={**common, "role_change_id": str(result.id), "role": request.role},
+        )
         return {
             "message": "Role change proposed. The staff member must confirm it before it takes effect.",
             "role_change_id": result.id,
             "status": result.status,
         }
+    logger.info(
+        "staff permissions updated",
+        extra={
+            **common,
+            "role": request.role,
+            "permissions": [str(getattr(p, "value", p)) for p in request.permissions or []],
+        },
+    )
     return {
         "message": "Staff member's role and permissions updated successfully.",
         "staff": result,

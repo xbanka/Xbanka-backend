@@ -38,6 +38,18 @@ oauth2_scheme = OAuth2PasswordBearer(tokenUrl="api/auth/token")
 logger = logging.getLogger(__name__)
 
 
+def _auth_rejected(reason: str, expected: bool = False, **fields) -> None:
+    """Say why a credential was refused. The caller always gets the same generic
+    error, so this log is the only place the cause shows. `expected` is for
+    routine cases (an expired session) that should not read as an attack.
+    Never pass the token itself."""
+    logger.log(
+        logging.INFO if expected else logging.WARNING,
+        "authentication rejected",
+        extra={"reason": reason, **fields},
+    )
+
+
 class AuthService(Service):
     @staticmethod
     def create_access_token(data: dict, expires_delta: timedelta | None = None):
@@ -117,11 +129,16 @@ class AuthService(Service):
             payload = jwt.decode(
                 token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM]
             )
-        except (JWTError, DecodeError, ExpiredSignatureError):
+        except ExpiredSignatureError:
+            _auth_rejected("expired", expected=True, purpose="mfa")
+            raise credentials_exception
+        except (JWTError, DecodeError):
+            _auth_rejected("invalid_token", purpose="mfa")
             raise credentials_exception
 
         user_id = payload.get("sub")
         if not user_id or payload.get("type") != "mfa_pending":
+            _auth_rejected("wrong_token_type", purpose="mfa", type_claim=payload.get("type"))
             raise credentials_exception
 
         return TokenData(id=user_id)
@@ -140,18 +157,25 @@ class AuthService(Service):
             token_type = payload.get("type")
 
             if not user_id:
+                _auth_rejected("missing_subject", purpose="magic_link")
                 raise credentials_exception
 
             if token_type != "magic_link":
+                _auth_rejected("wrong_token_type", purpose="magic_link", type_claim=token_type)
                 raise HTTPException(detail="Invalid token type", status_code=400)
 
             user = db.query(model).get(user_id)
             if not user:
+                _auth_rejected("user_not_found", purpose="magic_link", user_id=str(user_id))
                 raise HTTPException(status_code=404, detail="user not found")
 
             return user
 
-        except (ExpiredSignatureError, JWTError, DecodeError):
+        except ExpiredSignatureError:
+            _auth_rejected("expired", expected=True, purpose="magic_link")
+            raise credentials_exception
+        except (JWTError, DecodeError):
+            _auth_rejected("invalid_token", purpose="magic_link")
             raise credentials_exception
 
     @staticmethod
@@ -166,15 +190,21 @@ class AuthService(Service):
             token_type = payload.get("type")
 
             if not user_id:
+                _auth_rejected("missing_subject", purpose="access")
                 raise credentials_exception
 
             if token_type == "refresh":
+                _auth_rejected("wrong_token_type", purpose="access", type_claim=token_type)
                 raise HTTPException(detail="Refresh token not allowed", status_code=400)
 
             token_data = TokenData(id=user_id)
             return token_data
 
-        except (JWTError, DecodeError, ExpiredSignatureError):
+        except ExpiredSignatureError:
+            _auth_rejected("expired", expected=True, purpose="access")
+            raise credentials_exception
+        except (JWTError, DecodeError):
+            _auth_rejected("invalid_token", purpose="access")
             raise credentials_exception
 
     @staticmethod
@@ -189,19 +219,26 @@ class AuthService(Service):
             token_type = payload.get("type")
 
             if not user_id:
+                _auth_rejected("missing_subject", purpose="refresh")
                 raise credentials_exception
 
             if token_type == "access":
+                _auth_rejected("wrong_token_type", purpose="refresh", type_claim=token_type)
                 raise HTTPException(detail="Access token not allowed", status_code=400)
 
             # A pending-2FA token must not mint a session via /refresh.
             if token_type == "mfa_pending":
+                _auth_rejected("wrong_token_type", purpose="refresh", type_claim=token_type)
                 raise credentials_exception
 
             token_data = TokenData(id=user_id)
             return token_data
 
-        except (ExpiredSignatureError, JWTError, DecodeError):
+        except ExpiredSignatureError:
+            _auth_rejected("expired", expected=True, purpose="refresh")
+            raise credentials_exception
+        except (JWTError, DecodeError):
+            _auth_rejected("invalid_token", purpose="refresh")
             raise credentials_exception
 
     @staticmethod
@@ -216,15 +253,23 @@ class AuthService(Service):
             token_type = payload.get("type")
 
             if not user_id:
+                _auth_rejected("missing_subject", purpose="password_reset")
                 raise credentials_exception
 
             if token_type != "password_reset":
+                _auth_rejected(
+                    "wrong_token_type", purpose="password_reset", type_claim=token_type
+                )
                 raise HTTPException(detail="Invalid token", status_code=400)
 
             token_data = TokenData(id=user_id)
             return token_data
 
-        except (JWTError, DecodeError, ExpiredSignatureError):
+        except ExpiredSignatureError:
+            _auth_rejected("expired", expected=True, purpose="password_reset")
+            raise credentials_exception
+        except (JWTError, DecodeError):
+            _auth_rejected("invalid_token", purpose="password_reset")
             raise credentials_exception
 
     @staticmethod
@@ -343,17 +388,27 @@ class AuthService(Service):
             # Only access tokens are sessions. Refresh and mfa_pending tokens
             # carry the same sub (refresh also account_type) and must not pass.
             if user_id is None or payload.get("type") != "access":
+                _auth_rejected(
+                    "wrong_token_type",
+                    type_claim=payload.get("type"),
+                    user_id=str(user_id) if user_id else None,
+                )
                 raise credentials_exception
 
             token_data = TokenData(id=user_id)
 
-        except (InvalidTokenError, ExpiredSignatureError, DecodeError):
+        except ExpiredSignatureError:
+            _auth_rejected("expired", expected=True)
+            raise credentials_exception
+        except (InvalidTokenError, DecodeError):
+            _auth_rejected("invalid_token")
             raise credentials_exception
 
         if account_type == "affiliate":
             user = db.query(Affiliate).filter(Affiliate.id == token_data.id).first()
 
             if user and not user.verified:
+                _auth_rejected("unverified", user_id=str(user.id))
                 raise HTTPException(
                     status_code=status.HTTP_401_UNAUTHORIZED,
                     detail="User has not been verified",
@@ -363,9 +418,15 @@ class AuthService(Service):
         elif account_type == "erp":
             user = db.query(ERPUser).filter_by(id=token_data.id).first()
         else:
+            _auth_rejected("unknown_account_type", account_type=account_type)
             raise HTTPException(401, "Invalid user type")
 
         if user is None:
+            _auth_rejected(
+                "user_not_found",
+                account_type=account_type,
+                user_id=str(token_data.id),
+            )
             raise credentials_exception
 
         return CurrentUser(user, account_type)
@@ -384,17 +445,30 @@ class AuthService(Service):
             user_id = payload.get("sub")
             account_type = payload.get("account_type")
             if user_id is None or payload.get("type") != "access":
-                raise InvalidTokenError
+                _auth_rejected(
+                    "wrong_token_type", channel="websocket", type_claim=payload.get("type")
+                )
+                raise WebSocketException(code=status.WS_1008_POLICY_VIOLATION)
             token_data = TokenData(id=user_id)
-        except (InvalidTokenError, ExpiredSignatureError, DecodeError):
+        except ExpiredSignatureError:
+            _auth_rejected("expired", expected=True, channel="websocket")
+            raise WebSocketException(code=status.WS_1008_POLICY_VIOLATION)
+        except (InvalidTokenError, DecodeError):
+            _auth_rejected("invalid_token", channel="websocket")
             raise WebSocketException(code=status.WS_1008_POLICY_VIOLATION)
 
         if account_type == "erp":
             user = db.query(ERPUser).filter_by(id=token_data.id).first()
         else:
+            _auth_rejected(
+                "unknown_account_type", channel="websocket", account_type=account_type
+            )
             raise WebSocketException(code=status.WS_1008_POLICY_VIOLATION)
 
         if user is None:
+            _auth_rejected(
+                "user_not_found", channel="websocket", user_id=str(token_data.id)
+            )
             raise WebSocketException(code=status.WS_1008_POLICY_VIOLATION)
 
         return CurrentUser(user, account_type)

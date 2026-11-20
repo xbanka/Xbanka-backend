@@ -52,6 +52,14 @@ def funding_intent_declared(
     if ERPService.has_notification_for_reference(
         db, NotificationReferenceTypeEnum.FUNDING_INTENT, payload.transactionId
     ):
+        # A retry from the core: nobody is notified a second time.
+        logger.info(
+            "funding intent already notified",
+            extra={
+                "transaction_id": str(payload.transactionId),
+                "reference": payload.reference,
+            },
+        )
         return FundingIntentDeclaredResponse(notified=0, duplicate=True)
 
     recipients = ERPService.get_users_with_any_permission(
@@ -87,4 +95,13 @@ def funding_intent_declared(
             background_tasks=background_tasks,
         )
 
+    logger.info(
+        "funding intent declared",
+        extra={
+            "transaction_id": str(payload.transactionId),
+            "reference": payload.reference,
+            "amount": str(payload.amount),
+            "notified": len(recipients),
+        },
+    )
     return FundingIntentDeclaredResponse(notified=len(recipients))
