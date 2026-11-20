@@ -165,5 +165,14 @@ class TransactionService(Service):
         )
         db.add(commission)
         db.commit()
+        logger.info(
+            "affiliate commission recorded",
+            extra={
+                "affiliate_id": str(affiliate_id),
+                "transaction_id": str(transaction_id),
+                "commission_amount": str(commission_amount),
+                "commission_rate": str(rate),
+            },
+        )
 
         return commission

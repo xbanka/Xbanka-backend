@@ -1,3 +1,4 @@
+import logging
 from typing import List, Optional
 from uuid import UUID
 
@@ -40,6 +41,8 @@ from app.services.internal_backend import InternalAPIService
 from app.services.websocket_manager import notification_manager
 from app.utils.auth import require_account_type, require_permissions
 from app.utils.schema import CurrentUser
+
+logger = logging.getLogger(__name__)
 
 erp = APIRouter(prefix="/erp", tags=["ERP"])
 
@@ -165,12 +168,16 @@ async def notifications_websocket(
 ):
     user_id = str(current_user.user.id)
     await notification_manager.connect(user_id, websocket)
+    # Handshakes are not covered by the request logger, so say when a staff
+    # member's live notification channel opens and closes.
+    logger.info("notification socket connected", extra={"actor_id": user_id})
     try:
         while True:
             # nothing expected from the client; just keep the connection open
             await websocket.receive_text()
     except WebSocketDisconnect:
         notification_manager.disconnect(user_id, websocket)
+        logger.info("notification socket disconnected", extra={"actor_id": user_id})
 
 
 @erp.patch(
@@ -228,6 +235,15 @@ def process_payout(
     current_user: CurrentUser = Depends(require_permissions(APPROVE_AFFILIATE_PAYOUTS)),
 ):
     payout = ERPService.process_payout(db, payout_id, process_request)
+    logger.info(
+        "payout processed",
+        extra={
+            "actor_id": str(current_user.user.id),
+            "payout_id": str(payout.id),
+            "affiliate_id": str(payout.affiliate_id),
+            "amount": str(payout.amount),
+        },
+    )
 
     ERPService.notify_permission_holders(
         db,
@@ -255,6 +271,15 @@ def reject_payout(
     current_user: CurrentUser = Depends(require_account_type("erp")),
 ):
     payout = ERPService.reject_payout(db, payout_id)
+    logger.info(
+        "payout rejected",
+        extra={
+            "actor_id": str(current_user.user.id),
+            "payout_id": str(payout.id),
+            "affiliate_id": str(payout.affiliate_id),
+            "amount": str(payout.amount),
+        },
+    )
 
     ERPService.notify_permission_holders(
         db,
@@ -284,5 +309,9 @@ def upload_payout_attachment(
 ):
     payout = ERPService.upload_attachment(
         db=db, payout_id=payout_id, attachment=attachment
+    )
+    logger.info(
+        "payout attachment uploaded",
+        extra={"actor_id": str(current_user.user.id), "payout_id": str(payout_id)},
     )
     return {"message": "Attachment uploaded successfully", "payout": payout}

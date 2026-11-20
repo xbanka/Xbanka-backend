@@ -50,13 +50,22 @@ def test_json_formatter_outputs_extra_fields():
 
 def test_response_has_request_id_and_request_is_logged(test_client, caplog):
     with caplog.at_level(logging.INFO, logger="app.request"):
-        response = test_client.get("/", headers={"X-Request-ID": "req-123"})
+        response = test_client.get("/__no_such_route", headers={"X-Request-ID": "req-123"})
 
     assert response.headers["X-Request-ID"] == "req-123"
     record = next(r for r in caplog.records if r.name == "app.request")
-    assert record.status == 200
-    assert record.path == "/"
+    assert record.status == 404
+    assert record.path == "/__no_such_route"
     assert record.duration_ms >= 0
+
+
+def test_health_check_still_gets_request_id_but_is_not_logged(test_client, caplog):
+    with caplog.at_level(logging.INFO, logger="app.request"):
+        response = test_client.get("/", headers={"X-Request-ID": "req-probe"})
+
+    assert response.status_code == 200
+    assert response.headers["X-Request-ID"] == "req-probe"
+    assert not [r for r in caplog.records if r.name == "app.request"]
 
 
 def test_request_id_generated_when_absent(test_client):

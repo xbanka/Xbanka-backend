@@ -1,3 +1,4 @@
+import logging
 import secrets
 from datetime import datetime
 
@@ -11,6 +12,8 @@ from app.models.customer import Customer
 from app.models.payouts import Payout
 from app.models.transactions import Transaction
 from app.schemas.payout import PayoutRequest
+
+logger = logging.getLogger(__name__)
 
 
 # With timestamp for extra uniqueness (and sortability)
@@ -47,11 +50,27 @@ class PayoutService(Service):
         available_balance = total_earnings - amount_withdrawn
 
         if obj_in.amount <= 0:
+            logger.warning(
+                "payout request refused",
+                extra={
+                    "affiliate_id": str(affiliate_id),
+                    "reason": "non_positive_amount",
+                },
+            )
             raise HTTPException(
                 status_code=400, detail="Payout amount must be greater than zero."
             )
 
         if obj_in.amount > available_balance:
+            logger.warning(
+                "payout request refused",
+                extra={
+                    "affiliate_id": str(affiliate_id),
+                    "reason": "insufficient_balance",
+                    "amount": str(obj_in.amount),
+                    "available_balance": str(available_balance),
+                },
+            )
             raise HTTPException(
                 status_code=400,
                 detail="Insufficient available balance for this payout.",
@@ -68,5 +87,13 @@ class PayoutService(Service):
         db.add(new_payout)
         db.commit()
         db.refresh(new_payout)
+        logger.info(
+            "payout requested",
+            extra={
+                "affiliate_id": str(affiliate_id),
+                "payout_id": str(new_payout.id),
+                "amount": str(new_payout.amount),
+            },
+        )
 
         return new_payout
