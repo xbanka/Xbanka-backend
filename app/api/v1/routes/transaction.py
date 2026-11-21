@@ -54,8 +54,12 @@ def _resolve_funding_intent_alert(db: Session, transaction_id: UUID) -> None:
     settled. The settlement already happened in the core backend, so a failure
     here is logged and must never turn a successful credit into an error."""
     try:
-        ERPService.resolve_notifications_for_reference(
+        resolved = ERPService.resolve_notifications_for_reference(
             db, NotificationReferenceTypeEnum.FUNDING_INTENT, transaction_id
+        )
+        logger.info(
+            "funding intent alerts resolved",
+            extra={"transaction_id": str(transaction_id), "resolved": resolved},
         )
     except Exception:
         logger.exception(
@@ -75,6 +79,17 @@ def _is_duplicate(result) -> bool:
 
 def _log_funding_intent_failure(db: Session, audit: dict, status_code: int, detail) -> None:
     """Audit an attempt the core backend refused, keeping its status and message."""
+    # `detail` is the core backend's response body (it can hold customer data),
+    # so only the status goes in the log; the audit row keeps the full text.
+    logger.warning(
+        "funding intent action refused",
+        extra={
+            "actor_id": str(audit["staff_id"]),
+            "transaction_id": str(audit["transaction_id"]),
+            "action": audit["action"].value,
+            "status_code": status_code,
+        },
+    )
     ERPService.log_funding_intent_action(
         db,
         **audit,
@@ -142,6 +157,23 @@ def export_transactions(
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
+    # Who exported, and with which filters (the search text can be a customer's
+    # name or email, so only whether one was used).
+    logger.info(
+        "transactions exported",
+        extra={
+            "actor_id": str(current_user.user.id),
+            "filters": {
+                "search": bool(search),
+                "status": status_filter,
+                "type": type,
+                "currency": currency,
+                "category": category,
+                "start_date": start_date,
+                "end_date": end_date,
+            },
+        },
+    )
     return Response(
         content=content,
         media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
@@ -192,13 +224,26 @@ def credit_funding_account(
     current_user: CurrentUser = Depends(require_permissions(ADJUST_BALANCE)),
 ):
     try:
-        return InternalAPIService.credit_funding_account(
+        result = InternalAPIService.credit_funding_account(
             payload.model_dump(mode="json")
         )
     except HTTPException:
         raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+    # `creditedBy` is the staff email the client sends; the verified staff id is
+    # the actor, and no email goes in the log.
+    logger.info(
+        "funding account credited",
+        extra={
+            "actor_id": str(current_user.user.id),
+            "funding_account_id": str(payload.fundingAccountId),
+            "reference": payload.reference,
+            "amount": str(payload.amount),
+            "duplicate": _is_duplicate(result),
+        },
+    )
+    return result
 
 
 @transaction.get("/funding/banks", status_code=status.HTTP_200_OK)
@@ -270,11 +315,15 @@ def create_xbanka_account(
     current_user: CurrentUser = Depends(require_permissions(ADJUST_BALANCE)),
 ):
     try:
-        return InternalAPIService.create_xbanka_account(payload.model_dump(mode="json"))
+        result = InternalAPIService.create_xbanka_account(payload.model_dump(mode="json"))
     except HTTPException:
         raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+    logger.info(
+        "xbanka funding account created", extra={"actor_id": str(current_user.user.id)}
+    )
+    return result
 
 
 @transaction.patch("/funding/xbanka-accounts/{account_id}", status_code=status.HTTP_200_OK)
@@ -284,14 +333,23 @@ def update_xbanka_account(
     current_user: CurrentUser = Depends(require_permissions(ADJUST_BALANCE)),
 ):
     """Edit details, hide from customers (`isActive: false`) or make primary (`isPrimary: true`)."""
+    changes = payload.model_dump(mode="json", exclude_unset=True)
     try:
-        return InternalAPIService.update_xbanka_account(
-            account_id, payload.model_dump(mode="json", exclude_unset=True)
-        )
+        result = InternalAPIService.update_xbanka_account(account_id, changes)
     except HTTPException:
         raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+    # Field names only: the values include account details.
+    logger.info(
+        "xbanka funding account updated",
+        extra={
+            "actor_id": str(current_user.user.id),
+            "target_id": str(account_id),
+            "fields": sorted(changes),
+        },
+    )
+    return result
 
 
 @transaction.delete("/funding/xbanka-accounts/{account_id}", status_code=status.HTTP_200_OK)
@@ -302,11 +360,16 @@ def delete_xbanka_account(
 ):
     """The primary account can't be deleted; make another account primary first."""
     try:
-        return InternalAPIService.delete_xbanka_account(account_id, deleted_by)
+        result = InternalAPIService.delete_xbanka_account(account_id, deleted_by)
     except HTTPException:
         raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+    logger.info(
+        "xbanka funding account deleted",
+        extra={"actor_id": str(current_user.user.id), "target_id": str(account_id)},
+    )
+    return result
 
 
 @transaction.get("/funding/intents", status_code=status.HTTP_200_OK)
@@ -433,5 +496,12 @@ def upload_transaction_attachment(
 ):
     transaction = TransactionService.upload_attachment(
         db=db, transaction_id=transaction_id, attachment=attachment
+    )
+    logger.info(
+        "transaction attachment uploaded",
+        extra={
+            "actor_id": str(current_user.user.id),
+            "transaction_id": str(transaction_id),
+        },
     )
     return {"message": "Attachment uploaded successfully", "transaction": transaction}

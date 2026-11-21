@@ -1,3 +1,4 @@
+import logging
 from typing import Optional
 from uuid import UUID
 
@@ -21,6 +22,8 @@ from app.schemas.erp.audit import (
 from app.services.erp_user import ERPService
 from app.utils.auth import require_account_type, require_permissions
 from app.utils.schema import CurrentUser
+
+logger = logging.getLogger(__name__)
 
 audit = APIRouter(prefix="/audit", tags=["Audit"])
 
@@ -67,6 +70,14 @@ def confirm_role_change(
     current_user: CurrentUser = Depends(require_account_type("erp")),
 ):
     role_change = ERPService.confirm_role_change(db, role_change_id, current_user.user)
+    logger.info(
+        "staff role change confirmed",
+        extra={
+            "actor_id": str(current_user.user.id),
+            "role_change_id": str(role_change_id),
+            "outcome": str(role_change.status),
+        },
+    )
     return {"message": "Role change confirmed.", "status": role_change.status}
 
 

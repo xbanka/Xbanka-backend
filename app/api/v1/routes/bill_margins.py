@@ -1,3 +1,4 @@
+import logging
 from typing import Optional
 
 from fastapi import APIRouter, Depends, Query, status
@@ -7,6 +8,8 @@ from app.schemas.erp.bill_margins import BillMarginUpdateRequest
 from app.services.internal_backend import InternalAPIService
 from app.utils.auth import require_super_admin
 from app.utils.schema import CurrentUser
+
+logger = logging.getLogger(__name__)
 
 bill_margins = APIRouter(prefix="/bills/margins", tags=["Bill margins"])
 
@@ -41,4 +44,14 @@ def update_bill_margin(
     delete: switch a margin off with `isActive: false`."""
     body = payload.model_dump(mode="json", exclude_unset=True)
     body["changedBy"] = current_user.user.email
-    return InternalAPIService.update_bill_margin(product.value, body)
+    result = InternalAPIService.update_bill_margin(product.value, body)
+    # Field names only; `changedBy` is the staff email and stays out of the log.
+    logger.info(
+        "bill margin updated",
+        extra={
+            "actor_id": str(current_user.user.id),
+            "product": product.value,
+            "fields": sorted(k for k in body if k != "changedBy"),
+        },
+    )
+    return result

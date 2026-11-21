@@ -11,6 +11,10 @@ logger = logging.getLogger("app.request")
 
 REQUEST_ID_HEADER = "X-Request-ID"
 
+# Liveness probes hit these every few seconds; they still get a request ID but
+# no log line, so they don't bury real traffic.
+QUIET_PATHS = frozenset({"/"})
+
 
 class RequestLoggingMiddleware:
     """Assigns a request ID and logs one line per HTTP request."""
@@ -41,21 +45,23 @@ class RequestLoggingMiddleware:
         try:
             await self.app(scope, receive, send_wrapper)
         finally:
-            duration_ms = round((time.perf_counter() - start) * 1000, 2)
-            client = scope.get("client")
-            level = logging.ERROR if status_code >= 500 else logging.INFO
-            logger.log(
-                level,
-                "%s %s -> %s",
-                scope["method"],
-                scope["path"],
-                status_code,
-                extra={
-                    "method": scope["method"],
-                    "path": scope["path"],
-                    "status": status_code,
-                    "duration_ms": duration_ms,
-                    "client_ip": client[0] if client else None,
-                },
-            )
+            # A probe that fails still gets logged: only quiet the healthy case.
+            if not (scope["path"] in QUIET_PATHS and status_code < 400):
+                duration_ms = round((time.perf_counter() - start) * 1000, 2)
+                client = scope.get("client")
+                level = logging.ERROR if status_code >= 500 else logging.INFO
+                logger.log(
+                    level,
+                    "%s %s -> %s",
+                    scope["method"],
+                    scope["path"],
+                    status_code,
+                    extra={
+                        "method": scope["method"],
+                        "path": scope["path"],
+                        "status": status_code,
+                        "duration_ms": duration_ms,
+                        "client_ip": client[0] if client else None,
+                    },
+                )
             request_id_ctx.reset(token)

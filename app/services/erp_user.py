@@ -651,10 +651,10 @@ class ERPService(Service):
         db: Session,
         reference_type: NotificationReferenceTypeEnum,
         reference_id: UUID,
-    ) -> None:
+    ) -> int:
         """Mark every notification pointing at `reference_id` as RESOLVED, so
         the frontend stops offering an action (e.g. approve/reject) on it once
-        it's been actioned anywhere else."""
+        it's been actioned anywhere else. Returns how many were resolved."""
         notifications = db.scalars(
             select(Notification).where(
                 Notification.reference_type == reference_type,
@@ -667,6 +667,7 @@ class ERPService(Service):
         db.commit()
         for notif in notifications:
             ERPService._push_notification(db, "notification:updated", notif)
+        return len(notifications)
 
     @staticmethod
     def get_all_payouts(
@@ -756,7 +757,11 @@ class ERPService(Service):
 
     @staticmethod
     def create_superadmin(db: Session, obj_in: RegisterBase) -> ERPUser:
+        # This endpoint is unauthenticated, so every refusal is worth a line.
         if not ALLOW_SUPER_ADMIN_BOOTSTRAP:
+            logger.warning(
+                "super admin signup refused", extra={"reason": "bootstrap_disabled"}
+            )
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="Super Admin creation is disabled.",
@@ -773,6 +778,9 @@ class ERPService(Service):
             .limit(1)
         )
         if existing_super_admin is not None:
+            logger.warning(
+                "super admin signup refused", extra={"reason": "super_admin_exists"}
+            )
             raise HTTPException(
                 status_code=status.HTTP_409_CONFLICT,
                 detail="A Super Admin already exists. Signup is closed.",
@@ -1533,6 +1541,22 @@ class ERPService(Service):
         to get the core backend's error, so a failure to write the audit row is
         logged loudly but never surfaced: a 500 would mask the real outcome and
         invite a retry."""
+        if status == FundingIntentLogStatusEnum.SUCCESS:
+            # Logged before the audit row so the action is traceable even if the
+            # row can't be written. Refusals are logged by the route, which has
+            # the core backend's status code.
+            logger.info(
+                "funding intent action succeeded",
+                extra={
+                    "actor_id": str(staff_id),
+                    "transaction_id": str(transaction_id),
+                    "action": action.value,
+                    "bank_reference": bank_reference,
+                    "override_amount": (
+                        str(override_amount) if override_amount is not None else None
+                    ),
+                },
+            )
         try:
             db.add(
                 FundingIntentLog(

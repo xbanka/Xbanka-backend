@@ -1,3 +1,4 @@
+import logging
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Response, status
@@ -5,6 +6,8 @@ from app.core.enums import Permission
 from app.services.internal_backend import InternalAPIService
 from app.utils.auth import require_account_type, require_permissions
 from app.utils.schema import CurrentUser
+
+logger = logging.getLogger(__name__)
 
 customer = APIRouter(prefix="/customers", tags=["Customers"])
 
@@ -64,6 +67,22 @@ def export_customers(
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
+    # Customer data leaves the system here: record who took it and with which
+    # filters (the search text is a customer's name or email, so only whether one
+    # was used).
+    logger.info(
+        "customers exported",
+        extra={
+            "actor_id": str(current_user.user.id),
+            "filters": {
+                "search": bool(search),
+                "status": status_filter,
+                "start_date": start_date,
+                "end_date": end_date,
+                "tier": tier,
+            },
+        },
+    )
     return Response(
         content=content,
         media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
@@ -157,11 +176,16 @@ def toggle_customer_status(
     current_user: CurrentUser = Depends(require_permissions(MANAGE_CUSTOMERS)),
 ):
     try:
-        return InternalAPIService.toggle_user_status(user_id=customer_id)
+        result = InternalAPIService.toggle_user_status(user_id=customer_id)
     except HTTPException:
         raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+    logger.info(
+        "customer status toggled",
+        extra={"actor_id": str(current_user.user.id), "target_id": str(customer_id)},
+    )
+    return result
 
 
 @customer.get("/{customer_id:uuid}/kyc")

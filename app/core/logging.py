@@ -1,3 +1,21 @@
+"""Logging setup, plus the rules for writing log lines in this app.
+
+Writing a log line:
+- `logger = logging.getLogger(__name__)`, a static message, and the data in
+  `extra={...}`. No f-strings: every `extra` key becomes a top-level JSON field
+  that can be searched. `request_id` is added automatically.
+- Use `actor_id` (the staff member), `target_id`, and the domain ids
+  (`transaction_id`, `payout_id`, `reference`, `amount`, ...). Don't use a key
+  that is also a LogRecord attribute (`name`, `message`, `args`, `module`...):
+  `logging` raises KeyError.
+- INFO for a successful state change, WARNING when something was denied or
+  refused (always with a `reason`), ERROR for a failure that needs attention.
+  `logger.exception` also raises a Sentry issue, so keep it for real failures.
+- Never log tokens, keys, passwords, one-time or recovery codes, account
+  numbers, request bodies, emails or phone numbers. Log ids instead. `redact`
+  below masks keys by name only, so the safe rule is not to pass them at all.
+"""
+
 import contextvars
 import json
 import logging
